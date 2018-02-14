@@ -4,7 +4,7 @@ CREATE TABLE User (
   FirstName VARCHAR(255),
   LastName VARCHAR(255),
   Email VARCHAR(255),
-  Status BIT NOT NULL,
+  Status VARCHAR(255),
   Active BIT NOT NULL,
   
   PRIMARY KEY(Username),

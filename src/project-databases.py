@@ -3,8 +3,20 @@ from passlib.hash import sha256_crypt
 app = Flask(__name__)
 
 
+from user_data_access import User, DBConnection, UserDataAccess
+from config import config_data
+
 # Mock users
 mock_users = {'sff': sha256_crypt.encrypt('password')}
+
+
+### INITIALIZE SINGLETON SERVICES ###
+app = Flask('UserTest')
+app.secret_key = '*^*(*&)(*)(*afafafaSDD47j\3yX R~X@H!jmM]Lwf/,?KT'
+app_data = {}
+app_data['app_name'] = config_data['app_name']
+connection = DBConnection(dbname=config_data['dbname'], dbuser=config_data['dbuser'] ,dbpass=config_data['dbpass'], dbhost=config_data['dbhost'])
+user_data_access = UserDataAccess(connection)
 
 
 # API
@@ -15,10 +27,25 @@ def send_login_request():
 
     print('Validating data for user "{0}"'.format(username))
 
-    if username not in mock_users or sha256_crypt.verify(password, mock_users[username]):
-        return render_template('login-form.html', failed_login=True)
-    return 'Logged in!'
+    if user_data_access.login_user(username, password):
+        return 'Logged in!'
+    return render_template('login-form.html', failed_login=True)
 
+@app.route('/register', methods=['POST'])
+def register_user():
+    username = request.form.get('lg-username')
+    password = sha256_crypt.encrypt(request.form.get('lg-password'))
+    fname = request.form.get('lg-fname')
+    lname = request.form.get('lg-lname')
+    email = request.form.get('lg-email')
+    status = 'user'
+    active = True
+
+    user_obj = User(username, password, fname, lname, email, status, active)
+
+    if user_data_access.add_user(user_obj):
+        return "Registered"
+    return "Not Registered"
 
 # Views
 @app.route('/')
@@ -34,6 +61,11 @@ def login():
 @app.route('/register')
 def register():
     return render_template('register-form.html')
+
+
+@app.route('/users', methods=['GET'])
+def get_users():
+    user_objects = user_data_access.get_users()
 
 
 if __name__ == "__main__":

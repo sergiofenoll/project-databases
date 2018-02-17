@@ -1,0 +1,3 @@
+CREATE ROLE dawid WITH LOGIN PASSWORD 'dawid';
+ALTER ROLE dawid CREATEDB;
+CREATE DATABASE usertest owner dawid;

@@ -6,8 +6,9 @@ class DBConnection:
     def __init__(self, dbname, dbuser, dbhost, dbpass):
         try:
             self.conn = psycopg2.connect("dbname='{}' user='{}' host='{}' password='{}'".format(dbname, dbuser, dbhost, dbpass))
-        except:
-            print('ERROR: Unable to connect to database')
+        except Exception as e:
+            print('[ERROR] Unable to connect to database')
+            print(e)
             raise Exception('Unable to connect to database')
 
     def close(self):
@@ -65,8 +66,8 @@ class UserDataAccess:
 
             return True
         except:
-            self.dbconnect.rollback()
             print('Unable to add user!')
+            self.dbconnect.rollback()
             return False
 
     def login_user(self, username, password):
@@ -86,10 +87,13 @@ class UserDataAccess:
         except psycopg2.ProgrammingError as e:
             print("ProgrammingError")
             print(e.pgerror)
+            self.dbconnect.rollback()
             return False
         except Exception as e:
             print(e)
+            self.dbconnect.rollback()
             return False
         except:
             print("Something went terribly wrong")
+            self.dbconnect.rollback()
             return False

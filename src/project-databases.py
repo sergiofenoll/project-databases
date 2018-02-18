@@ -56,7 +56,7 @@ def register_user():
 # Views
 @app.route('/')
 def index():
-    return "Hello, World!"
+    return "Placeholder landing page!"
 
 
 @app.route('/login')
@@ -72,6 +72,7 @@ def register():
 @app.route('/users', methods=['GET'])
 def get_users():
     user_objects = user_data_access.get_users()
+    return jsonify([obj.to_dct() for obj in user_objects])
 
 
 if __name__ == "__main__":

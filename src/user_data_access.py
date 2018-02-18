@@ -37,7 +37,7 @@ class User:
         self.active = active
 
     def to_dct(self):
-        return {'id': self.username, 'fname': self.firstname, 'lname': self.lastname, 'email': self.email}
+        return {'Username': self.username, 'First name': self.firstname, 'Last name': self.lastname, 'Email': self.email}
 
 class UserDataAccess:
     def __init__(self, dbconnect):
@@ -48,7 +48,7 @@ class UserDataAccess:
         cursor.execute('SELECT Username, FirstName, LastName, Email FROM Member;')
         quote_objects = list()
         for row in cursor:
-            quote_obj = User(row[0], row[1], row[2], row[3])
+            quote_obj = User(row[0], "", row[1], row[2], row[3], "", "")
             quote_objects.append(quote_obj)
         return quote_objects
 

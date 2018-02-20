@@ -46,17 +46,18 @@ class UserDataAccess:
     def get_users(self):
         cursor = self.dbconnect.get_cursor()
         cursor.execute('SELECT Username, FirstName, LastName, Email FROM Member;')
-        quote_objects = list()
+        user_objects = list()
         for row in cursor:
-            quote_obj = User(row[0], row[1], row[2], row[3])
-            quote_objects.append(quote_obj)
-        return quote_objects
+            user_obj = User(row[0], row[1], row[2], row[3], row[4], row[5], row[6])
+            user_objects.append(user_obj)
+        return user_objects
 
     def add_user(self, user_obj):
         cursor = self.dbconnect.get_cursor()
 
         try:
-            query = cursor.mogrify('INSERT INTO Member(Username,Pass,FirstName,LastName,Email,Status,Active) VALUES(%s,%s,%s,%s,%s,%s,%s)',
+            query = cursor.mogrify('INSERT INTO Member(Username,Pass,FirstName,LastName,Email,Status,Active) '
+                                   'VALUES(%s,%s,%s,%s,%s,%s,%s)',
                            (user_obj.username, user_obj.password, user_obj.firstname, user_obj.lastname, user_obj.email,
                             user_obj.status, user_obj.active,))
 

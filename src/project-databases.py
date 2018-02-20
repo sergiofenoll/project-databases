@@ -44,7 +44,7 @@ def register_user():
     fname = request.form.get('lg-fname')
     lname = request.form.get('lg-lname')
     email = request.form.get('lg-email')
-    status = 'user'
+    status = request.form.get('lg-status')
     active = True
 
     user_obj = User(username, password, fname, lname, email, status, active)

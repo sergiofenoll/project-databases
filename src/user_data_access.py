@@ -43,15 +43,6 @@ class UserDataAccess:
     def __init__(self, dbconnect):
         self.dbconnect = dbconnect
 
-    def get_users(self):
-        cursor = self.dbconnect.get_cursor()
-        cursor.execute('SELECT Username, FirstName, LastName, Email FROM Member;')
-        user_objects = list()
-        for row in cursor:
-            user_obj = User(row[0], row[1], row[2], row[3], row[4], row[5], row[6])
-            user_objects.append(user_obj)
-        return user_objects
-
     def add_user(self, user_obj):
         cursor = self.dbconnect.get_cursor()
 

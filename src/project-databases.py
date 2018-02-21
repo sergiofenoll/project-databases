@@ -1,5 +1,5 @@
-from flask import Flask, render_template, request, session, jsonify
-from flask_login import LoginManager, login_user
+from flask import Flask, render_template, request, session, jsonify, redirect, url_for
+from flask_login import LoginManager, login_user, login_required, logout_user
 from passlib.hash import sha256_crypt
 from user_data_access import User, DBConnection, UserDataAccess
 from config import config_data
@@ -9,8 +9,10 @@ app = Flask(__name__)
 # Mock users
 mock_users = {'sff': sha256_crypt.encrypt('password')}
 
+
 # INITIALIZE SINGLETON SERVICES
 app = Flask('UserTest')
+app.secret_key = '*^*(*&)(*)(*afafafaSDD47j\3yX R~X@H!jmM]Lwf/,?KT'
 app_data = {}
 app_data['app_name'] = config_data['app_name']
 login = LoginManager(app)
@@ -45,13 +47,13 @@ def send_login_request():
 	        # user should be an instance of your `User` class
 	        login_user(user_data_access.get_user(username))
 
-	        flask.flash('Logged in successfully.')
-
+	        """
 	        next = flask.request.args.get('next')
 	        # is_safe_url should check if the url is safe for redirects.
 	        # See http://flask.pocoo.org/snippets/62/ for an example.
 	        if not is_safe_url(next):
 	            return flask.abort(400)
+	        """
 	        return redirect(url_for("main_page"))
         else:
             print("Wrong password.")
@@ -59,7 +61,6 @@ def send_login_request():
     except Exception as e:
         print(e)
         return render_template('login-form.html', failed_login=True)
-
 
 
 @app.route('/register', methods=['POST'])
@@ -75,8 +76,8 @@ def register_user():
     user_obj = User(username, password, fname, lname, email, status, active)
 
     if user_data_access.add_user(user_obj):
-        return "Registered"
-    return "Not Registered"
+        return redirect(url_for('main_page'))
+    return render_template('register-form.html', failed_login=True)
 
 
 # Views
@@ -95,11 +96,23 @@ def register():
     return render_template('register-form.html')
 
 
+@app.route('/main_page')
+def main_page():
+    return render_template('main_page.html')
+
+
 @app.route('/users', methods=['GET'])
+@login_required
 def get_users():
     user_objects = user_data_access.get_users()
     return jsonify([obj.to_dct() for obj in user_objects])
 
+
+@app.route('/logout')
+@login_required
+def logout():
+	logout_user()
+	return redirect(url_for('main_page'))
 
 if __name__ == "__main__":
     if not connection_failed:

@@ -1,5 +1,6 @@
 import psycopg2
 from passlib.hash import sha256_crypt
+from flask_login import UserMixin
 
 
 class DBConnection:
@@ -36,6 +37,16 @@ class User:
         self.email = email
         self.status = status
         self.active = active
+
+        # FlaskLogin stuff
+        self.is_active = active
+        self.is_authenticated = True
+        self.is_anonymous = False
+
+
+    def get_id(self):
+        return self.username
+
 
     def to_dct(self):
         return {'Username': self.username, 'First name': self.firstname, 'Last name': self.lastname, 
@@ -92,7 +103,7 @@ class UserDataAccess:
             self.dbconnect.rollback()
             raise Exception("Something went terribly wrong")
 
-    def get_user(id):
+    def get_user(self, id):
         cursor = self.dbconnect.get_cursor()
 
         cursor.execute('SELECT Username, FirstName, LastName, Email, Status, Active FROM Member WHERE Username=%s;', (id,))

@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, session, jsonify
+from flask import Flask, render_template, request, session, jsonify, redirect, url_for
 from passlib.hash import sha256_crypt
 from user_data_access import User, DBConnection, UserDataAccess
 from config import config_data
@@ -34,7 +34,7 @@ def send_login_request():
     print('Validating data for user "{0}"'.format(username))
 
     if user_data_access.login_user(username, password):
-        return 'Logged in!'
+        return redirect(url_for('main_page'))
     return render_template('login-form.html', failed_login=True)
 
 
@@ -51,8 +51,8 @@ def register_user():
     user_obj = User(username, password, fname, lname, email, status, active)
 
     if user_data_access.add_user(user_obj):
-        return "Registered"
-    return "Not Registered"
+        return redirect(url_for('main_page'))
+    return render_template('register-form.html', failed_login=True)
 
 
 # Views
@@ -69,6 +69,11 @@ def login():
 @app.route('/register')
 def register():
     return render_template('register-form.html')
+
+
+@app.route('/main_page')
+def main_page():
+    return render_template('main_page.html')
 
 
 @app.route('/users', methods=['GET'])

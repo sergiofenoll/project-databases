@@ -83,7 +83,7 @@ def register_user():
 # Views
 @app.route('/')
 def index():
-    return "Placeholder landing page!"
+    return render_template('landing_page.html')
 
 
 @app.route('/login')

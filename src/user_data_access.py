@@ -82,11 +82,24 @@ class UserDataAccess:
             row = cursor.fetchone()
 
             if row is None:
-                raise Exception("Wrong username")
+                raise Exception("Wrong username.")
 
             return row[0]
         except Exception as e:
             self.dbconnect.rollback()
+            raise e
         except:
             self.dbconnect.rollback()
             raise Exception("Something went terribly wrong")
+
+    def get_user(id):
+        cursor = self.dbconnect.get_cursor()
+
+        cursor.execute('SELECT Username, FirstName, LastName, Email, Status, Active FROM Member WHERE Username=%s;', (id,))
+        row = cursor.fetchone()
+
+        if row is not None:
+            user = User(username=row[0], password="", firstname=row[1], lastname=row[2], email=row[3], status=row[4], active=row[5])
+            return user
+        else:
+            return None

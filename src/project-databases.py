@@ -1,4 +1,5 @@
 from flask import Flask, render_template, request, session, jsonify
+from flask_login import LoginManager, login_user
 from passlib.hash import sha256_crypt
 from user_data_access import User, DBConnection, UserDataAccess
 from config import config_data
@@ -12,6 +13,7 @@ mock_users = {'sff': sha256_crypt.encrypt('password')}
 app = Flask('UserTest')
 app_data = {}
 app_data['app_name'] = config_data['app_name']
+login = LoginManager(app)
 connection_failed = False
 
 try:
@@ -22,7 +24,13 @@ except Exception as e:
     print(e)
     connection_failed = True
 
+
 # API
+@login.user_loader
+def load_user(id):
+	return user_data_access.get_user(id)
+
+
 @app.route('/login', methods=['POST'])
 def send_login_request():
     username = request.form.get('lg-username')
@@ -33,8 +41,20 @@ def send_login_request():
     try:
         retrieved_pass = user_data_access.login_user(username)
         if sha256_crypt.verify(password, retrieved_pass):
-            return 'Logged in!'
+             # Login and validate the user.
+	        # user should be an instance of your `User` class
+	        login_user(user_data_access.get_user(username))
+
+	        flask.flash('Logged in successfully.')
+
+	        next = flask.request.args.get('next')
+	        # is_safe_url should check if the url is safe for redirects.
+	        # See http://flask.pocoo.org/snippets/62/ for an example.
+	        if not is_safe_url(next):
+	            return flask.abort(400)
+	        return redirect(url_for("main_page"))
         else:
+            print("Wrong password.")
             return render_template('login-form.html', failed_login=True)
     except Exception as e:
         print(e)

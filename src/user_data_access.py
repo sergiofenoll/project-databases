@@ -1,5 +1,4 @@
 import psycopg2
-import sys
 from passlib.hash import sha256_crypt
 
 
@@ -41,6 +40,7 @@ class User:
     def to_dct(self):
         return {'Username': self.username, 'First name': self.firstname, 'Last name': self.lastname, 
                 'Email': self.email, 'Status': self.status, 'Active': self.active}
+
 
 class UserDataAccess:
     def __init__(self, dbconnect):

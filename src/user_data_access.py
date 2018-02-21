@@ -1,5 +1,4 @@
 import psycopg2
-import sys
 from passlib.hash import sha256_crypt
 
 
@@ -42,6 +41,7 @@ class User:
         return {'Username': self.username, 'First name': self.firstname, 'Last name': self.lastname, 
                 'Email': self.email, 'Status': self.status, 'Active': self.active}
 
+
 class UserDataAccess:
     def __init__(self, dbconnect):
         self.dbconnect = dbconnect
@@ -74,7 +74,7 @@ class UserDataAccess:
             self.dbconnect.rollback()
             return False
 
-    def login_user(self, username, password):
+    def login_user(self, username):
         cursor = self.dbconnect.get_cursor()
 
         try:
@@ -82,18 +82,11 @@ class UserDataAccess:
             row = cursor.fetchone()
 
             if row is None:
-                raise (Exception('Wrong username'))
+                raise Exception("Wrong username")
 
-            retrieved_password = row[0]
-            result = sha256_crypt.verify(password, retrieved_password)
-
-            return result
-        except psycopg2.ProgrammingError as e:
-            print("ProgrammingError")
-            print(e.pgerror)
-            self.dbconnect.rollback()
-            return False
+            return row[0]
         except Exception as e:
-            print(e)
             self.dbconnect.rollback()
-            return False
+        except:
+            self.dbconnect.rollback()
+            raise Exception("Something went terribly wrong")

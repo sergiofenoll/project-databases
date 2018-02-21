@@ -1,30 +1,26 @@
 from flask import Flask, render_template, request, session, jsonify
 from passlib.hash import sha256_crypt
-app = Flask(__name__)
-
-
 from user_data_access import User, DBConnection, UserDataAccess
 from config import config_data
+app = Flask(__name__)
+
 
 # Mock users
 mock_users = {'sff': sha256_crypt.encrypt('password')}
 
-
-### INITIALIZE SINGLETON SERVICES ###
+# INITIALIZE SINGLETON SERVICES
 app = Flask('UserTest')
-#app.secret_key = '*^*(*&)(*)(*afafafaSDD47j\3yX R~X@H!jmM]Lwf/,?KT'
 app_data = {}
 app_data['app_name'] = config_data['app_name']
 connection_failed = False
 
 try:
-	connection = DBConnection(dbname=config_data['dbname'], dbuser=config_data['dbuser'] ,dbpass=config_data['dbpass'], dbhost=config_data['dbhost'])
-	user_data_access = UserDataAccess(connection)
+    connection = DBConnection(dbname=config_data['dbname'], dbuser=config_data['dbuser'] ,dbpass=config_data['dbpass'], dbhost=config_data['dbhost'])
+    user_data_access = UserDataAccess(connection)
 except Exception as e:
-	print("[ERROR] Failed to establish user connection.")
-	print(e)
-	connection_failed = True
-
+    print("[ERROR] Failed to establish user connection.")
+    print(e)
+    connection_failed = True
 
 # API
 @app.route('/login', methods=['POST'])
@@ -34,9 +30,17 @@ def send_login_request():
 
     print('Validating data for user "{0}"'.format(username))
 
-    if user_data_access.login_user(username, password):
-        return 'Logged in!'
-    return render_template('login-form.html', failed_login=True)
+    try:
+        retrieved_pass = user_data_access.login_user(username)
+        if sha256_crypt.verify(password, retrieved_pass):
+            return 'Logged in!'
+        else:
+            return render_template('login-form.html', failed_login=True)
+    except Exception as e:
+        print(e)
+        return render_template('login-form.html', failed_login=True)
+
+
 
 @app.route('/register', methods=['POST'])
 def register_user():
@@ -53,6 +57,7 @@ def register_user():
     if user_data_access.add_user(user_obj):
         return "Registered"
     return "Not Registered"
+
 
 # Views
 @app.route('/')
@@ -78,4 +83,4 @@ def get_users():
 
 if __name__ == "__main__":
     if not connection_failed:
-    	app.run()
+        app.run()

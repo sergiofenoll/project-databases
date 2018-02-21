@@ -54,7 +54,7 @@ def send_login_request():
 	        if not is_safe_url(next):
 	            return flask.abort(400)
 	        """
-	        return redirect(url_for("main_page"))
+	        return redirect(url_for('index'))
         else:
             print("Wrong password.")
             return render_template('login-form.html', failed_login=True)
@@ -76,17 +76,18 @@ def register_user():
     user_obj = User(username, password, fname, lname, email, status, active)
 
     if user_data_access.add_user(user_obj):
-        return redirect(url_for('main_page'))
+        return redirect(url_for('index'))
     return render_template('register-form.html', failed_login=True)
 
 
 # Views
 @app.route('/')
-def index():
+def landing_page():
     return render_template('landing_page.html')
 
 
 @app.route('/login')
+@login_required
 def login():
     return render_template('login-form.html', failed_login=False)
 
@@ -96,8 +97,8 @@ def register():
     return render_template('register-form.html')
 
 
-@app.route('/main_page')
-def main_page():
+@app.route('/index')
+def index():
     return render_template('main_page.html')
 
 
@@ -111,8 +112,9 @@ def get_users():
 @app.route('/logout')
 @login_required
 def logout():
-	logout_user()
-	return redirect(url_for('main_page'))
+    logout_user()
+    return redirect(url_for('landing_page'))
+
 
 if __name__ == "__main__":
     if not connection_failed:

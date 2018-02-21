@@ -1,3 +1,3 @@
-CREATE ROLE StoereBoi WITH LOGIN PASSWORD 'dawid';
-ALTER ROLE StoereBoi CREATEDB;
-CREATE DATABASE Users owner StoereBoi;
+CREATE ROLE stoereboi WITH LOGIN PASSWORD 'stoereboi';
+ALTER ROLE stoereboi CREATEDB;
+CREATE DATABASE userdb owner stoereboi;

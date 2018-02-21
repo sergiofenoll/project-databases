@@ -56,7 +56,8 @@ class UserDataAccess:
         cursor = self.dbconnect.get_cursor()
 
         try:
-            query = cursor.mogrify('INSERT INTO Member(Username,Pass,FirstName,LastName,Email,Status,Active) VALUES(%s,%s,%s,%s,%s,%s,%s)',
+            query = cursor.mogrify('INSERT INTO Member(Username,Pass,FirstName,LastName,Email,Status,Active) '
+                                   'VALUES(%s,%s,%s,%s,%s,%s,%s)',
                            (user_obj.username, user_obj.password, user_obj.firstname, user_obj.lastname, user_obj.email,
                             user_obj.status, user_obj.active,))
 

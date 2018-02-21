@@ -2,6 +2,7 @@ import psycopg2
 import sys
 from passlib.hash import sha256_crypt
 
+
 class DBConnection:
     def __init__(self, dbname, dbuser, dbhost, dbpass):
         try:
@@ -26,6 +27,7 @@ class DBConnection:
     def rollback(self):
         return self.conn.rollback()
 
+
 class User:
     def __init__(self, username, password, firstname, lastname, email, status, active):
         self.username = username
@@ -37,7 +39,8 @@ class User:
         self.active = active
 
     def to_dct(self):
-        return {'Username': self.username, 'First name': self.firstname, 'Last name': self.lastname, 'Email': self.email}
+        return {'Username': self.username, 'First name': self.firstname, 'Last name': self.lastname, 
+                'Email': self.email, 'Status': self.status, 'Active': self.active}
 
 class UserDataAccess:
     def __init__(self, dbconnect):
@@ -45,10 +48,10 @@ class UserDataAccess:
 
     def get_users(self):
         cursor = self.dbconnect.get_cursor()
-        cursor.execute('SELECT Username, FirstName, LastName, Email FROM Member;')
+        cursor.execute('SELECT Username, FirstName, LastName, Email, Status, Active FROM Member;')
         quote_objects = list()
         for row in cursor:
-            quote_obj = User(row[0], "", row[1], row[2], row[3], "", "")
+            quote_obj = User(username=row[0], password="", firstname=row[1], lastname=row[2], email=row[3], status=row[4], active=row[5])
             quote_objects.append(quote_obj)
         return quote_objects
 
@@ -92,9 +95,5 @@ class UserDataAccess:
             return False
         except Exception as e:
             print(e)
-            self.dbconnect.rollback()
-            return False
-        except:
-            print("Something went terribly wrong")
             self.dbconnect.rollback()
             return False

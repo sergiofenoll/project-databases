@@ -12,7 +12,7 @@ mock_users = {'sff': sha256_crypt.encrypt('password')}
 
 ### INITIALIZE SINGLETON SERVICES ###
 app = Flask('UserTest')
-app.secret_key = '*^*(*&)(*)(*afafafaSDD47j\3yX R~X@H!jmM]Lwf/,?KT'
+#app.secret_key = '*^*(*&)(*)(*afafafaSDD47j\3yX R~X@H!jmM]Lwf/,?KT'
 app_data = {}
 app_data['app_name'] = config_data['app_name']
 connection_failed = False
@@ -20,8 +20,9 @@ connection_failed = False
 try:
 	connection = DBConnection(dbname=config_data['dbname'], dbuser=config_data['dbuser'] ,dbpass=config_data['dbpass'], dbhost=config_data['dbhost'])
 	user_data_access = UserDataAccess(connection)
-except:
+except Exception as e:
 	print("[ERROR] Failed to establish user connection.")
+	print(e)
 	connection_failed = True
 
 

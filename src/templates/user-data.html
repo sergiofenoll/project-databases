@@ -21,14 +21,15 @@
                            value="{{ current_user.username }}" disabled>
                 </div>
                 <div class="form-group">
-                    <label for="lg-password">Password</label>
-                    <input type="password" class="form-control" id="lg-password" name="lg-password"
-                           placeholder="Password" >
+                    <label for="lg-new-password">New Password</label>
+                    <input type="password" class="form-control" id="lg-new-password" name="lg-new-password"
+                           placeholder="Password">
                 </div>
                 <div class="form-group">
-                    <label for="lg-confirm-password">Confirm Password</label>
-                    <input type="password" class="form-control" id="lg-confirm-password" name="lg-confirm-password"
-                           placeholder="Password" >
+                    <label for="lg-confirm-new-password">Confirm New Password</label>
+                    <input type="password" class="form-control" id="lg-confirm-new-password"
+                           name="lg-confirm-new-password"
+                           placeholder="Password">
                 </div>
                 <div class="form-group">
                     <label for="lg-email">Email</label>
@@ -38,8 +39,13 @@
                 <div class="form-group">
                     <label for="lg-status">Status</label>
                     <input type="status" class="form-control" id="lg-status" name="lg-status" placeholder="Status"
-                            value = "{{ current_user.status }}" disabled>
+                           value="{{ current_user.status }}" disabled>
                     </input>
+                </div>
+                <div class="form-group">
+                    <label for="lg-current-password">Current Password</label>
+                    <input type="password" class="form-control" id="lg-current-password" name="lg-current-password"
+                           placeholder="Password" required>
                 </div>
                 <button type="submit" class="btn btn-default" id="change">Submit</button>
             </form>
@@ -54,13 +60,13 @@
         };
 
         function validatePassword() {
-            var pass2 = document.getElementById("lg-confirm-password").value;
-            var pass1 = document.getElementById("lg-password").value;
+            var pass2 = document.getElementById("lg-confirm-new-password").value;
+            var pass1 = document.getElementById("lg-new-password").value;
             if (pass1 !== pass2)
-                document.getElementById("lg-confirm-password").setCustomValidity("Passwords don't match");
+                document.getElementById("lg-confirm-new-password").setCustomValidity("Passwords don't match");
             else
             //empty string means no validation error
-                document.getElementById("lg-confirm-password").setCustomValidity('');
+                document.getElementById("lg-confirm-new-password").setCustomValidity('');
 
         }
     </script>

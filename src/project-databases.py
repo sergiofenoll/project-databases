@@ -124,7 +124,8 @@ def user_data():
 @app.route('/user-data',  methods=['POST'])
 @login_required
 def change_user_data():
-    if (sha256_crypt.encrypt(request.form.get('lg-current-password')) != current_user.password):
+
+    if not sha256_crypt.verify(request.form.get('lg-current-password'), current_user.password):
         return redirect(url_for('user_data'))
 
     fname = request.form.get('lg-fname')
@@ -132,13 +133,11 @@ def change_user_data():
     email = request.form.get('lg-email')
     password = request.form.get('lg-new-password')
 
-
-
     if(password == ''):
         password = current_user.password
     else:
         password = sha256_crypt.encrypt(password)
-    print(password)
+
     user_obj = User(current_user.username, password, fname, lname, email, current_user.status, current_user.active)
     user_data_access.alter_user(user_obj)
     return redirect(url_for('user_data'))

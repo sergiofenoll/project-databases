@@ -102,11 +102,12 @@ class UserDataAccess:
     def get_user(self, id):
         cursor = self.dbconnect.get_cursor()
 
-        cursor.execute('SELECT Username, FirstName, LastName, Email, Status, Active FROM Member WHERE Username=%s;', (id,))
+        cursor.execute('SELECT Username,Pass, FirstName, LastName, Email, Status, Active FROM Member WHERE Username=%s;', (id,))
         row = cursor.fetchone()
 
         if row is not None:
-            user = User(username=row[0], password="", firstname=row[1], lastname=row[2], email=row[3], status=row[4], active=row[5])
+            user = User(username=row[0], password=row[1], firstname=row[2], lastname=row[3], email=row[4],
+                        status=row[5], active=row[6])
             return user
         else:
             return None

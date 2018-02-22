@@ -3,20 +3,21 @@ from flask_login import LoginManager, login_user, login_required, logout_user
 from passlib.hash import sha256_crypt
 from user_data_access import User, DBConnection, UserDataAccess
 from config import config_data
-app = Flask(__name__)
 
+app = Flask(__name__)
 
 # INITIALIZE SINGLETON SERVICES
 app = Flask('UserTest')
 app.secret_key = '*^*(*&)(*)(*afafafaSDD47j\3yX R~X@H!jmM]Lwf/,?KT'
-app_data = {}
+app_data = dict()
 app_data['app_name'] = config_data['app_name']
 login = LoginManager(app)
 login.login_view = 'login'
 connection_failed = False
 
 try:
-    connection = DBConnection(dbname=config_data['dbname'], dbuser=config_data['dbuser'] ,dbpass=config_data['dbpass'], dbhost=config_data['dbhost'])
+    connection = DBConnection(dbname=config_data['dbname'], dbuser=config_data['dbuser'], dbpass=config_data['dbpass'],
+                              dbhost=config_data['dbhost'])
     user_data_access = UserDataAccess(connection)
 except Exception as e:
     print("[ERROR] Failed to establish user connection.")
@@ -27,7 +28,7 @@ except Exception as e:
 # API
 @login.user_loader
 def load_user(id):
-	return user_data_access.get_user(id)
+    return user_data_access.get_user(id)
 
 
 @app.route('/login', methods=['POST'])
@@ -40,18 +41,18 @@ def send_login_request():
     try:
         retrieved_pass = user_data_access.login_user(username)
         if sha256_crypt.verify(password, retrieved_pass):
-             # Login and validate the user.
-	        # user should be an instance of your `User` class
-	        login_user(user_data_access.get_user(username))
+            # Login and validate the user.
+            # user should be an instance of your `User` class
+            login_user(user_data_access.get_user(username))
 
-	        """
-	        next = flask.request.args.get('next')
-	        # is_safe_url should check if the url is safe for redirects.
-	        # See http://flask.pocoo.org/snippets/62/ for an example.
-	        if not is_safe_url(next):
-	            return flask.abort(400)
-	        """
-	        return redirect(url_for("main_page"))
+            """
+            next = flask.request.args.get('next')
+            # is_safe_url should check if the url is safe for redirects.
+            # See http://flask.pocoo.org/snippets/62/ for an example.
+            if not is_safe_url(next):
+                return flask.abort(400)
+            """
+            return redirect(url_for('index'))
         else:
             print("Wrong password.")
             return render_template('login-form.html', failed_login=True)
@@ -73,13 +74,16 @@ def register_user():
     user_obj = User(username, password, fname, lname, email, status, active)
 
     if user_data_access.add_user(user_obj):
-        return redirect(url_for('main_page'))
+        # Login and validate the user.
+        # user should be an instance of your `User` class
+        login_user(user_data_access.get_user(username))
+        return redirect(url_for('index'))
     return render_template('register-form.html', failed_login=True)
 
 
 # Views
 @app.route('/')
-def index():
+def landing_page():
     return render_template('landing_page.html')
 
 
@@ -93,9 +97,14 @@ def register():
     return render_template('register-form.html')
 
 
+<<<<<<< HEAD
 @app.route('/main_page')
 @login_required
 def main_page():
+=======
+@app.route('/index')
+def index():
+>>>>>>> b61468999b24a2ab466d99a1aa4fb95b219bc57e
     return render_template('main_page.html')
 
 
@@ -109,8 +118,9 @@ def get_users():
 @app.route('/logout')
 @login_required
 def logout():
-	logout_user()
-	return redirect(url_for('main_page'))
+    logout_user()
+    return redirect(url_for('landing_page'))
+
 
 if __name__ == "__main__":
     if not connection_failed:

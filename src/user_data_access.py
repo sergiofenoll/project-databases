@@ -1,6 +1,4 @@
 import psycopg2
-from passlib.hash import sha256_crypt
-from flask_login import UserMixin
 
 
 class DBConnection:
@@ -43,10 +41,8 @@ class User:
         self.is_authenticated = True
         self.is_anonymous = False
 
-
     def get_id(self):
         return self.username
-
 
     def to_dct(self):
         return {'Username': self.username, 'First name': self.firstname, 'Last name': self.lastname, 

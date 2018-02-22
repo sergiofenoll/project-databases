@@ -56,7 +56,7 @@ function validatePassword(){
 var pass2=document.getElementById("lg-confirm-password").value;
 var pass1=document.getElementById("lg-password").value;
 if(pass1 != pass2)
-	document.getElementById("lg-confirm-password").setCustomValidity("Passwords Don't Match");
+	document.getElementById("lg-confirm-password").setCustomValidity("Passwords don't match");
 else
     //empty string means no validation error
 	document.getElementById("lg-confirm-password").setCustomValidity('');

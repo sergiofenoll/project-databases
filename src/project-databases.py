@@ -97,14 +97,9 @@ def register():
     return render_template('register-form.html')
 
 
-<<<<<<< HEAD
-@app.route('/main_page')
-@login_required
-def main_page():
-=======
 @app.route('/index')
+@login_required
 def index():
->>>>>>> b61468999b24a2ab466d99a1aa4fb95b219bc57e
     return render_template('main_page.html')
 
 

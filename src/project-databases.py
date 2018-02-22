@@ -4,10 +4,9 @@ from passlib.hash import sha256_crypt
 from user_data_access import User, DBConnection, UserDataAccess
 from config import config_data
 
-app = Flask(__name__)
 
 # INITIALIZE SINGLETON SERVICES
-app = Flask('UserTest')
+app = Flask(__name__)
 app.secret_key = '*^*(*&)(*)(*afafafaSDD47j\3yX R~X@H!jmM]Lwf/,?KT'
 app_data = dict()
 app_data['app_name'] = config_data['app_name']
@@ -116,14 +115,17 @@ def logout():
     logout_user()
     return redirect(url_for('landing_page'))
 
+
 @app.route('/user-data')
 @login_required
 def user_data():
     return render_template('user-data.html')
 
-@app.route('/user-data',  methods=['POST'])
+
+@app.route('/user-data', methods=['POST'])
 @login_required
 def change_user_data():
+    print(current_user.password)
     if (sha256_crypt.encrypt(request.form.get('lg-current-password')) != current_user.password):
         return redirect(url_for('user_data'))
 
@@ -132,9 +134,7 @@ def change_user_data():
     email = request.form.get('lg-email')
     password = request.form.get('lg-new-password')
 
-
-
-    if(password == ''):
+    if (password == ''):
         password = current_user.password
     else:
         password = sha256_crypt.encrypt(password)
@@ -142,6 +142,7 @@ def change_user_data():
     user_obj = User(current_user.username, password, fname, lname, email, current_user.status, current_user.active)
     user_data_access.alter_user(user_obj)
     return redirect(url_for('user_data'))
+
 
 if __name__ == "__main__":
     if not connection_failed:

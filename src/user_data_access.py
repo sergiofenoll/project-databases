@@ -1,10 +1,13 @@
 import psycopg2
+import psycopg2.extras
 
 
 class DBConnection:
     def __init__(self, dbname, dbuser, dbhost, dbpass):
         try:
-            self.conn = psycopg2.connect("dbname='{}' user='{}' host='{}' password='{}'".format(dbname, dbuser, dbhost, dbpass))
+            self.conn = psycopg2.connect(
+                "dbname='{}' user='{}' host='{}' password='{}'".format(dbname, dbuser, dbhost, dbpass),
+                cursor_factory=psycopg2.extras.DictCursor)
         except Exception as e:
             print('[ERROR] Unable to connect to database')
             print(e)
@@ -45,7 +48,7 @@ class User:
         return self.username
 
     def to_dct(self):
-        return {'Username': self.username, 'First name': self.firstname, 'Last name': self.lastname, 
+        return {'Username': self.username, 'First name': self.firstname, 'Last name': self.lastname,
                 'Email': self.email, 'Status': self.status, 'Active': self.active}
 
 
@@ -58,7 +61,8 @@ class UserDataAccess:
         cursor.execute('SELECT Username, FirstName, LastName, Email, Status, Active FROM Member;')
         quote_objects = list()
         for row in cursor:
-            quote_obj = User(username=row[0], password="", firstname=row[1], lastname=row[2], email=row[3], status=row[4], active=row[5])
+            quote_obj = User(username=row[0], password="", firstname=row[1], lastname=row[2], email=row[3],
+                             status=row[4], active=row[5])
             quote_objects.append(quote_obj)
         return quote_objects
 
@@ -68,8 +72,9 @@ class UserDataAccess:
         try:
             query = cursor.mogrify('INSERT INTO Member(Username,Pass,FirstName,LastName,Email,Status,Active) '
                                    'VALUES(%s,%s,%s,%s,%s,%s,%s)',
-                           (user_obj.username, user_obj.password, user_obj.firstname, user_obj.lastname, user_obj.email,
-                            user_obj.status, user_obj.active,))
+                                   (user_obj.username, user_obj.password, user_obj.firstname, user_obj.lastname,
+                                    user_obj.email,
+                                    user_obj.status, user_obj.active,))
 
             cursor.execute(query)
 
@@ -85,7 +90,7 @@ class UserDataAccess:
         cursor = self.dbconnect.get_cursor()
 
         try:
-            cursor.execute("SELECT Pass FROM Member Where Username=%s;", (username,))
+            cursor.execute("SELECT Pass FROM Member WHERE Username=%s;", (username,))
             row = cursor.fetchone()
 
             if row is None:
@@ -102,11 +107,14 @@ class UserDataAccess:
     def get_user(self, id):
         cursor = self.dbconnect.get_cursor()
 
-        cursor.execute('SELECT Username, FirstName, LastName, Email, Status, Active FROM Member WHERE Username=%s;', (id,))
+        cursor.execute(
+            'SELECT Username, Pass, FirstName, LastName, Email, Status, Active FROM Member WHERE Username=%s;',
+            (id,))
         row = cursor.fetchone()
 
         if row is not None:
-            user = User(username=row[0], password="", firstname=row[1], lastname=row[2], email=row[3], status=row[4], active=row[5])
+            user = User(row['username'], row['pass'], row['firstname'], row['lastname'], row['email'],
+                        row['status'], row['active'])
             return user
         else:
             return None
@@ -114,8 +122,9 @@ class UserDataAccess:
     def alter_user(self, user):
         cursor = self.dbconnect.get_cursor()
         try:
-            query = cursor.mogrify('UPDATE member SET firstname = %s, lastname = %s, email = %s, pass = %s WHERE Username=%s;',
-                       (user.firstname, user.lastname, user.email, user.password, user.username))
+            query = cursor.mogrify(
+                'UPDATE member SET firstname = %s, lastname = %s, email = %s, pass = %s WHERE Username=%s;',
+                (user.firstname, user.lastname, user.email, user.password, user.username))
 
             cursor.execute(query)
 

@@ -110,3 +110,17 @@ class UserDataAccess:
             return user
         else:
             return None
+
+    def alter_user(self, user):
+        cursor = self.dbconnect.get_cursor()
+        try:
+            query = cursor.mogrify('UPDATE member SET firstname = %s, lastname = %s, email = %s, pass = %s WHERE Username=%s;',
+                       (user.firstname, user.lastname, user.email, user.password, user.username))
+
+            cursor.execute(query)
+
+            self.dbconnect.commit()
+
+            return True
+        except:
+            return False

@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% block content %}
+
+    <div class="row">
+        <div class="col-sm-4"></div>
+        <div class="col-sm-4">
+            <form action="/user-data" method="post">
+                <div class="form-group">
+                    <label for="lg-fname">First name</label>
+                    <input type="text" class="form-control" id="lg-fname" name="lg-fname" placeholder="First name"
+                           value="{{ current_user.firstname }}">
+                </div>
+                <div class="form-group">
+                    <label for="lg-lname">Last name</label>
+                    <input type="text" class="form-control" id="lg-lname" name="lg-lname" placeholder="Last name"
+                           value="{{ current_user.lastname }}">
+                </div>
+                <div class="form-group">
+                    <span for="lg-username">Username</span>
+                    <input type="text" class="form-control" id="lg-username" name="lg-username" placeholder="Username"
+                           value="{{ current_user.username }}" disabled>
+                </div>
+                <div class="form-group">
+                    <label for="lg-password">Password</label>
+                    <input type="password" class="form-control" id="lg-password" name="lg-password"
+                           placeholder="Password" >
+                </div>
+                <div class="form-group">
+                    <label for="lg-confirm-password">Confirm Password</label>
+                    <input type="password" class="form-control" id="lg-confirm-password" name="lg-confirm-password"
+                           placeholder="Password" >
+                </div>
+                <div class="form-group">
+                    <label for="lg-email">Email</label>
+                    <input type="email" class="form-control" id="lg-email" name="lg-email" placeholder="Email"
+                           value="{{ current_user.email }}">
+                </div>
+                <div class="form-group">
+                    <label for="lg-status">Status</label>
+                    <input type="status" class="form-control" id="lg-status" name="lg-status" placeholder="Status"
+                            value = "{{ current_user.status }}" disabled>
+                    </input>
+                </div>
+                <button type="submit" class="btn btn-default" id="change">Submit</button>
+            </form>
+        </div>
+        <div class="col-sm-4"></div>
+    </div>
+
+    <script type="text/javascript">
+        window.onload = function () {
+            document.getElementById("change").onclick = validatePassword;
+
+        };
+
+        function validatePassword() {
+            var pass2 = document.getElementById("lg-confirm-password").value;
+            var pass1 = document.getElementById("lg-password").value;
+            if (pass1 !== pass2)
+                document.getElementById("lg-confirm-password").setCustomValidity("Passwords don't match");
+            else
+            //empty string means no validation error
+                document.getElementById("lg-confirm-password").setCustomValidity('');
+
+        }
+    </script>
+
+
+{% endblock %}

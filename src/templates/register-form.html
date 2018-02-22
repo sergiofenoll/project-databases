@@ -8,7 +8,7 @@
 <div class="row">
 	<div class="col-sm-4"></div>
 	<div class="col-sm-4">
-		<form action="/register" method="post" onsubmit="validatePassword()">
+		<form action="/register" method="post">
 			<div class="form-group">
 				<label for="lg-fname">First name</label>
 				<input type="text" class="form-control" id="lg-fname" name="lg-fname" placeholder="First name" required>
@@ -27,7 +27,8 @@
 			</div>
             <div class="form-group">
 				<label for="lg-confirm-password">Confirm Password</label>
-				<input type="password" class="form-control" id="lg-confirm-password" name="lg-confirm-password" placeholder="Password" required>
+				<input type="password" class="form-control" id="lg-confirm-password" name="lg-confirm-password"
+                       placeholder="Password" required>
 			</div>
 			<div class="form-group">
 				<label for="lg-email">Email</label>
@@ -48,21 +49,21 @@
 
 <script type="text/javascript">
 window.onload = function () {
-	document.getElementById("register").onclick = validatePassword;
+	document.getElementById("lg-confirm-password").onblur = validatePassword;
 
 };
 
 function validatePassword(){
 var pass2=document.getElementById("lg-confirm-password").value;
 var pass1=document.getElementById("lg-password").value;
-if(pass1 != pass2)
+if(pass1 !== pass2)
 	document.getElementById("lg-confirm-password").setCustomValidity("Passwords don't match");
 else
     //empty string means no validation error
 	document.getElementById("lg-confirm-password").setCustomValidity('');
 
 }
-</script>
+    </script>
 
 
 {% endblock %}

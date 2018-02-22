@@ -6,16 +6,13 @@ from config import config_data
 app = Flask(__name__)
 
 
-# Mock users
-mock_users = {'sff': sha256_crypt.encrypt('password')}
-
-
 # INITIALIZE SINGLETON SERVICES
 app = Flask('UserTest')
 app.secret_key = '*^*(*&)(*)(*afafafaSDD47j\3yX R~X@H!jmM]Lwf/,?KT'
 app_data = {}
 app_data['app_name'] = config_data['app_name']
 login = LoginManager(app)
+login.login_view = 'login'
 connection_failed = False
 
 try:
@@ -97,6 +94,7 @@ def register():
 
 
 @app.route('/main_page')
+@login_required
 def main_page():
     return render_template('main_page.html')
 

@@ -83,7 +83,7 @@ def register_user():
 # Views
 @app.route('/')
 def landing_page():
-    return render_template('landing_page.html')
+    return render_template('landing-page.html')
 
 
 @app.route('/login')
@@ -96,10 +96,11 @@ def register():
     return render_template('register-form.html')
 
 
+@app.route('/')
 @app.route('/index')
 @login_required
 def index():
-    return render_template('main_page.html')
+    return render_template('main-page.html')
 
 
 @app.route('/users', methods=['GET'])
@@ -126,7 +127,7 @@ def user_data():
 @login_required
 def change_user_data():
     print(current_user.password)
-    if (sha256_crypt.encrypt(request.form.get('lg-current-password')) != current_user.password):
+    if not sha256_crypt.verify(request.form.get('lg-current-password'), current_user.password):
         return redirect(url_for('user_data'))
 
     fname = request.form.get('lg-fname')
@@ -138,7 +139,6 @@ def change_user_data():
         password = current_user.password
     else:
         password = sha256_crypt.encrypt(password)
-    print(password)
     user_obj = User(current_user.username, password, fname, lname, email, current_user.status, current_user.active)
     user_data_access.alter_user(user_obj)
     return redirect(url_for('user_data'))

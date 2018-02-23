@@ -108,8 +108,7 @@ class UserDataAccess:
         cursor = self.dbconnect.get_cursor()
 
         cursor.execute(
-            'SELECT Username, Pass, FirstName, LastName, Email, Status, Active FROM Member WHERE Username=%s;',
-            (id,))
+            'SELECT Username,Pass, FirstName, LastName, Email, Status, Active FROM Member WHERE Username=%s;', (id,))
         row = cursor.fetchone()
 
         if row is not None:

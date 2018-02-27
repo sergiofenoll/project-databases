@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, session, jsonify, redirect, url_for
+from flask import Flask, render_template, request, jsonify, redirect, url_for, abort
 from flask_login import LoginManager, login_user, login_required, logout_user, current_user
 from passlib.hash import sha256_crypt
 from user_data_access import User, DBConnection, UserDataAccess
@@ -80,6 +80,42 @@ def register_user():
     return render_template('register-form.html', wrong_password=True)
 
 
+@app.route('/user-data', methods=['POST'])
+@login_required
+def change_user_data():
+    if not sha256_crypt.verify(request.form.get('lg-current-password'), current_user.password):
+        return render_template('user-data.html', wrong_password=True)
+
+    fname = request.form.get('lg-fname')
+    lname = request.form.get('lg-lname')
+    email = request.form.get('lg-email')
+    password = request.form.get('lg-new-password')
+
+    if (password == ''):
+        password = current_user.password
+    else:
+        password = sha256_crypt.encrypt(password)
+    user_obj = User(current_user.username, password, fname, lname, email, current_user.status, current_user.active)
+    user_data_access.alter_user(user_obj)
+    return render_template('user-data.html', data_updated=True)
+
+
+@app.route('/admin-page', methods=['POST'])
+@login_required
+def admin_activity_change():
+    for user in user_data_access.get_users():
+        # Checkbox uses username as it's identifier for Flask
+        if request.form.get(user.username) is None:  # If the checkbox is unchecked the response is None
+            user.is_active = False
+            user.active = False
+        else:  # If the checkbox is checked the response is 'on', funniliy enough
+            user.is_active = True
+            user.active = True
+        # I have no clue why they don't just return True or False
+        user_data_access.alter_user(user)
+    return render_template('admin-page.html', users=user_data_access.get_users(), data_updated=True)
+
+
 # Views
 @app.route('/')
 @app.route('/index')
@@ -117,24 +153,12 @@ def user_data():
     return render_template('user-data.html')
 
 
-@app.route('/user-data', methods=['POST'])
+@app.route('/admin-page')
 @login_required
-def change_user_data():
-    if not sha256_crypt.verify(request.form.get('lg-current-password'), current_user.password):
-        return render_template('user-data.html', wrong_password=True)
-
-    fname = request.form.get('lg-fname')
-    lname = request.form.get('lg-lname')
-    email = request.form.get('lg-email')
-    password = request.form.get('lg-new-password')
-
-    if (password == ''):
-        password = current_user.password
-    else:
-        password = sha256_crypt.encrypt(password)
-    user_obj = User(current_user.username, password, fname, lname, email, current_user.status, current_user.active)
-    user_data_access.alter_user(user_obj)
-    return render_template('user-data.html', data_updated=True)
+def admin_page():
+    if current_user.status != 'admin':
+        return abort(403)
+    return render_template('admin-page.html', users=user_data_access.get_users())
 
 
 if __name__ == "__main__":

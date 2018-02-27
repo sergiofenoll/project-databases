@@ -42,6 +42,11 @@
                     <a class="nav-link" href="{{ url_for('register') }}">Register</a>
                 </li>
             {% endif %}
+            {% if current_user.status == 'admin' %}
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ url_for('admin_page') }}">Admin Page</a>
+                </li>
+            {% endif %}
         </ul>
     </div>
 </nav>

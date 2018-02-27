@@ -58,11 +58,11 @@ class UserDataAccess:
 
     def get_users(self):
         cursor = self.dbconnect.get_cursor()
-        cursor.execute('SELECT Username, FirstName, LastName, Email, Status, Active FROM Member;')
+        cursor.execute('SELECT Username, Pass, FirstName, LastName, Email, Status, Active FROM Member;')
         quote_objects = list()
         for row in cursor:
-            quote_obj = User(username=row[0], password="", firstname=row[1], lastname=row[2], email=row[3],
-                             status=row[4], active=row[5])
+            quote_obj = User(row['username'], row['pass'], row['firstname'], row['lastname'], row['email'],
+                             row['status'], row['active'])
             quote_objects.append(quote_obj)
         return quote_objects
 
@@ -122,13 +122,14 @@ class UserDataAccess:
         cursor = self.dbconnect.get_cursor()
         try:
             query = cursor.mogrify(
-                'UPDATE member SET firstname = %s, lastname = %s, email = %s, pass = %s WHERE Username=%s;',
-                (user.firstname, user.lastname, user.email, user.password, user.username))
+                'UPDATE Member SET Firstname = %s, Lastname = %s, Email = %s, Pass = %s, Status = %s, Active = %s WHERE Username=%s;',
+                (user.firstname, user.lastname, user.email, user.password, user.status, user.active, user.username))
 
             cursor.execute(query)
 
             self.dbconnect.commit()
 
             return True
-        except:
-            return False
+        except Exception as e:
+            self.dbconnect.rollback()
+            raise e

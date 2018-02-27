@@ -1,23 +1,31 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="row">
-	<div class="col-sm-4"></div>
-	<div class="col-sm-4">
-		<form action="/login" method="post">
-			<div class="form-group">
-				<span for="lg-username">Username</span>
-				<input type="text" class="form-control" id="lg-username" name="lg-username" placeholder="Username" required>
-			</div>
-			<div class="form-group">
-				<label for="lg-password">Password</label>
-				<input type="password" class="form-control" id="lg-password" name="lg-password" placeholder="Password" required>
-			</div>
-			<button type="submit" class="btn btn-default">Submit</button>
-			<br>
-			<br>
-			<a href="{{ url_for('register') }}">Register an account here</a>
-		</form>
-	</div>
-	<div class="col-sm-4"></div>
-</div>
+    <div class="row">
+        <div class="col-sm-4"></div>
+        <div class="col-sm-4">
+            <form action="/login" method="post">
+                <div class="form-group">
+                    <span for="lg-username">Username</span>
+                    <input type="text" class="form-control" id="lg-username" name="lg-username" placeholder="Username"
+                           required>
+                </div>
+                <div class="form-group">
+                    <label for="lg-password">Password</label>
+                    <input type="password" class="form-control" id="lg-password" name="lg-password"
+                           placeholder="Password" required>
+                </div>
+                {% if wrong_password %}
+                <div class="alert alert-danger">
+                    <strong>Failed login attempt!</strong><br>
+                    Check your username and password.
+                </div>
+                {% endif %}
+                <button type="submit" class="btn btn-default">Submit</button>
+                <br>
+                <br>
+                <a href="{{ url_for('register') }}">Register an account here</a>
+            </form>
+        </div>
+        <div class="col-sm-4"></div>
+    </div>
 {% endblock %}

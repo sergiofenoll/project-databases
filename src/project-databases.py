@@ -51,13 +51,13 @@ def send_login_request():
             if not is_safe_url(next):
                 return flask.abort(400)
             """
-            return redirect(url_for('index'))
+            return redirect(url_for('main_page'))
         else:
             print("Wrong password.")
-            return render_template('login-form.html', failed_login=True)
+            return render_template('login-form.html', wrong_password=True)
     except Exception as e:
         print(e)
-        return render_template('login-form.html', failed_login=True)
+        return render_template('login-form.html', wrong_password=True)
 
 
 @app.route('/register', methods=['POST'])
@@ -76,31 +76,25 @@ def register_user():
         # Login and validate the user.
         # user should be an instance of your `User` class
         login_user(user_data_access.get_user(username))
-        return redirect(url_for('index'))
-    return render_template('register-form.html', failed_login=True)
+        return redirect(url_for('main_page'))
+    return render_template('register-form.html', wrong_password=True)
 
 
 # Views
 @app.route('/')
-def landing_page():
-    return render_template('landing-page.html')
+@app.route('/index')
+def main_page():
+    return render_template('main-page.html')
 
 
 @app.route('/login')
 def login():
-    return render_template('login-form.html', failed_login=False)
+    return render_template('login-form.html')
 
 
 @app.route('/register')
 def register():
     return render_template('register-form.html')
-
-
-@app.route('/')
-@app.route('/index')
-@login_required
-def index():
-    return render_template('main-page.html')
 
 
 @app.route('/users', methods=['GET'])
@@ -114,7 +108,7 @@ def get_users():
 @login_required
 def logout():
     logout_user()
-    return redirect(url_for('landing_page'))
+    return redirect(url_for('main_page'))
 
 
 @app.route('/user-data')
@@ -126,9 +120,8 @@ def user_data():
 @app.route('/user-data', methods=['POST'])
 @login_required
 def change_user_data():
-    print(current_user.password)
     if not sha256_crypt.verify(request.form.get('lg-current-password'), current_user.password):
-        return redirect(url_for('user_data'))
+        return render_template('user-data.html', wrong_password=True)
 
     fname = request.form.get('lg-fname')
     lname = request.form.get('lg-lname')
@@ -141,7 +134,7 @@ def change_user_data():
         password = sha256_crypt.encrypt(password)
     user_obj = User(current_user.username, password, fname, lname, email, current_user.status, current_user.active)
     user_data_access.alter_user(user_obj)
-    return redirect(url_for('user_data'))
+    return render_template('user-data.html', data_updated=True)
 
 
 if __name__ == "__main__":

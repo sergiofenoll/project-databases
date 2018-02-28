@@ -44,6 +44,9 @@ class User:
         self.is_authenticated = True
         self.is_anonymous = False
 
+        # Data handling variables
+        self.active_schema = ""
+
     def get_id(self):
         return self.username
 

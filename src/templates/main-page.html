@@ -1,13 +1,24 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="row">
-	<div class="col-sm-2"></div>
-	<div class="col-sm-8">
-		This is the main page.<br>
-		It is empty.<br>
-		❤️<br>
-		{{ current_user.username }} is logged in.<br>
-	</div>
-	<div class="col-sm-2"></div>
-</div>
+    <div class="row">
+        <div class="col-sm-2"></div>
+        <div class="col-sm-8">
+            <h1>Project Databases</h1>
+            <h2>Made with ❤️ by Cedric, Dawid, Jonathan, Sergio & Atisha (he looked at the code once)</h2>
+            <p>We are very proud to present our beautiful project, a Data Wrangling app. We'd like to thank our parents
+                for making our presence on this earth possible.</p>
+            <p>Muchas gracias, mucho amor, y nos veremos mas tarde! ❤️❤️❤️</p>
+            {% if current_user.is_authenticated %}<p>{{ current_user.username }} is logged in.</p>{% endif %}
+        </div>
+        <div class="col-sm-2"></div>
+    </div>
+    <br>
+    <div class="row">
+        <div class="col-sm-2"></div>
+        <div class="col-sm-8">
+            <p><strong>The actual data will show up here (at some point)</strong></p>
+            <img src="{{ url_for('static', filename='placeholder.jpg') }}">
+        </div>
+        <div class="col-sm-2"></div>
+    </div>
 {% endblock %}

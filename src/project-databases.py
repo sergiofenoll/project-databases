@@ -108,7 +108,7 @@ def admin_activity_change():
         if request.form.get(user.username) is None:  # If the checkbox is unchecked the response is None
             user.is_active = False
             user.active = False
-        else:  # If the checkbox is checked the response is 'on', funniliy enough
+        else:  # If the checkbox is checked the response is 'on'
             user.is_active = True
             user.active = True
         # I have no clue why they don't just return True or False

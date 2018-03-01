@@ -66,17 +66,6 @@ class DataLoader:
         else:
             schema_id = ids[0]
 
-        # Delete schema
-        try:
-            query = cursor.mogrify('DROP SCHEMA \"{0}\" CASCADE;'.format(schema_id))
-            cursor.execute(query)
-            self.dbconnect.commit()
-        except Exception as e:
-            print("[ERROR] Failed to delete schema '" + name + "'")
-            print(e)
-            self.dbconnect.rollback()
-            raise e
-
         # Clean up the access & dataset tables
         try:
             query = cursor.mogrify('DELETE FROM Access WHERE id_dataset = \'{0}\';'.format(schema_id))
@@ -87,6 +76,17 @@ class DataLoader:
             self.dbconnect.commit()
         except Exception as e:
             print("[ERROR] Failed to properly remove dataset '" + name + "'")
+            print(e)
+            self.dbconnect.rollback()
+            raise e
+
+        # Delete schema
+        try:
+            query = cursor.mogrify('DROP SCHEMA \"{0}\" CASCADE;'.format(schema_id))
+            cursor.execute(query)
+            self.dbconnect.commit()
+        except Exception as e:
+            print("[ERROR] Failed to delete schema '" + name + "'")
             print(e)
             self.dbconnect.rollback()
             raise e
@@ -111,37 +111,95 @@ class DataLoader:
         return ids
 
 
-    def insert(self, table, columns, values):
+    def create_table(self, name, schema, columns):
+        '''
+         This method takes a schema, name and a list of columns and creates the corresponding table
+        '''
+
+        cursor = self.dbconnect.get_cursor()
+        schemaname = schema
+        if len(schema) == 0:
+            schemaname = "public"
+        query = 'CREATE TABLE \"{0}\".\"{1}\" ('.format(schemaname, name)
+        
+        query += 'id serial primary key' # Since we don't know what the actual primary key should be, just assign an ever increasing id
+
+        for column in columns:
+            query = query + ', \n' + column + ' varchar(255)'
+        query += '\n);'
+
+        try:
+            query = cursor.mogrify(query);
+            cursor.execute(query)
+            self.dbconnect.commit()
+        except Exception as e:
+            print("[ERROR] Failed to create table '" + name + "'")
+            print(e)
+            self.dbconnect.rollback()
+            raise e
+
+
+    def delete_table(self, name, schema):
+        cursor = self.dbconnect.get_cursor()
+        schemaname = schema
+        if len(schema) == 0:
+            schemaname = "public"
+
+        try:
+            query = cursor.mogrify('DROP TABLE \"{0}\".\"{1}\";'.format(schemaname, name))
+            cursor.execute(query)
+            self.dbconnect.commit()
+        except Exception as e:
+            print("[ERROR] Failed to delete table '" + name + "'")
+            print(e)
+            self.dbconnect.rollback()
+            raise e
+
+    def insert_row(self, table, schema, columns, values):
+        '''
+         This method takes list of values and adds those to the given table.
+        ''' 
+
         cursor = self.dbconnect.get_cursor()
 
-        values_list = [x.strip() for x in values.split(',')]
         new_values = ''
-        for value in values_list :
+        for value in values:
             new_values = new_values + '\'' + value + '\','
         new_values = new_values[:-1]
-        print(new_values)
+
+        schemaname = schema
+        if len(schema) == 0:
+            schemaname = "public"
+
         try:
-            query = 'INSERT INTO comeon.' + table + ' (' + columns + ') VALUES (' + new_values + ')'
+            value_string = ", ".join(["\'{0}\'".format(x) for x in values])
+            column_string = ", ".join(["{0}".format(x) for x in columns])
+            query = 'INSERT INTO \"{0}\".\"{1}\"({2}) VALUES ({3});'.format(schemaname, table, column_string, value_string)
             print(query)
             cursor.execute(query)
             self.dbconnect.commit()
-            return True
-        except:
-            print('Unable to insert into schema')
+        except Exception as e:
+            print("[ERROR] Unable to insert into table '" + table + "'")
+            print (e)
             self.dbconnect.rollback()
-            return False
+            raise e
 
-    def process_csv(file, schema, connection):
-        schema_acces = SchemaDataAccess(connection, schema, True)
+    def process_csv(self, file, schema, tablename):
+        '''
+         This method takes a filename for a CSV file and processes it into a table.
+         A table name should be provided by the user / caller of this method.
+        '''
+
         with open(file, "r") as csv:
             first = True
-            table = file[:-4]
-            print(table)
             columns = ''
+            columns_list = list()
             for line in csv:
                 if first:
                     columns = line
                     first = False
-                    create_table(schema, columns, table, connection)
+                    columns_list = [x.strip() for x in columns.split(",")]
+                    self.create_table(tablename, schema, columns_list)
                 else:
-                    schema_acces.insert(table, columns, line)
+                    values_list = [x.strip() for x in line.split(",")]
+                    self.insert_row(tablename, schema, columns_list, values_list)

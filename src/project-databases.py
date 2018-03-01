@@ -167,8 +167,8 @@ if __name__ == "__main__":
         #app.run()
         try:
             dl = DataLoader(connection)
-            #dl.create_dataset('test', 'Test schema', 'xXx_tester_xXx')
-            dl.delete_dataset('test')
+            dl.delete_table("tijgers", "")
+            dl.process_csv("../input/tijgers.csv", "public", "tijgers")
         except Exception as e:
-            print("[ERROR] RIP")
+            print("[ERROR] An error occured during execution.")
             print(e)

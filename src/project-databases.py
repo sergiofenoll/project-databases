@@ -3,6 +3,7 @@ from flask_login import LoginManager, login_user, login_required, logout_user, c
 from passlib.hash import sha256_crypt
 from user_data_access import User, DBConnection, UserDataAccess
 from config import config_data
+from data_loader import DataLoader
 
 
 # INITIALIZE SINGLETON SERVICES
@@ -163,4 +164,11 @@ def admin_page():
 
 if __name__ == "__main__":
     if not connection_failed:
-        app.run()
+        #app.run()
+        try:
+            dl = DataLoader(connection)
+            #dl.create_dataset('test', 'Test schema', 'xXx_tester_xXx')
+            dl.delete_dataset('test')
+        except Exception as e:
+            print("[ERROR] RIP")
+            print(e)

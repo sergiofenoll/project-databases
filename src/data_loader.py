@@ -111,6 +111,30 @@ class DataLoader:
         return ids
 
 
+    def table_exists(self, name, schema):
+        '''
+         This method returns a bool representing whether the given table exists
+        '''
+
+        cursor = self.dbconnect.get_cursor()
+
+        row = list()
+        try:
+            query = cursor.mogrify(
+                "SELECT EXISTS ( SELECT 1 FROM information_schema.tables " +
+                "WHERE  table_schema = \'{0}\' AND table_name = \'{1}\');".format(schema, name))
+            cursor.execute(query)
+            row = cursor.fetchone()
+
+            return row[0]
+
+        except Exception as e:
+            print("[ERROR] Couldn't determine existance of table '" + name + "'")
+            print(e)
+            raise e
+
+
+
     def create_table(self, name, schema, columns):
         '''
          This method takes a schema, name and a list of columns and creates the corresponding table
@@ -175,7 +199,6 @@ class DataLoader:
             value_string = ", ".join(["\'{0}\'".format(x) for x in values])
             column_string = ", ".join(["{0}".format(x) for x in columns])
             query = 'INSERT INTO \"{0}\".\"{1}\"({2}) VALUES ({3});'.format(schemaname, table, column_string, value_string)
-            print(query)
             cursor.execute(query)
             self.dbconnect.commit()
         except Exception as e:
@@ -184,11 +207,21 @@ class DataLoader:
             self.dbconnect.rollback()
             raise e
 
-    def process_csv(self, file, schema, tablename):
+    def process_csv(self, file, schema, tablename, append = False):
         '''
          This method takes a filename for a CSV file and processes it into a table.
          A table name should be provided by the user / caller of this method.
+         If append = True, a table should already exist & the data will be added to this table
         '''
+
+
+        table_exists = self.table_exists(tablename, schema)
+        if append and not table_exists:
+            print("[ERROR] Appending to non-existent table.")
+            return
+        elif not append and table_exists:
+            print("[ERROR] Cannot overwrite existing table.")
+            return
 
         with open(file, "r") as csv:
             first = True
@@ -199,7 +232,8 @@ class DataLoader:
                     columns = line
                     first = False
                     columns_list = [x.strip() for x in columns.split(",")]
-                    self.create_table(tablename, schema, columns_list)
+                    if not append:
+                        self.create_table(tablename, schema, columns_list)
                 else:
                     values_list = [x.strip() for x in line.split(",")]
                     self.insert_row(tablename, schema, columns_list, values_list)

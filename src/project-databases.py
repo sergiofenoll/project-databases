@@ -36,25 +36,22 @@ def send_login_request():
     username = request.form.get('lg-username')
     password = request.form.get('lg-password')
 
-    print('Validating data for user "{0}"'.format(username))
-
     try:
         retrieved_pass = user_data_access.login_user(username)
         if sha256_crypt.verify(password, retrieved_pass):
+
+            # Check if user is inactive
+            user = user_data_access.get_user(username)
+            if not user.active:
+                print("Inactive account")
+                return render_template('login-form.html', user_inactive=True)
+
             # Login and validate the user.
             # user should be an instance of your `User` class
-            login_user(user_data_access.get_user(username))
+            login_user(user)
 
-            """
-            next = flask.request.args.get('next')
-            # is_safe_url should check if the url is safe for redirects.
-            # See http://flask.pocoo.org/snippets/62/ for an example.
-            if not is_safe_url(next):
-                return flask.abort(400)
-            """
             return redirect(url_for('main_page'))
         else:
-            print("Wrong password.")
             return render_template('login-form.html', wrong_password=True)
     except Exception as e:
         print(e)
@@ -167,8 +164,16 @@ if __name__ == "__main__":
         #app.run()
         try:
             dl = DataLoader(connection)
-            dl.delete_table("tijgers", "")
-            dl.process_csv("../input/tijgers.csv", "public", "tijgers")
+
+            tablename = "tijgers"
+            schema = "public"
+
+            if dl.table_exists(tablename, schema):
+                dl.delete_table(tablename, schema)
+            
+            dl.process_csv("../input/tijgers.csv", schema, tablename)
+            dl.process_csv("../input/tijgers2.csv", schema, tablename, True)
+
         except Exception as e:
             print("[ERROR] An error occured during execution.")
             print(e)

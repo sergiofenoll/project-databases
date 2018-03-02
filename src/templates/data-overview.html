@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block content %}
+    <div class="row">
+        <div class="col-sm-2"></div>
+        <div class="col-sm-8">
+            <h1>Data overview</h1>
+            <p>This page will serve as an overview where the user can see and manage the datasets available to them.</p>
+        </div>
+        <div class="col-sm-2"></div>
+    </div>
+    <br>
+    <div class="row">
+        <div class="col-sm-2"></div>
+        <div class="col-sm-8">
+            <p><strong>Placeholder page</strong></p>
+            <img src="{{ url_for('static', filename='placeholder.jpg') }}">
+        </div>
+        <div class="col-sm-2"></div>
+    </div>
+{% endblock %}

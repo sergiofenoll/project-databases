@@ -159,9 +159,15 @@ def admin_page():
     return render_template('admin-page.html', users=user_data_access.get_users())
 
 
+@app.route('/data-service')
+@login_required
+def data_overview():
+    return render_template('data-overview.html')
+
 if __name__ == "__main__":
     if not connection_failed:
-        #app.run()
+        app.run()
+        '''
         try:
             dl = DataLoader(connection)
 
@@ -177,3 +183,4 @@ if __name__ == "__main__":
         except Exception as e:
             print("[ERROR] An error occured during execution.")
             print(e)
+        '''

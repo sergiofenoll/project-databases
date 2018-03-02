@@ -58,24 +58,12 @@ class DataLoader:
             self.dbconnect.rollback()
             raise e
 
-    def delete_dataset(self, name):
+    def delete_dataset(self, schema_id):
         '''
          This method deletes a schema (and therefore all contained tables) from the database
         '''
 
         cursor = self.dbconnect.get_cursor()
-
-        # Get schema handle
-        ids = self.get_dataset_id(name)
-
-        schema_id = "";
-        if (len(ids) > 1):
-            print("[WARNING] Unhandled situation: multiple datasets with name '" + name + "'")
-            #raise Exception("Can't delete dataset - multiple schemas found")
-        elif (len(ids) == 0):
-            print("[WARNING] No schema '" + name + "' exists. Cannot delete.")
-            return
-        schema_id = ids[0]
 
         # Clean up the access & dataset tables
         try:
@@ -120,7 +108,7 @@ class DataLoader:
 
         return ids
 
-    def table_exists(self, name, schema):
+    def table_exists(self, name, schema_id):
         '''
          This method returns a bool representing whether the given table exists
         '''
@@ -131,7 +119,7 @@ class DataLoader:
         try:
             query = cursor.mogrify(
                 "SELECT EXISTS ( SELECT 1 FROM information_schema.tables " +
-                "WHERE  table_schema = \'{0}\' AND table_name = \'{1}\');".format(schema, name))
+                "WHERE  table_schema = \'{0}\' AND table_name = \'{1}\');".format(schema_id, name))
             cursor.execute(query)
             row = cursor.fetchone()
 
@@ -142,15 +130,14 @@ class DataLoader:
             print(e)
             raise e
 
-    def create_table(self, name, schema, columns):
+    def create_table(self, name, schema_id, columns):
         '''
          This method takes a schema, name and a list of columns and creates the corresponding table
         '''
 
         cursor = self.dbconnect.get_cursor()
-        schemaname = schema
-        if len(schema) == 0:
-            schemaname = "public"
+        schemaname = schema_id
+
         query = 'CREATE TABLE \"{0}\".\"{1}\" ('.format(schemaname, name)
         
         query += 'id serial primary key' # Since we don't know what the actual primary key should be, just assign an ever increasing id
@@ -169,12 +156,9 @@ class DataLoader:
             self.dbconnect.rollback()
             raise e
 
-    def delete_table(self, name, schema):
+    def delete_table(self, name, schema_id):
         cursor = self.dbconnect.get_cursor()
-        schemaname = schema
-        if len(schema) == 0:
-            schemaname = "public"
-
+        schemaname = schema_id
         try:
             query = cursor.mogrify('DROP TABLE \"{0}\".\"{1}\";'.format(schemaname, name))
             cursor.execute(query)
@@ -185,7 +169,7 @@ class DataLoader:
             self.dbconnect.rollback()
             raise e
 
-    def insert_row(self, table, schema, columns, values):
+    def insert_row(self, table, schema_id, columns, values):
         '''
          This method takes list of values and adds those to the given table.
         ''' 
@@ -197,9 +181,7 @@ class DataLoader:
             new_values = new_values + '\'' + value + '\','
         new_values = new_values[:-1]
 
-        schemaname = schema
-        if len(schema) == 0:
-            schemaname = "public"
+        schemaname = schema_id
 
         try:
             value_string = ", ".join(["\'{0}\'".format(x) for x in values])
@@ -214,15 +196,12 @@ class DataLoader:
             raise e
 
     # Data uploading handling
-    def process_csv(self, file, schema, tablename, append = False):
+    def process_csv(self, file, schema_id, tablename, append = False):
         '''
          This method takes a filename for a CSV file and processes it into a table.
          A table name should be provided by the user / caller of this method.
          If append = True, a table should already exist & the data will be added to this table
         '''
-
-        # Get schema id
-        schema_id = self.get_dataset_id(schema)[0]
 
         table_exists = self.table_exists(tablename, schema_id)
         if append and not table_exists:
@@ -261,12 +240,12 @@ class DataLoader:
             cursor.execute(query)
 
             result = list()
-            datasets = cursor
+            datasets = [x for x in cursor]
             for row in datasets:
-                # Find owner for this dataset
                 try:
+                    # Find owner for this dataset
                     query = cursor.mogrify(
-                        'SELECT a.id_user FROM Dataset ds, Access a WHERE ds.id = \'{0}\' AND a.role = \'owner\';'.format(row['id']))
+                        'SELECT a.id_user FROM Dataset ds, Access a WHERE (ds.id = \'{0}\' AND a.id_dataset = ds.id AND a.role = \'owner\');'.format(row['id']))
                     cursor.execute(query)
                     owner = cursor.fetchone()[0]
 
@@ -283,7 +262,7 @@ class DataLoader:
             print(e)
             raise e
 
-    def grant_access(self, user_id, schema, role='contributer'):
+    def grant_access(self, user_id, schema_id, role='contributer'):
 
         schema_id = self.get_dataset_id(schema)[0]
 
@@ -300,9 +279,7 @@ class DataLoader:
             self.dbconnect.rollback()
             raise e
 
-    def remove_access(self, user_id, schema):
-
-        schema_id = self.get_dataset_id(schema)[0]
+    def remove_access(self, user_id, schema_id):
 
         try:
             cursor = self.dbconnect.get_cursor()

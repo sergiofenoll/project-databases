@@ -1,6 +1,6 @@
 import psycopg2
 import psycopg2.extras
-
+from zipfile import ZipFile
 
 class Dataset:
 
@@ -225,6 +225,26 @@ class DataLoader:
                 else:
                     values_list = [x.strip() for x in line.split(",")]
                     self.insert_row(tablename, schema_id, columns_list, values_list)
+
+    def process_zip(self, file, schema_id):
+        '''
+         This method takes a ZIP archive filled with CSV files, and processes them individually
+        '''
+
+        try:
+            with ZipFile(file) as archive:
+                # Extract each file, one by one
+
+                # Determine schema- & tablename
+
+                # Determine if this file should append an already existing table
+
+                # Process this csv file
+        except Exception as e:
+            print("[ERROR] Failed to load from .zip archive '" + file + "'")
+            print(e)
+            raise e
+
 
     # Data access handling
     def get_user_datasets(self, user_id):

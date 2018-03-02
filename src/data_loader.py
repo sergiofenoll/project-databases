@@ -1,12 +1,22 @@
 import psycopg2
 import psycopg2.extras
 
+
+class Dataset:
+
+    def __init__(self, name, desc, owner):
+        self.name = name
+        self.desc = desc
+        self.owner = owner
+
+
 class DataLoader:
 
     def __init__(self, dbconnect):
         self.dbconnect = dbconnect
 
 
+    # Dataset & Data handling (inserting/deleting...)
     def create_dataset(self, name, desc, owner_id):
         '''
          This method takes a name ('nickname') and description and creates a new schema in the database.
@@ -48,7 +58,6 @@ class DataLoader:
             self.dbconnect.rollback()
             raise e
 
-
     def delete_dataset(self, name):
         '''
          This method deletes a schema (and therefore all contained tables) from the database
@@ -62,9 +71,11 @@ class DataLoader:
         schema_id = "";
         if (len(ids) > 1):
             print("[WARNING] Unhandled situation: multiple datasets with name '" + name + "'")
-            raise Exception("Can't delete dataset - multiple schemas found")
-        else:
-            schema_id = ids[0]
+            #raise Exception("Can't delete dataset - multiple schemas found")
+        elif (len(ids) == 0):
+            print("[WARNING] No schema '" + name + "' exists. Cannot delete.")
+            return
+        schema_id = ids[0]
 
         # Clean up the access & dataset tables
         try:
@@ -91,7 +102,6 @@ class DataLoader:
             self.dbconnect.rollback()
             raise e
 
-
     def get_dataset_id(self, name):
         '''
          This method takes a nickname and returns the associated schema's id.
@@ -109,7 +119,6 @@ class DataLoader:
             ids.append(row["id"])
 
         return ids
-
 
     def table_exists(self, name, schema):
         '''
@@ -132,8 +141,6 @@ class DataLoader:
             print("[ERROR] Couldn't determine existance of table '" + name + "'")
             print(e)
             raise e
-
-
 
     def create_table(self, name, schema, columns):
         '''
@@ -161,7 +168,6 @@ class DataLoader:
             print(e)
             self.dbconnect.rollback()
             raise e
-
 
     def delete_table(self, name, schema):
         cursor = self.dbconnect.get_cursor()
@@ -207,6 +213,7 @@ class DataLoader:
             self.dbconnect.rollback()
             raise e
 
+    # Data uploading handling
     def process_csv(self, file, schema, tablename, append = False):
         '''
          This method takes a filename for a CSV file and processes it into a table.
@@ -214,8 +221,10 @@ class DataLoader:
          If append = True, a table should already exist & the data will be added to this table
         '''
 
+        # Get schema id
+        schema_id = self.get_dataset_id(schema)[0]
 
-        table_exists = self.table_exists(tablename, schema)
+        table_exists = self.table_exists(tablename, schema_id)
         if append and not table_exists:
             print("[ERROR] Appending to non-existent table.")
             return
@@ -233,7 +242,60 @@ class DataLoader:
                     first = False
                     columns_list = [x.strip() for x in columns.split(",")]
                     if not append:
-                        self.create_table(tablename, schema, columns_list)
+                        self.create_table(tablename, schema_id, columns_list)
                 else:
                     values_list = [x.strip() for x in line.split(",")]
-                    self.insert_row(tablename, schema, columns_list, values_list)
+                    self.insert_row(tablename, schema_id, columns_list, values_list)
+
+    # Data access handling
+    def get_user_datasets(self, user_id):
+        '''
+         This method takes a user id (username) and returns a list with the datasets available to this user
+        '''
+
+        cursor = self.dbconnect.get_cursor()
+
+        try:
+            query = cursor.mogrify(
+                'SELECT id, nickname, metadata FROM Dataset ds, Access a WHERE (ds.id = a.id_dataset AND a.id_user = \'{0}\');'.format(user_id))
+            cursor.execute(query)
+
+            result = list()
+            datasets = cursor
+            for row in datasets:
+                # Find owner for this dataset
+                try:
+                    query = cursor.mogrify(
+                        'SELECT a.id_user FROM Dataset ds, Access a WHERE ds.id = \'{0}\' AND a.role = \'owner\';'.format(row['id']))
+                    cursor.execute(query)
+                    owner = cursor.fetchone()[0]
+
+                    result.append(Dataset(row['nickname'], row['metadata'], owner))
+                except Exception as e:
+                    print("[WARNING] Failed to find owner of dataset '" + row['nickname'] + "'")
+                    print(e)
+                    continue
+
+            return result
+
+        except Exception as e:
+            print("[ERROR] Failed to fetch available datasets for user '" + user_id + "'.")
+            print(e)
+            raise e
+
+    def grant_access(self, user_id, schema, role='contributer'):
+
+        schema_id = self.get_dataset_id(schema)[0]
+
+        try:
+            cursor = self.dbconnect.get_cursor()
+
+            query = cursor.mogrify(
+                    'INSERT INTO Access(id_dataset, id_user, role) VALUES(\'{0}\', \'{1}\', \'{2}\');'.format(schema_id, user_id, role))
+            cursor.execute(query)
+            self.dbconnect.commit()
+        except Exception as e:
+            print("[ERROR] Couldn't grant '" + user_id + "' access to '" + schema + "'")
+            print(e)
+            self.dbconnect.rollback()
+            raise e

@@ -19,6 +19,7 @@ try:
     connection = DBConnection(dbname=config_data['dbname'], dbuser=config_data['dbuser'], dbpass=config_data['dbpass'],
                               dbhost=config_data['dbhost'])
     user_data_access = UserDataAccess(connection)
+    dataloader = DataLoader(connection)
 except Exception as e:
     print("[ERROR] Failed to establish user connection.")
     print(e)
@@ -162,23 +163,28 @@ def admin_page():
 @app.route('/data-service')
 @login_required
 def data_overview():
-    return render_template('data-overview.html')
+    return render_template('data-overview.html', datasets=dataloader.get_user_datasets(current_user.username))
 
 if __name__ == "__main__":
     if not connection_failed:
+        dataloader.grant_access("admin", "mammals")
         app.run()
         '''
         try:
             dl = DataLoader(connection)
 
             tablename = "tijgers"
-            schema = "public"
+            schema = "mammals"
 
             if dl.table_exists(tablename, schema):
                 dl.delete_table(tablename, schema)
             
+            dl.create_dataset(schema, "Some mammals", "xXx_tester_xXx")
+
             dl.process_csv("../input/tijgers.csv", schema, tablename)
             dl.process_csv("../input/tijgers2.csv", schema, tablename, True)
+            
+            dl.delete_dataset(schema)
 
         except Exception as e:
             print("[ERROR] An error occured during execution.")

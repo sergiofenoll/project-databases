@@ -299,3 +299,20 @@ class DataLoader:
             print(e)
             self.dbconnect.rollback()
             raise e
+
+    def remove_access(self, user_id, schema):
+
+        schema_id = self.get_dataset_id(schema)[0]
+
+        try:
+            cursor = self.dbconnect.get_cursor()
+
+            query = cursor.mogrify(
+                    'DELETE FROM Access WHERE (id_user = \'{0}\' AND id_dataset = \'{1}\');'.format(user_id, schema_id))
+            cursor.execute(query)
+            self.dbconnect.commit()
+        except Exception as e:
+            print("[ERROR] Couldn't remove access rights for '" + user_id + "' from '" + schema + "'")
+            print(e)
+            self.dbconnect.rollback()
+            raise e

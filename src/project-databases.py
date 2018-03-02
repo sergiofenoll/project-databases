@@ -167,7 +167,7 @@ def data_overview():
 
 if __name__ == "__main__":
     if not connection_failed:
-        dataloader.grant_access("admin", "mammals")
+        dataloader.remove_access("lol", "mammals")
         app.run()
         '''
         try:

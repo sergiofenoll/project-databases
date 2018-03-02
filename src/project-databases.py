@@ -110,9 +110,21 @@ def admin_activity_change():
         else:  # If the checkbox is checked the response is 'on'
             user.is_active = True
             user.active = True
-        # I have no clue why they don't just return True or False
+        # I have no clue why they don't just return True or False - Edit by Jona: Fucking webdevelopment
         user_data_access.alter_user(user)
     return render_template('admin-page.html', users=user_data_access.get_users(), data_updated=True)
+
+
+@app.route('/data-service/new', methods=['POST'])
+@login_required
+def create_new_dataset():
+    name = request.form.get('ds-name')
+    meta = request.form.get('ds-meta')
+    owner_id = current_user.username
+
+    dataloader.create_dataset(name, meta, owner_id)
+
+    return render_template('data-overview.html', datasets=dataloader.get_user_datasets(current_user.username))
 
 
 # Views
@@ -167,7 +179,6 @@ def data_overview():
 
 if __name__ == "__main__":
     if not connection_failed:
-        dataloader.remove_access("lol", "mammals")
         app.run()
         '''
         try:

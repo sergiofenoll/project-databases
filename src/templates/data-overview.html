@@ -3,8 +3,8 @@
     <div class="row">
         <div class="col-sm-2"></div>
         <div class="col-sm-8">
-            <h1>Data overview</h1>
-            <p>This page will serve as an overview where the user can see and manage the datasets available to them.</p>
+            <h1>Dataset overview</h1>
+            <p>See and manage your datasets.</p>
         </div>
         <div class="col-sm-2"></div>
     </div>
@@ -12,9 +12,41 @@
     <div class="row">
         <div class="col-sm-2"></div>
         <div class="col-sm-8">
-            <p><strong>Placeholder page</strong></p>
-            <img src="{{ url_for('static', filename='placeholder.jpg') }}">
+                <form action="/admin-page" method="post">
+                    <table id="datasetTable" class="table" cellspacing="0" width="100%">
+                        <thead>
+                        <tr>
+                            <th>
+                                Dataset
+                            </th>
+                            <th>
+                                Description
+                            </th>
+                            <th>
+                                Owner
+                            </th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        {% for ds in datasets %}
+                            <tr>
+                                <td> {{ ds.name }}  </td>
+
+                                <td> {{ ds.desc }}  </td>
+                                <td> 
+                                    {% if ds.owner == current_user.username %}
+                                        You
+                                    {% else %}
+                                        {{ ds.owner}}
+                                    {% endif %}                                
+                                </td>
+                            </tr>
+                        {% endfor %}
+                        </tbody>
+                    </table>
+                </form>
         </div>
         <div class="col-sm-2"></div>
     </div>
+    <br>
 {% endblock %}

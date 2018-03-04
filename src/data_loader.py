@@ -4,10 +4,11 @@ from zipfile import ZipFile
 
 class Dataset:
 
-    def __init__(self, name, desc, owner):
+    def __init__(self, id, name, desc, owner):
         self.name = name
         self.desc = desc
         self.owner = owner
+        self.id = id
 
 
 class DataLoader:
@@ -234,6 +235,7 @@ class DataLoader:
         try:
             with ZipFile(file) as archive:
                 # Extract each file, one by one
+                pass
 
                 # Determine schema- & tablename
 
@@ -269,7 +271,8 @@ class DataLoader:
                     cursor.execute(query)
                     owner = cursor.fetchone()[0]
 
-                    result.append(Dataset(row['nickname'], row['metadata'], owner))
+                    schema_id = row['id'].split('-')[1]
+                    result.append(Dataset(schema_id, row['nickname'], row['metadata'], owner))
                 except Exception as e:
                     print("[WARNING] Failed to find owner of dataset '" + row['nickname'] + "'")
                     print(e)

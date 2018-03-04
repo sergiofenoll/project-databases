@@ -127,6 +127,27 @@ def create_new_dataset():
     return render_template('data-overview.html', datasets=dataloader.get_user_datasets(current_user.username))
 
 
+@app.route('/data-service/delete/<int:id>')
+@login_required
+def delete_dataset(id):
+    '''
+     TEMP: this method is called when the button for removing a dataset is clicked.
+           It's probably very insecure but since I don't know what I'm doing, this is my solution.
+           Please fix this if you actually know how to make buttons work and stuff.
+    '''
+
+    schema_id = "schema-" + str(id)
+    dataloader.delete_dataset(schema_id)
+
+    return redirect(url_for('data_overview'))
+    #return render_template('data-overview.html', datasets=dataloader.get_user_datasets(current_user.username))
+
+
+@app.route('/data-service/<string:dataset>')
+def show_dataset(dataset): 
+    print("Showing " + dataset)
+    return render_template('data-overview.html', datasets=dataloader.get_user_datasets(current_user.username))
+
 # Views
 @app.route('/')
 @app.route('/index')
@@ -179,8 +200,8 @@ def data_overview():
 
 if __name__ == "__main__":
     if not connection_failed:
-        #app.run()
-        dataloader.process_zip("../input/mammals.zip", "public")
+        app.run()
+        #dataloader.process_zip("../input/mammals.zip", "public")
         '''
         try:
             dl = DataLoader(connection)

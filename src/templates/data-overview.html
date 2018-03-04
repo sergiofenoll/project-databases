@@ -32,9 +32,10 @@
                     <tbody>
                     {% for ds in datasets %}
                         <tr>
-                            <td> {{ ds.name }}  </td>
+                            <td> <a href="/data-service/{{ds.name}}">{{ ds.name }}</a>  </td>
 
                             <td> {{ ds.desc }}  </td>
+
                             <td> 
                                 {% if ds.owner == current_user.username %}
                                     You
@@ -42,8 +43,9 @@
                                     {{ ds.owner}}
                                 {% endif %}                                
                             </td>
+
                             <td>
-                                <button type="button" class="btn btn-danger">X</button>
+                                <a href="/data-service/delete/{{ds.id}}"><button type="button" class="btn btn-danger">X</button></a>
                             </td>
                         </tr>
                     {% endfor %}

@@ -82,7 +82,7 @@ class DataLoader:
             cursor.execute(query)
             self.dbconnect.commit()
         except Exception as e:
-            print("[ERROR] Failed to properly remove dataset '" + name + "'")
+            print("[ERROR] Failed to properly remove dataset '" + schema_id + "'")
             print(e)
             self.dbconnect.rollback()
             raise e
@@ -93,7 +93,7 @@ class DataLoader:
             cursor.execute(query)
             self.dbconnect.commit()
         except Exception as e:
-            print("[ERROR] Failed to delete schema '" + name + "'")
+            print("[ERROR] Failed to delete schema '" + schema_id + "'")
             print(e)
             self.dbconnect.rollback()
             raise e
@@ -134,7 +134,7 @@ class DataLoader:
             return row[0]
 
         except Exception as e:
-            print("[ERROR] Couldn't determine existance of table '" + name + "'")
+            print("[ERROR] Couldn't determine existence of table '" + name + "'")
             print(e)
             raise e
 
@@ -272,6 +272,10 @@ class DataLoader:
         except Exception as e:
             print("[ERROR] Failed to load from .zip archive '" + file + "'")
             print(e)
+
+            # Clean up temp folder
+            shutil.rmtree("../output/temp")
+
             raise e
 
 

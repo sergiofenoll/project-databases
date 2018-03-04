@@ -35,7 +35,7 @@ class DataLoader:
         cursor = self.dbconnect.get_cursor()
 
         query = cursor.mogrify('SELECT count(*) FROM Dataset;')
-        cursor.execute(query);
+        cursor.execute(query)
         schemaID = cursor.fetchone()[0] # Amount of already existing schemas
         schemaname = "schema-" + str(schemaID)
 
@@ -75,7 +75,7 @@ class DataLoader:
                 'description VARCHAR(255)\n' +
                 ');')
             cursor.execute(query)
-            self.dbconnect.commit();
+            self.dbconnect.commit()
         except Exception as e:
             print("[ERROR] Failed to create metadata table for schema '" + name + "'")
             print(e)
@@ -139,10 +139,9 @@ class DataLoader:
 
         cursor = self.dbconnect.get_cursor()
 
-        row = list()
         try:
             query = cursor.mogrify(
-                "SELECT EXISTS ( SELECT 1 FROM information_schema.tables " +
+                "SELECT EXISTS (SELECT 1 FROM information_schema.tables " +
                 "WHERE  table_schema = \'{0}\' AND table_name = \'{1}\');".format(schema_id, name))
             cursor.execute(query)
             row = cursor.fetchone()
@@ -171,7 +170,7 @@ class DataLoader:
         query += '\n);'
 
         try:
-            query = cursor.mogrify(query);
+            query = cursor.mogrify(query)
             cursor.execute(query)
             self.dbconnect.commit()
         except Exception as e:
@@ -195,9 +194,9 @@ class DataLoader:
 
     def delete_table(self, name, schema_id):
         cursor = self.dbconnect.get_cursor()
-        schemaname = schema_id
+        schemaname = "\"" + schema_id + "\""
         try:
-            query = cursor.mogrify('DROP TABLE \"{0}\".\"{1}\";'.format(schemaname, name))
+            query = cursor.mogrify('DROP TABLE {0}.{1};'.format(schemaname, name))
             cursor.execute(query)
             self.dbconnect.commit()
         except Exception as e:
@@ -209,7 +208,7 @@ class DataLoader:
         # Delete metadata
         try:
             metadata_name = "\"" + schema_id + "\"" + ".Metadata"
-            query = cursor.mogrify('DELETE FROM {0} WHERE name = \"{1}\";'.format(name))
+            query = cursor.mogrify('DELETE FROM {0} WHERE name = \'{1}\';'.format(metadata_name, name))
             cursor.execute(query)
             self.dbconnect.commit()
         except Exception as e:
@@ -263,7 +262,6 @@ class DataLoader:
 
         with open(file, "r") as csv:
             first = True
-            columns = ''
             columns_list = list()
             for line in csv:
                 if first:
@@ -294,11 +292,10 @@ class DataLoader:
                     # Determine if this file should append an already existing table & process
                     tablename = csv.split('.csv')[0]
                     tablename = tablename.split('/')[-1]
-                    create_new = not self.table_exists(schema_id, tablename)
+                    create_new = not self.table_exists(tablename, schema_id)
 
                     if create_new:
                         self.process_csv(csv, schema_id, tablename)
-                        create_new = False
                     else:
                         self.process_csv(csv, schema_id, tablename, True)
 
@@ -362,7 +359,7 @@ class DataLoader:
             cursor.execute(query)
             self.dbconnect.commit()
         except Exception as e:
-            print("[ERROR] Couldn't grant '" + user_id + "' access to '" + schema + "'")
+            print("[ERROR] Couldn't grant '" + user_id + "' access to '" + schema_id + "'")
             print(e)
             self.dbconnect.rollback()
             raise e
@@ -377,7 +374,7 @@ class DataLoader:
             cursor.execute(query)
             self.dbconnect.commit()
         except Exception as e:
-            print("[ERROR] Couldn't remove access rights for '" + user_id + "' from '" + schema + "'")
+            print("[ERROR] Couldn't remove access rights for '" + user_id + "' from '" + schema_id + "'")
             print(e)
             self.dbconnect.rollback()
             raise e

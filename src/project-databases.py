@@ -205,4 +205,8 @@ def data_overview():
 if __name__ == "__main__":
     if not connection_failed:
         #app.run()
+
+        dataloader.create_dataset("Dawid Schema", "Coole mammals", "KillWidPrecision")
         dataloader.process_zip("../input/mammals.zip", "schema-0")
+        dataloader.delete_table("leeuwen", "schema-0")
+        dataloader.delete_dataset("schema-0")

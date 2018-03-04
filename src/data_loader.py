@@ -3,6 +3,7 @@ import psycopg2.extras
 from zipfile import ZipFile
 import shutil
 
+
 class Dataset:
 
     def __init__(self, id, name, desc, owner):
@@ -18,17 +19,17 @@ class Table:
         self.name = name
         self.desc = desc
 
+
 class DataLoader:
 
     def __init__(self, dbconnect):
         self.dbconnect = dbconnect
 
-
     # Dataset & Data handling (inserting/deleting...)
     def create_dataset(self, name, desc, owner_id):
         '''
          This method takes a name ('nickname') and description and creates a new schema in the database.
-         This new schema is by default available to the given owner. 
+         This new schema is by default available to the given owner.
         '''
 
         # Create the schema
@@ -36,7 +37,7 @@ class DataLoader:
 
         query = cursor.mogrify('SELECT count(*) FROM Dataset;')
         cursor.execute(query)
-        schemaID = cursor.fetchone()[0] # Amount of already existing schemas
+        schemaID = cursor.fetchone()[0]  # Amount of already existing schemas
         schemaname = "schema-" + str(schemaID)
 
         try:
@@ -80,7 +81,7 @@ class DataLoader:
             print("[ERROR] Failed to create metadata table for schema '" + name + "'")
             print(e)
             self.dbconnect.rollback()
-            raise e 
+            raise e
 
     def delete_dataset(self, schema_id):
         '''
@@ -162,8 +163,8 @@ class DataLoader:
         schemaname = schema_id
 
         query = 'CREATE TABLE \"{0}\".\"{1}\" ('.format(schemaname, name)
-        
-        query += 'id serial primary key' # Since we don't know what the actual primary key should be, just assign an ever increasing id
+
+        query += 'id serial primary key'  # Since we don't know what the actual primary key should be, just assign an ever increasing id
 
         for column in columns:
             query = query + ', \n' + column + ' varchar(255)'
@@ -220,7 +221,7 @@ class DataLoader:
     def insert_row(self, table, schema_id, columns, values):
         '''
          This method takes list of values and adds those to the given table.
-        ''' 
+        '''
 
         cursor = self.dbconnect.get_cursor()
 
@@ -243,9 +244,8 @@ class DataLoader:
             self.dbconnect.rollback()
             raise e
 
-
     # Data uploading handling
-    def process_csv(self, file, schema_id, tablename, append = False):
+    def process_csv(self, file, schema_id, tablename, append=False):
         '''
          This method takes a filename for a CSV file and processes it into a table.
          A table name should be provided by the user / caller of this method.
@@ -310,7 +310,6 @@ class DataLoader:
             shutil.rmtree("../output/temp")
 
             raise e
-
 
     # Data access handling
     def get_user_datasets(self, user_id):

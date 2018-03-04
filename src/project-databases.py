@@ -140,11 +140,10 @@ def delete_dataset(id):
     dataloader.delete_dataset(schema_id)
 
     return redirect(url_for('data_overview'))
-    #return render_template('data-overview.html', datasets=dataloader.get_user_datasets(current_user.username))
 
 
 @app.route('/data-service/<int:dataset_id>')
-def show_dataset(dataset_id): 
+def show_dataset(dataset_id):
     dataset = dataloader.get_dataset(dataset_id)
     tables = dataloader.get_tables(dataset_id)
 
@@ -204,9 +203,4 @@ def data_overview():
 
 if __name__ == "__main__":
     if not connection_failed:
-        #app.run()
-
-        dataloader.create_dataset("Dawid Schema", "Coole mammals", "KillWidPrecision")
-        dataloader.process_zip("../input/mammals.zip", "schema-0")
-        dataloader.delete_table("leeuwen", "schema-0")
-        dataloader.delete_dataset("schema-0")
+        app.run()

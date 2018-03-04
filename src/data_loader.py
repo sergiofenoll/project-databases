@@ -1,6 +1,7 @@
 import psycopg2
 import psycopg2.extras
 from zipfile import ZipFile
+import shutil
 
 class Dataset:
 
@@ -233,21 +234,41 @@ class DataLoader:
                     values_list = [x.strip() for x in line.split(",")]
                     self.insert_row(tablename, schema_id, columns_list, values_list)
 
-    def process_zip(self, file, schema_id):
+    def process_zip(self, file, schema_id, tablename=None):
         '''
          This method takes a ZIP archive filled with CSV files, and processes them individually
+         If a table name is provided, it will be used. If it already exists, this function
+         will try to append the csv files. If not, it will first create the table
         '''
+
+        # If no tablename provided, use the archive name as tablename and create new table
+        create_new = False
+        if tablename == None:
+            tablename = file.split('.zip')[0]
+            tablename = tablename.split('/')[-1] # pick the word between the last '/' and the '.zip' extension
+            create_new = True
+        else:
+            if not self.table_exists(schema_id, tablename):
+                create_new = True
 
         try:
             with ZipFile(file) as archive:
                 # Extract each file, one by one
-                pass
+                members = archive.infolist()
 
-                # Determine schema- & tablename
+                for m in members:
+                    csv = archive.extract(m, "../output/temp")
 
-                # Determine if this file should append an already existing table
+                    # Determine if this file should append an already existing table & process
+                    if create_new:
+                        self.process_csv(csv, schema_id, tablename)
+                        create_new = False
+                    else:
+                        self.process_csv(csv, schema_id, tablename, True)
 
-                # Process this csv file
+                # Clean up temp folder
+                shutil.rmtree("../output/temp")
+
         except Exception as e:
             print("[ERROR] Failed to load from .zip archive '" + file + "'")
             print(e)

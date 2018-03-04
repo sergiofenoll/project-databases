@@ -66,6 +66,22 @@ class DataLoader:
             self.dbconnect.rollback()
             raise e
 
+        # Create 'metadata' table for this dataset
+        try:
+            metadata_name = "\"" + schemaname + "\"" + ".Metadata"
+            query = cursor.mogrify(
+                'CREATE TABLE {0}(\n'.format(metadata_name) +
+                'name VARCHAR(255) PRIMARY KEY,\n' +
+                'description VARCHAR(255)\n' +
+                ');')
+            cursor.execute(query)
+            self.dbconnect.commit();
+        except Exception as e:
+            print("[ERROR] Failed to create metadata table for schema '" + name + "'")
+            print(e)
+            self.dbconnect.rollback()
+            raise e 
+
     def delete_dataset(self, schema_id):
         '''
          This method deletes a schema (and therefore all contained tables) from the database
@@ -138,7 +154,7 @@ class DataLoader:
             print(e)
             raise e
 
-    def create_table(self, name, schema_id, columns):
+    def create_table(self, name, schema_id, columns, desc="Default description"):
         '''
          This method takes a schema, name and a list of columns and creates the corresponding table
         '''
@@ -164,6 +180,19 @@ class DataLoader:
             self.dbconnect.rollback()
             raise e
 
+        # Add metadata for this table
+        try:
+            metadata_name = "\"" + schema_id + "\"" + ".Metadata"
+            query = cursor.mogrify(
+                'INSERT INTO {0}(name, description) VALUES(\'{1}\', \'{2}\');'.format(metadata_name, name, desc))
+            cursor.execute(query)
+            self.dbconnect.commit()
+        except Exception as e:
+            print("[ERROR] Failed to insert metadata for table '" + name + "'")
+            print(e)
+            self.dbconnect.rollback()
+            raise e
+
     def delete_table(self, name, schema_id):
         cursor = self.dbconnect.get_cursor()
         schemaname = schema_id
@@ -173,6 +202,18 @@ class DataLoader:
             self.dbconnect.commit()
         except Exception as e:
             print("[ERROR] Failed to delete table '" + name + "'")
+            print(e)
+            self.dbconnect.rollback()
+            raise e
+
+        # Delete metadata
+        try:
+            metadata_name = "\"" + schema_id + "\"" + ".Metadata"
+            query = cursor.mogrify('DELETE FROM {0} WHERE name = \"{1}\";'.format(name))
+            cursor.execute(query)
+            self.dbconnect.commit()
+        except Exception as e:
+            print("[ERROR] Failed to delete metadata for table '" + name + "'")
             print(e)
             self.dbconnect.rollback()
             raise e
@@ -202,6 +243,7 @@ class DataLoader:
             print (e)
             self.dbconnect.rollback()
             raise e
+
 
     # Data uploading handling
     def process_csv(self, file, schema_id, tablename, append = False):
@@ -234,22 +276,12 @@ class DataLoader:
                     values_list = [x.strip() for x in line.split(",")]
                     self.insert_row(tablename, schema_id, columns_list, values_list)
 
-    def process_zip(self, file, schema_id, tablename=None):
+    def process_zip(self, file, schema_id):
         '''
          This method takes a ZIP archive filled with CSV files, and processes them individually
-         If a table name is provided, it will be used. If it already exists, this function
-         will try to append the csv files. If not, it will first create the table
+         The name of the CSV file will be used as table name. If a table with the same name is found
+         the data will be appended
         '''
-
-        # If no tablename provided, use the archive name as tablename and create new table
-        create_new = False
-        if tablename == None:
-            tablename = file.split('.zip')[0]
-            tablename = tablename.split('/')[-1] # pick the word between the last '/' and the '.zip' extension
-            create_new = True
-        else:
-            if not self.table_exists(schema_id, tablename):
-                create_new = True
 
         try:
             with ZipFile(file) as archive:
@@ -260,6 +292,10 @@ class DataLoader:
                     csv = archive.extract(m, "../output/temp")
 
                     # Determine if this file should append an already existing table & process
+                    tablename = csv.split('.csv')[0]
+                    tablename = tablename.split('/')[-1]
+                    create_new = not self.table_exists(schema_id, tablename)
+
                     if create_new:
                         self.process_csv(csv, schema_id, tablename)
                         create_new = False

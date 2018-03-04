@@ -11,6 +11,12 @@ class Dataset:
         self.id = id
 
 
+class Table:
+
+    def __init__(self, name, desc):
+        self.name = name
+        self.desc = desc
+
 class DataLoader:
 
     def __init__(self, dbconnect):
@@ -287,8 +293,6 @@ class DataLoader:
 
     def grant_access(self, user_id, schema_id, role='contributer'):
 
-        schema_id = self.get_dataset_id(schema)[0]
-
         try:
             cursor = self.dbconnect.get_cursor()
 
@@ -315,4 +319,36 @@ class DataLoader:
             print("[ERROR] Couldn't remove access rights for '" + user_id + "' from '" + schema + "'")
             print(e)
             self.dbconnect.rollback()
+            raise e
+
+    def get_dataset(self, id):
+        '''
+         This method returns a 'Dataset' object according to the requested id
+        '''
+        cursor = self.dbconnect.get_cursor()
+
+        try:
+            schema_id = "schema-" + str(id)
+            query = cursor.mogrify(
+                'SELECT id, nickname, metadata FROM Dataset ds WHERE ds.id = \'{0}\';'.format(schema_id))
+            cursor.execute(query)
+
+            ds = cursor.fetchone()
+            return Dataset(id, ds['nickname'], ds['metadata'], "")
+        except Exception as e:
+            print("[ERROR] Couldn't fetch data for dataset.")
+            print(e)
+            raise e
+
+    def get_tables(self, id):
+        '''
+         This method returns a list of 'Table' objects associated with the requested dataset
+        '''
+
+        try:
+            result = list()
+            return result
+        except Exception as e:
+            print("[ERROR] Couldn't fetch tables for dataset.")
+            print(e)
             raise e

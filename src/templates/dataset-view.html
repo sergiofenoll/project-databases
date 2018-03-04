@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block content %}
+    <div class="row">
+        <div class="spacer4"></div>
+        <div class="col-sm-4">
+            <h1>{{ds.name}}</h1>
+            <p>{{ds.desc}}</p>
+        </div>
+        <div class="col-sm-4"></div>
+        <div class="col-sm-4"></div>
+    </div>
+    <br>
+    <div class="row">
+        <div class="spacer4"></div>
+        <div class="col-sm-6">
+                <table id="tablesOverview" class="table" cellspacing="0" width="100%">
+                    <thead>
+                    <tr>
+                        <th>
+                            Table
+                        </th>
+                        <th>
+                            Description
+                        </th>
+                        <th>
+                            Remove
+                        </th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    {% for t in tables %}
+                        <tr>
+                            <td> {{ t.name }} </td>
+
+                            <td> {{ t.desc }}  </td>
+
+                            <td>
+                                <a href="/data-service/{{ds.id}}/{{t.name}}"><button type="button" class="btn btn-danger">X</button></a>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+        </div>
+        <div class="col-sm-6"></div>
+    </div>
+    <br>
+{% endblock %}

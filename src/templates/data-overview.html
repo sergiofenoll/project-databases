@@ -24,6 +24,7 @@
                         <th>
                             Owner
                         </th>
+
                         <th>
                             Remove
                         </th>
@@ -32,7 +33,7 @@
                     <tbody>
                     {% for ds in datasets %}
                         <tr>
-                            <td> <a href="/data-service/{{ds.name}}">{{ ds.name }}</a>  </td>
+                            <td> <a href="/data-service/{{ds.id}}">{{ ds.name }}</a>  </td>
 
                             <td> {{ ds.desc }}  </td>
 
@@ -45,7 +46,9 @@
                             </td>
 
                             <td>
+                                {% if ds.owner == current_user.username %}
                                 <a href="/data-service/delete/{{ds.id}}"><button type="button" class="btn btn-danger">X</button></a>
+                                {% endif %}
                             </td>
                         </tr>
                     {% endfor %}

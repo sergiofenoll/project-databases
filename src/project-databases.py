@@ -143,10 +143,13 @@ def delete_dataset(id):
     #return render_template('data-overview.html', datasets=dataloader.get_user_datasets(current_user.username))
 
 
-@app.route('/data-service/<string:dataset>')
-def show_dataset(dataset): 
-    print("Showing " + dataset)
-    return render_template('data-overview.html', datasets=dataloader.get_user_datasets(current_user.username))
+@app.route('/data-service/<int:dataset_id>')
+def show_dataset(dataset_id): 
+    dataset = dataloader.get_dataset(dataset_id)
+    tables = dataloader.get_tables(dataset_id)
+
+    return render_template('dataset-view.html', ds=dataset, tables=tables)
+
 
 # Views
 @app.route('/')
@@ -198,28 +201,7 @@ def admin_page():
 def data_overview():
     return render_template('data-overview.html', datasets=dataloader.get_user_datasets(current_user.username))
 
+
 if __name__ == "__main__":
     if not connection_failed:
         app.run()
-        #dataloader.process_zip("../input/mammals.zip", "public")
-        '''
-        try:
-            dl = DataLoader(connection)
-
-            tablename = "tijgers"
-            schema = "mammals"
-
-            if dl.table_exists(tablename, schema):
-                dl.delete_table(tablename, schema)
-            
-            dl.create_dataset(schema, "Some mammals", "xXx_tester_xXx")
-
-            dl.process_csv("../input/tijgers.csv", schema, tablename)
-            dl.process_csv("../input/tijgers2.csv", schema, tablename, True)
-            
-            dl.delete_dataset(schema)
-
-        except Exception as e:
-            print("[ERROR] An error occured during execution.")
-            print(e)
-        '''

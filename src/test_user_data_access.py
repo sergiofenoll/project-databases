@@ -2,6 +2,22 @@ import unittest
 from user_data_access import DBConnection, UserDataAccess, User
 from config import *
 
+class TestUser(unittest.TestCase):
+
+    def test_cmp(self):
+        username = "test_username"
+        password = "test_pass"
+        firstname = "test_fname"
+        lastname = "test_lname"
+        email = "test_email@test.com"
+        status = "user"
+        active = True
+
+        # Create user_obj to compare with self
+        user_obj = User(username=username, password=password, firstname=firstname, lastname=lastname, email=email,
+                        status=status, active=active)
+
+        self.assertTrue(user_obj == user_obj)
 
 class TestUserDataAccess(unittest.TestCase):
 
@@ -183,9 +199,6 @@ class TestUserDataAccess(unittest.TestCase):
         self.assertRaises(Exception, user_data_access_obj.login_user(username))
 
     def test_alter_user(self):
-        #TODO Alter all data,
-        #TODO Retrieve using new data == success
-        #TODO Retrieve using old data == Exception
         connection = self.connect()
 
         username = "test_username"

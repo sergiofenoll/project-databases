@@ -2,7 +2,7 @@ import psycopg2
 import psycopg2.extras
 from zipfile import ZipFile
 import shutil
-from Lib import os
+import os
 
 
 class Dataset:

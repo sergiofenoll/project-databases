@@ -54,6 +54,8 @@ class User:
         return {'Username': self.username, 'First name': self.firstname, 'Last name': self.lastname,
                 'Email': self.email, 'Status': self.status, 'Active': self.active}
 
+    def __cmp__(self, other):
+        return self.username == other.username and self.password == other.password and self.firstname == other.firstname and self.lastname == other.lastname and self.email == other.email and self.active == other.active and self.status == other.status
 
 class UserDataAccess:
     def __init__(self, dbconnect):
@@ -73,11 +75,13 @@ class UserDataAccess:
         cursor = self.dbconnect.get_cursor()
 
         try:
-            cursor.execute('INSERT INTO Member(Username,Pass,FirstName,LastName,Email,Status,Active) '
+            query = cursor.mogrify('INSERT INTO Member(Username,Pass,FirstName,LastName,Email,Status,Active) '
                                    'VALUES(%s,%s,%s,%s,%s,%s,%s)',
                                    (user_obj.username, user_obj.password, user_obj.firstname, user_obj.lastname,
                                     user_obj.email,
                                     user_obj.status, user_obj.active,))
+
+            cursor.execute(query)
 
             self.dbconnect.commit()
 

@@ -6,7 +6,8 @@ from user_data_access import User, DBConnection, UserDataAccess
 from config import config_data
 from data_loader import DataLoader
 
-from Lib import os
+#from Lib import os
+import os
 
 # INITIALIZE SINGLETON SERVICES
 app = Flask(__name__)
@@ -132,6 +133,7 @@ def create_new_dataset():
 
     return render_template('data-overview.html', datasets=dataloader.get_user_datasets(current_user.username))
 
+
 def allowed_file(filename):
     return '.' in filename and \
            filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
@@ -148,30 +150,38 @@ def upload_file(dataset_id):
         return show_dataset(dataset_id)
 
     if file and allowed_file(file.filename):
-        filename = secure_filename(file.filename)
-        path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-        file.save(path)
+        try:
 
-        dl = DataLoader(connection)
+            filename = secure_filename(file.filename)
+            path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+            file.save(path)
+        except Exception as e:
+            print("[ERROR] Failed to upload file '" + file.filename + "'")
+            print(e)
+            file.close()
+            os.remove(path)
+            return show_dataset(dataset_id)
+
         current_user.active_schema = "schema-" + str(dataset_id)
 
-        if filename[-3:] == "zip":
-            dl.process_zip(path, current_user.active_schema)
+        try:
+            if filename[-3:] == "zip":
+                dataloader.process_zip(path, current_user.active_schema)
 
-        else:
-            tablename = filename.split('.csv')[0]
-            create_new = not dl.table_exists(tablename, dataset_id)
-
-            if create_new:
-                dl.process_csv(path, current_user.active_schema, tablename)
             else:
-                dl.process_csv(path, current_user.active_schema, True)
+                tablename = filename.split('.csv')[0]
+                create_new = not dataloader.table_exists(tablename, dataset_id)
+
+                if create_new:
+                    dataloader.process_csv(path, current_user.active_schema, tablename)
+                else:
+                    dataloader.process_csv(path, current_user.active_schema, True)
+        except Exception as e:
+            print("[ERROR] Failed to process file '" + filename + "'")
+            print(e)
 
         file.close()
         os.remove(path)
-
-
-
 
     return show_dataset(dataset_id)
 

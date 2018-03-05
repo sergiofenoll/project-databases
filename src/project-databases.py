@@ -157,6 +157,16 @@ def upload_file(dataset_id):
 
         if filename[-3:] == "zip":
             dl.process_zip(path, current_user.active_schema)
+
+        else:
+            tablename = filename.split('.csv')[0]
+            create_new = not dl.table_exists(tablename, dataset_id)
+
+            if create_new:
+                dl.process_csv(path, current_user.active_schema, tablename)
+            else:
+                dl.process_csv(path, current_user.active_schema, True)
+
         file.close()
         os.remove(path)
 

@@ -282,16 +282,23 @@ class DataLoader:
         '''
 
         try:
+            print("ok")
+            print(file)
             with ZipFile(file) as archive:
                 # Extract each file, one by one
                 members = archive.infolist()
 
                 for m in members:
+                    print("name")
+                    print(m.filename)
                     csv = archive.extract(m, "../output/temp")
-
+                    print("here")
+                    print(csv)
                     # Determine if this file should append an already existing table & process
-                    tablename = csv.split('.csv')[0]
+                    tablename = m.filename.split('.csv')[0]
                     tablename = tablename.split('/')[-1]
+                    print("table")
+                    print(tablename)
                     create_new = not self.table_exists(tablename, schema_id)
 
                     if create_new:

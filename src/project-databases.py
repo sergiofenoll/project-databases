@@ -1,10 +1,12 @@
 from flask import Flask, render_template, request, jsonify, redirect, url_for, abort
 from flask_login import LoginManager, login_user, login_required, logout_user, current_user
+from werkzeug.utils import secure_filename
 from passlib.hash import sha256_crypt
 from user_data_access import User, DBConnection, UserDataAccess
 from config import config_data
 from data_loader import DataLoader
 
+from Lib import os
 
 # INITIALIZE SINGLETON SERVICES
 app = Flask(__name__)
@@ -14,6 +16,10 @@ app_data['app_name'] = config_data['app_name']
 login = LoginManager(app)
 login.login_view = 'login'
 connection_failed = False
+
+UPLOAD_FOLDER = '../input'
+ALLOWED_EXTENSIONS = ['csv', 'zip']
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 try:
     connection = DBConnection(dbname=config_data['dbname'], dbuser=config_data['dbuser'], dbpass=config_data['dbpass'],
@@ -125,6 +131,42 @@ def create_new_dataset():
     dataloader.create_dataset(name, meta, owner_id)
 
     return render_template('data-overview.html', datasets=dataloader.get_user_datasets(current_user.username))
+
+def allowed_file(filename):
+    return '.' in filename and \
+           filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+@app.route('/data-service/<int:dataset_id>', methods=['POST'])
+def upload_file(dataset_id):
+    print("hllo")
+    if 'file' not in request.files:
+        print("hllo111")
+        return show_dataset(dataset_id)
+    file = request.files['file']
+    # if user does not select file, browser also
+    # submit a empty part without filename
+    if file.filename == '':
+        print("hllo222")
+        return show_dataset(dataset_id)
+    if file and allowed_file(file.filename):
+        print("hllo33")
+        filename = secure_filename(file.filename)
+        path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        file.save(path)
+
+        dl = DataLoader(connection)
+        current_user.active_schema = "schema-" + str(dataset_id)
+        print(filename[-3:])
+        if filename[-3:] == "zip":
+            print("hllo555")
+            dl.process_zip(path, current_user.active_schema)
+
+    print("hllo444")
+
+
+
+
+    return show_dataset(dataset_id)
 
 
 @app.route('/data-service/delete/<int:id>')

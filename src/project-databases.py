@@ -138,30 +138,27 @@ def allowed_file(filename):
 
 @app.route('/data-service/<int:dataset_id>', methods=['POST'])
 def upload_file(dataset_id):
-    print("hllo")
+
     if 'file' not in request.files:
-        print("hllo111")
         return show_dataset(dataset_id)
     file = request.files['file']
     # if user does not select file, browser also
     # submit a empty part without filename
     if file.filename == '':
-        print("hllo222")
         return show_dataset(dataset_id)
+
     if file and allowed_file(file.filename):
-        print("hllo33")
         filename = secure_filename(file.filename)
         path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
         file.save(path)
 
         dl = DataLoader(connection)
         current_user.active_schema = "schema-" + str(dataset_id)
-        print(filename[-3:])
-        if filename[-3:] == "zip":
-            print("hllo555")
-            dl.process_zip(path, current_user.active_schema)
 
-    print("hllo444")
+        if filename[-3:] == "zip":
+            dl.process_zip(path, current_user.active_schema)
+        file.close()
+        os.remove(path)
 
 
 

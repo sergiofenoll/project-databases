@@ -45,4 +45,16 @@
         <div class="col-sm-6"></div>
     </div>
     <br>
+    <br>
+    <div class="row" >
+        <div class="col-sm-4">
+        <h4>Add CSV/Zip</h4>
+        <div class="spacer5" ></div>
+            <form action="/data-service/{{ds.id}}" method="post" enctype=multipart/form-data>
+                <input type="file" name="file" id="ds-files" accept=".csv,.zip" style='margin-bottom: 10px;'>
+                <button type="submit" class="btn btn-default" id="submit">Submit</button>
+            </form>
+        </div>
+    </div>
+    <br>
 {% endblock %}

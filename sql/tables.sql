@@ -19,11 +19,11 @@ CREATE TABLE Dataset (
 );
 
 CREATE TABLE Access (
-  id_dataset INTEGER,
+  id_dataset VARCHAR(255),
   id_user VARCHAR(255),
   role VARCHAR(255),
   FOREIGN KEY(id_dataset) REFERENCES Dataset(id),
-  FOREIGN KEY(id_user) REFERENCES member(username),
+  FOREIGN KEY(id_user) REFERENCES Member(username),
   PRIMARY KEY(id_dataset, id_user),
-  CHECK (Status IN ('owner','contributer'))
+  CHECK (role IN ('owner','contributer'))
 );

@@ -1,9 +1,13 @@
 from flask import Flask, render_template, request, jsonify, redirect, url_for, abort
 from flask_login import LoginManager, login_user, login_required, logout_user, current_user
+from werkzeug.utils import secure_filename
 from passlib.hash import sha256_crypt
 from user_data_access import User, DBConnection, UserDataAccess
 from config import config_data
+from data_loader import DataLoader
 
+#from Lib import os
+import os
 
 # INITIALIZE SINGLETON SERVICES
 app = Flask(__name__)
@@ -14,10 +18,15 @@ login = LoginManager(app)
 login.login_view = 'login'
 connection_failed = False
 
+UPLOAD_FOLDER = '../input'
+ALLOWED_EXTENSIONS = ['csv', 'zip']
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+
 try:
     connection = DBConnection(dbname=config_data['dbname'], dbuser=config_data['dbuser'], dbpass=config_data['dbpass'],
                               dbhost=config_data['dbhost'])
     user_data_access = UserDataAccess(connection)
+    dataloader = DataLoader(connection)
 except Exception as e:
     print("[ERROR] Failed to establish user connection.")
     print(e)
@@ -35,25 +44,22 @@ def send_login_request():
     username = request.form.get('lg-username')
     password = request.form.get('lg-password')
 
-    print('Validating data for user "{0}"'.format(username))
-
     try:
         retrieved_pass = user_data_access.login_user(username)
         if sha256_crypt.verify(password, retrieved_pass):
+
+            # Check if user is inactive
+            user = user_data_access.get_user(username)
+            if not user.active:
+                print("Inactive account")
+                return render_template('login-form.html', user_inactive=True)
+
             # Login and validate the user.
             # user should be an instance of your `User` class
-            login_user(user_data_access.get_user(username))
+            login_user(user)
 
-            """
-            next = flask.request.args.get('next')
-            # is_safe_url should check if the url is safe for redirects.
-            # See http://flask.pocoo.org/snippets/62/ for an example.
-            if not is_safe_url(next):
-                return flask.abort(400)
-            """
             return redirect(url_for('main_page'))
         else:
-            print("Wrong password.")
             return render_template('login-form.html', wrong_password=True)
     except Exception as e:
         print(e)
@@ -111,9 +117,96 @@ def admin_activity_change():
         else:  # If the checkbox is checked the response is 'on'
             user.is_active = True
             user.active = True
-        # I have no clue why they don't just return True or False
+        # I have no clue why they don't just return True or False - Edit by Jona: Fucking webdevelopment
         user_data_access.alter_user(user)
     return render_template('admin-page.html', users=user_data_access.get_users(), data_updated=True)
+
+
+@app.route('/data-service/new', methods=['POST'])
+@login_required
+def create_new_dataset():
+    name = request.form.get('ds-name')
+    meta = request.form.get('ds-meta')
+    owner_id = current_user.username
+
+    dataloader.create_dataset(name, meta, owner_id)
+
+    return render_template('data-overview.html', datasets=dataloader.get_user_datasets(current_user.username))
+
+
+def allowed_file(filename):
+    return '.' in filename and \
+           filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+@app.route('/data-service/<int:dataset_id>', methods=['POST'])
+def upload_file(dataset_id):
+
+    if 'file' not in request.files:
+        return show_dataset(dataset_id)
+    file = request.files['file']
+    # if user does not select file, browser also
+    # submit a empty part without filename
+    if file.filename == '':
+        return show_dataset(dataset_id)
+
+    if file and allowed_file(file.filename):
+        try:
+
+            filename = secure_filename(file.filename)
+            path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+            file.save(path)
+        except Exception as e:
+            print("[ERROR] Failed to upload file '" + file.filename + "'")
+            print(e)
+            file.close()
+            os.remove(path)
+            return show_dataset(dataset_id)
+
+        current_user.active_schema = "schema-" + str(dataset_id)
+
+        try:
+            if filename[-3:] == "zip":
+                dataloader.process_zip(path, current_user.active_schema)
+
+            else:
+                tablename = filename.split('.csv')[0]
+                create_new = not dataloader.table_exists(tablename, dataset_id)
+
+                if create_new:
+                    dataloader.process_csv(path, current_user.active_schema, tablename)
+                else:
+                    dataloader.process_csv(path, current_user.active_schema, True)
+        except Exception as e:
+            print("[ERROR] Failed to process file '" + filename + "'")
+            print(e)
+
+        file.close()
+        os.remove(path)
+
+    return show_dataset(dataset_id)
+
+
+@app.route('/data-service/delete/<int:id>')
+@login_required
+def delete_dataset(id):
+    '''
+     TEMP: this method is called when the button for removing a dataset is clicked.
+           It's probably very insecure but since I don't know what I'm doing, this is my solution.
+           Please fix this if you actually know how to make buttons work and stuff.
+    '''
+
+    schema_id = "schema-" + str(id)
+    dataloader.delete_dataset(schema_id)
+
+    return redirect(url_for('data_overview'))
+
+
+@app.route('/data-service/<int:dataset_id>')
+def show_dataset(dataset_id):
+    dataset = dataloader.get_dataset(dataset_id)
+    tables = dataloader.get_tables(dataset_id)
+
+    return render_template('dataset-view.html', ds=dataset, tables=tables)
 
 
 # Views
@@ -159,6 +252,12 @@ def admin_page():
     if current_user.status != 'admin':
         return abort(403)
     return render_template('admin-page.html', users=user_data_access.get_users())
+
+
+@app.route('/data-service')
+@login_required
+def data_overview():
+    return render_template('data-overview.html', datasets=dataloader.get_user_datasets(current_user.username))
 
 
 if __name__ == "__main__":

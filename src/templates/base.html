@@ -20,7 +20,7 @@
     </button>
     <div class="collapse navbar-collapse" id="collapsibleNavbar">
         <!-- Links -->
-        <ul class="nav navbar-nav">
+        <ul class="nav navbar-nav mr-auto">
             <li class="nav-item">
                 <a class="nav-link" href="{{ url_for('main_page') }}">Home</a>
             </li>
@@ -28,12 +28,21 @@
                 <a class="nav-link" href="#">Docs</a>
             </li>
             {% if current_user.is_authenticated %}
-                <li class="nav-item">
+                <li class="nav-item ">
                     <a class="nav-link" href="{{url_for('data_overview')}}">Data management</a>
                 </li>
                 <li class="nav-item">
                     <a class="nav-link" href="{{ url_for('user_data') }}">User Page</a>
                 </li>
+            {% endif %}
+            {% if current_user.status == 'admin' %}
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ url_for('admin_page') }}">Admin Page</a>
+                </li>
+            {% endif %}
+        </ul>
+        <ul class="nav navbar-nav ml-auto">
+            {% if current_user.is_authenticated %}
                 <li class="nav-item">
                     <a class="nav-link" href="{{ url_for('logout') }}">Logout</a>
                 </li>
@@ -43,11 +52,6 @@
                 </li>
                 <li class="nav-item">
                     <a class="nav-link" href="{{ url_for('register') }}">Register</a>
-                </li>
-            {% endif %}
-            {% if current_user.status == 'admin' %}
-                <li class="nav-item">
-                    <a class="nav-link" href="{{ url_for('admin_page') }}">Admin Page</a>
                 </li>
             {% endif %}
         </ul>

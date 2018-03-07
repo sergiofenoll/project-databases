@@ -5,11 +5,11 @@
         <div class="col-sm-3"></div>
         <div class="col-sm-6">
             <form action="/admin-page" method="post">
-                <table id="userTable" class="table" cellspacing="0" width="100%">
+                <table id="userTable" class="table" cellspacing="0" width="100%"  >
                     <thead>
                     <tr>
                         <th>
-                            Users
+                            User
                         </th>
                         <th>
                             Status
@@ -19,7 +19,7 @@
                         </th>
                     </tr>
                     </thead>
-                    <tbody>
+                    <tbody >
                     {% for user in users %}
                         <tr>
                             <td>{{ user.username }}</td>

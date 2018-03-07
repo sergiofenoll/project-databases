@@ -54,6 +54,8 @@ class User:
         return {'Username': self.username, 'First name': self.firstname, 'Last name': self.lastname,
                 'Email': self.email, 'Status': self.status, 'Active': self.active}
 
+    def __eq__(self, other):
+        return self.username == other.username and self.password == other.password and self.firstname == other.firstname and self.lastname == other.lastname and self.email == other.email and self.active == other.active and self.status == other.status
 
 class UserDataAccess:
     def __init__(self, dbconnect):
@@ -111,7 +113,7 @@ class UserDataAccess:
         cursor = self.dbconnect.get_cursor()
 
         cursor.execute(
-            'SELECT Username,Pass, FirstName, LastName, Email, Status, Active FROM Member WHERE Username=%s;', (id,))
+            'SELECT * FROM Member WHERE Username=%s;', (id,))
         row = cursor.fetchone()
 
         if row is not None:

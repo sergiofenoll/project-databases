@@ -246,13 +246,13 @@ class DataLoader:
             raise e
 
     def update_metadata(self, tablename, schema_id, columns_metadata, values_metadata):
-    '''
-     This method updates the metadata for a table.
-    '''
+        """
+         This method updates the metadata for a table.
+        """
 
-    columns = ['name'] + columns_metadata
-    values = [tablename] + values_metadata
-    self.insert_row('Metadata', schema_id, columns, values)
+        columns = ['name'] + columns_metadata
+        values = [tablename] + values_metadata
+        self.insert_row('Metadata', schema_id, columns, values)
 
 
 

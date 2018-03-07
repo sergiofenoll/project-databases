@@ -13,5 +13,5 @@ This project is being realised by four undergraduate students at the University 
 
 * [De Schepper Cedric](https://github.com/DeSchepperCedric)
 * [Fenoll Sergio](https://github.com/sergiofenoll)
-* [Meyer Jonathan](https://github.com/DawidMiroyan)
-* [Miroyan Dawid](https://github.com/MeyerJon)
+* [Meyer Jonathan](https://github.com/MeyerJon)
+* [Miroyan Dawid](https://github.com/DawidMiroyan)

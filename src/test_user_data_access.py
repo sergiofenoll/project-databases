@@ -2,6 +2,7 @@ import unittest
 from user_data_access import DBConnection, UserDataAccess, User
 from config import *
 
+
 class TestUser(unittest.TestCase):
 
     def test_cmp(self):
@@ -19,6 +20,7 @@ class TestUser(unittest.TestCase):
 
         self.assertTrue(user_obj == user_obj)
 
+
 class TestUserDataAccess(unittest.TestCase):
 
     def connect(self):
@@ -31,7 +33,7 @@ class TestUserDataAccess(unittest.TestCase):
         connection.close()
         print("Connection: ok")
 
-    def test_add_user_success(self):
+    def test_add_user(self):
         connection = self.connect()
 
         username = "test_username"
@@ -233,8 +235,9 @@ class TestUserDataAccess(unittest.TestCase):
         # Create user_obj and altered_user_obj
         user_obj = User(username=username, password=password, firstname=firstname, lastname=lastname, email=email,
                         status=status, active=active)
-        altered_user_obj = User(username=username, password=altered_password, firstname=altered_firstname, lastname=altered_lastname, email=altered_email,
-                        status=altered_status, active=altered_active)
+        altered_user_obj = User(username=username, password=altered_password, firstname=altered_firstname,
+                                lastname=altered_lastname, email=altered_email,
+                                status=altered_status, active=altered_active)
 
         user_data_access_obj.alter_user(altered_user_obj)
 
@@ -246,7 +249,7 @@ class TestUserDataAccess(unittest.TestCase):
 
         self.assertIsNotNone(row)
         db_altered_user_obj = User(row['username'], row['pass'], row['firstname'], row['lastname'], row['email'],
-                           row['status'], row['active'])
+                                   row['status'], row['active'])
 
         self.assertEqual(altered_user_obj, db_altered_user_obj)
 

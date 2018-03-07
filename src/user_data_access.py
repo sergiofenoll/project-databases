@@ -55,8 +55,7 @@ class User:
                 'Email': self.email, 'Status': self.status, 'Active': self.active}
 
     def __eq__(self, other):
-        equals = self.username == other.username and self.password == other.password and self.firstname == other.firstname and self.lastname == other.lastname and self.email == other.email and self.active == other.active and self.status == other.status
-        return equals
+        return self.username == other.username and self.password == other.password and self.firstname == other.firstname and self.lastname == other.lastname and self.email == other.email and self.active == other.active and self.status == other.status
 
 class UserDataAccess:
     def __init__(self, dbconnect):

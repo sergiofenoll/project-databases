@@ -245,6 +245,17 @@ class DataLoader:
             self.dbconnect.rollback()
             raise e
 
+    def update_metadata(self, tablename, schema_id, columns_metadata, values_metadata):
+    '''
+     This method updates the metadata for a table.
+    '''
+
+    columns = ['name'] + columns_metadata
+    values = [tablename] + values_metadata
+    self.insert_row('Metadata', schema_id, columns, values)
+
+
+
     # Data uploading handling
     def process_csv(self, file, schema_id, tablename, append=False):
         '''

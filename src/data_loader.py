@@ -1,6 +1,9 @@
 import re
 import shutil
 from zipfile import ZipFile
+import psycopg2
+import psycopg2.extras
+import os
 
 
 class Dataset:
@@ -425,7 +428,7 @@ class DataLoader:
         """
          This method returns a 'Dataset' object according to the requested id
         """
-
+  
         cursor = self.dbconnect.get_cursor()
 
         try:
@@ -441,13 +444,25 @@ class DataLoader:
             print(e)
             raise e
 
-    def get_tables(self, id):
+    def get_tables(self, schema_id):
         """
          This method returns a list of 'Table' objects associated with the requested dataset
         """
 
+        cursor = self.dbconnect.get_cursor()
+
         try:
+
+            # Get all tables from the metadata table in the schema
+            metadata_name = "\"schema-" + str(schema_id) + "\".Metadata"
+            query = cursor.mogrify('SELECT * FROM {0};'.format(metadata_name))
+            cursor.execute(query)
+
             result = list()
+            for row in cursor:
+                t = Table(row['name'], row['description'])
+                result.append(t)
+
             return result
         except Exception as e:
             print("[ERROR] Couldn't fetch tables for dataset.")

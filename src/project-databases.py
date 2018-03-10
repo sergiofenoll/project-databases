@@ -5,9 +5,12 @@ from config import config_data
 from data_loader import DataLoader
 from flask import Flask, render_template, request, jsonify, redirect, url_for, abort
 from flask_login import LoginManager, login_user, login_required, logout_user, current_user
+from werkzeug.utils import secure_filename
 from passlib.hash import sha256_crypt
 from user_data_access import User, DBConnection, UserDataAccess
-from werkzeug.utils import secure_filename
+from config import config_data
+from data_loader import DataLoader
+
 
 # INITIALIZE SINGLETON SERVICES
 app = Flask(__name__)
@@ -117,7 +120,7 @@ def admin_activity_change():
         else:  # If the checkbox is checked the response is 'on'
             user.is_active = True
             user.active = True
-        # I have no clue why they don't just return True or False
+        # I have no clue why they don't just return True or False - Edit by Jona: Fucking webdevelopment
         user_data_access.alter_user(user)
     return render_template('admin-page.html', users=user_data_access.get_users(), data_updated=True)
 
@@ -166,7 +169,6 @@ def upload_file(dataset_id):
         try:
             if filename[-3:] == "zip":
                 dataloader.process_zip(path, current_user.active_schema)
-
             elif filename[-3:] == "csv":
                 tablename = filename.split('.csv')[0]
                 create_new = not dataloader.table_exists(tablename, dataset_id)

@@ -1,8 +1,6 @@
 import unittest
-
 from config import *
 from user_data_access import DBConnection, UserDataAccess, User
-
 
 class TestUserDataAccess(unittest.TestCase):
 

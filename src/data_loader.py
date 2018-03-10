@@ -1,8 +1,6 @@
-import psycopg2
-import psycopg2.extras
-from zipfile import ZipFile
+import re
 import shutil
-import os
+from zipfile import ZipFile
 
 
 class Dataset:
@@ -28,10 +26,10 @@ class DataLoader:
 
     # Dataset & Data handling (inserting/deleting...)
     def create_dataset(self, name, desc, owner_id):
-        '''
+        """
          This method takes a name ('nickname') and description and creates a new schema in the database.
          This new schema is by default available to the given owner.
-        '''
+        """
 
         # Create the schema
         cursor = self.dbconnect.get_cursor()
@@ -54,12 +52,15 @@ class DataLoader:
         # Add schema to dataset table
         try:
             query = cursor.mogrify(
-                'INSERT INTO Dataset(id, nickname, metadata) VALUES(\'{0}\', \'{1}\', \'{2}\');'.format(schemaname, name, desc))
+                'INSERT INTO Dataset(id, nickname, metadata) VALUES(\'{0}\', \'{1}\', \'{2}\');'.format(schemaname,
+                                                                                                        name, desc))
             cursor.execute(query)
 
             # Add user to the access table
             query = cursor.mogrify(
-                'INSERT INTO Access(id_dataset, id_user, role) VALUES(\'{0}\', \'{1}\', \'{2}\');'.format(schemaname, owner_id, 'owner'))
+                'INSERT INTO Access(id_dataset, id_user, role) VALUES(\'{0}\', \'{1}\', \'{2}\');'.format(schemaname,
+                                                                                                          owner_id,
+                                                                                                          'owner'))
             cursor.execute(query)
             self.dbconnect.commit()
         except Exception as e:
@@ -85,9 +86,9 @@ class DataLoader:
             raise e
 
     def delete_dataset(self, schema_id):
-        '''
+        """
          This method deletes a schema (and therefore all contained tables) from the database
-        '''
+        """
 
         cursor = self.dbconnect.get_cursor()
 
@@ -117,11 +118,11 @@ class DataLoader:
             raise e
 
     def get_dataset_id(self, name):
-        '''
+        """
          This method takes a nickname and returns the associated schema's id.
          If there are multiple schemas with this nickname, all of their ids are returned
          Return value is a list
-        '''
+        """
 
         cursor = self.dbconnect.get_cursor()
         query = cursor.mogrify('SELECT id FROM Dataset WHERE nickname = \'{0}\';'.format(name))
@@ -135,9 +136,9 @@ class DataLoader:
         return ids
 
     def table_exists(self, name, schema_id):
-        '''
+        """
          This method returns a bool representing whether the given table exists
-        '''
+        """
 
         cursor = self.dbconnect.get_cursor()
 
@@ -156,16 +157,16 @@ class DataLoader:
             raise e
 
     def create_table(self, name, schema_id, columns, desc="Default description"):
-        '''
+        """
          This method takes a schema, name and a list of columns and creates the corresponding table
-        '''
+        """
 
         cursor = self.dbconnect.get_cursor()
         schemaname = schema_id
 
         query = 'CREATE TABLE \"{0}\".\"{1}\" ('.format(schemaname, name)
 
-        query += 'id serial primary key'  # Since we don't know what the actual primary key should be, just assign an ever increasing id
+        query += 'id serial primary key'  # Since we don't know what the actual primary key should be, just assign an id
 
         for column in columns:
             query = query + ', \n' + column + ' varchar(255)'
@@ -220,28 +221,22 @@ class DataLoader:
             raise e
 
     def insert_row(self, table, schema_id, columns, values):
-        '''
+        """
          This method takes list of values and adds those to the given table.
-        '''
+        """
 
         cursor = self.dbconnect.get_cursor()
-
-        new_values = ''
-        for value in values:
-            new_values = new_values + '\'' + value + '\','
-        new_values = new_values[:-1]
-
         schemaname = schema_id
-
         try:
-            value_string = ", ".join(["\'{0}\'".format(x) for x in values])
-            column_string = ", ".join(["{0}".format(x) for x in columns])
-            query = 'INSERT INTO \"{0}\".\"{1}\"({2}) VALUES ({3});'.format(schemaname, table, column_string, value_string)
+            column_string = ", ".join(columns)
+            value_string = ", ".join(values)
+            query = 'INSERT INTO \"{0}\".\"{1}\"({2}) VALUES ({3});'.format(schemaname, table, column_string,
+                                                                            value_string)
             cursor.execute(query)
             self.dbconnect.commit()
         except Exception as e:
             print("[ERROR] Unable to insert into table '" + table + "'")
-            print (e)
+            print(e)
             self.dbconnect.rollback()
             raise e
 
@@ -254,15 +249,13 @@ class DataLoader:
         values = [tablename] + values_metadata
         self.insert_row('Metadata', schema_id, columns, values)
 
-
-
     # Data uploading handling
     def process_csv(self, file, schema_id, tablename, append=False):
-        '''
+        """
          This method takes a filename for a CSV file and processes it into a table.
          A table name should be provided by the user / caller of this method.
          If append = True, a table should already exist & the data will be added to this table
-        '''
+        """
 
         table_exists = self.table_exists(tablename, schema_id)
         if append and not table_exists:
@@ -274,24 +267,22 @@ class DataLoader:
 
         with open(file, "r") as csv:
             first = True
-            columns_list = list()
+            columns = list()
             for line in csv:
-                if first:
-                    columns = line
+                if first and not append:
                     first = False
-                    columns_list = [x.strip() for x in columns.split(",")]
-                    if not append:
-                        self.create_table(tablename, schema_id, columns_list)
+                    columns = line.strip().split(',')
+                    self.create_table(tablename, schema_id, columns)
                 else:
                     values_list = [x.strip() for x in line.split(",")]
-                    self.insert_row(tablename, schema_id, columns_list, values_list)
+                    self.insert_row(tablename, schema_id, columns, values_list)
 
     def process_zip(self, file, schema_id):
-        '''
+        """
          This method takes a ZIP archive filled with CSV files, and processes them individually
          The name of the CSV file will be used as table name. If a table with the same name is found
          the data will be appended
-        '''
+        """
 
         try:
 
@@ -326,17 +317,51 @@ class DataLoader:
 
             raise e
 
+    def process_dump(self, file, schema_id):
+        """
+         This method takes a SQL dump file and processes the INSERT statements,
+         either by creating tables and filling them or by filling pre-existing tables.
+         All other statements (DELETE, DROP, ...) won't be executed.
+        """
+
+        with open(file, 'r') as dump:
+            # Read the file as a string, split on ';' and check each statement individually
+            for statement in dump.read().strip().split(';'):
+                if len(statement.split()) and statement.split()[0] == 'INSERT':  # Only handle INSERT statements
+                    # NOTE: An INSERT statement looks like this:
+                    # INSERT INTO table_name (column1, column2, column3, ...) VALUES (value1, value2, value3, ...);
+
+                    tablename = statement.split()[2]
+                    values_list = list()
+                    for values_tuple in re.findall(r'\(.*?\)', statement[statement.find('VALUES'):]):
+                        # Tuple is any match of the above regex, e.g. (values1, values2, values3, ...)
+                        # after VALUES, i.e. the column names (if they're given) aren't matched
+                        values_list.append(re.sub(r'\s|\(|\)', '', values_tuple).split(','))
+
+                    if re.search(r'{}\s\(.*?\)\sVALUES'.format(tablename), statement):
+                        # Matches 'table_name (column1, column2, column3, ...) VALUES', \s stands for whitespace
+                        columns = re.sub(r'\s|\(|\)', '',
+                                         re.findall(r'\(.*?\)', statement[:statement.find('VALUES')])[0]).split(',')
+                    else:
+                        columns = ['col' + str(i) for i in range(1, len(values_list[0]) + 1)]
+
+                    if not self.table_exists(tablename, schema_id):
+                        self.create_table(tablename, schema_id, columns)
+                    for values in values_list:
+                        self.insert_row(tablename, schema_id, columns, values)
+
     # Data access handling
     def get_user_datasets(self, user_id):
-        '''
+        """
          This method takes a user id (username) and returns a list with the datasets available to this user
-        '''
+        """
 
         cursor = self.dbconnect.get_cursor()
 
         try:
             query = cursor.mogrify(
-                'SELECT id, nickname, metadata FROM Dataset ds, Access a WHERE (ds.id = a.id_dataset AND a.id_user = \'{0}\');'.format(user_id))
+                'SELECT id, nickname, metadata FROM Dataset ds, Access a WHERE (ds.id = a.id_dataset AND a.id_user = \'{0}\');'.format(
+                    user_id))
             cursor.execute(query)
 
             result = list()
@@ -345,7 +370,8 @@ class DataLoader:
                 try:
                     # Find owner for this dataset
                     query = cursor.mogrify(
-                        'SELECT a.id_user FROM Dataset ds, Access a WHERE (ds.id = \'{0}\' AND a.id_dataset = ds.id AND a.role = \'owner\');'.format(row['id']))
+                        'SELECT a.id_user FROM Dataset ds, Access a WHERE (ds.id = \'{0}\' AND a.id_dataset = ds.id AND a.role = \'owner\');'.format(
+                            row['id']))
                     cursor.execute(query)
                     owner = cursor.fetchone()[0]
 
@@ -369,7 +395,9 @@ class DataLoader:
             cursor = self.dbconnect.get_cursor()
 
             query = cursor.mogrify(
-                    'INSERT INTO Access(id_dataset, id_user, role) VALUES(\'{0}\', \'{1}\', \'{2}\');'.format(schema_id, user_id, role))
+                'INSERT INTO Access(id_dataset, id_user, role) VALUES(\'{0}\', \'{1}\', \'{2}\');'.format(schema_id,
+                                                                                                          user_id,
+                                                                                                          role))
             cursor.execute(query)
             self.dbconnect.commit()
         except Exception as e:
@@ -384,7 +412,7 @@ class DataLoader:
             cursor = self.dbconnect.get_cursor()
 
             query = cursor.mogrify(
-                    'DELETE FROM Access WHERE (id_user = \'{0}\' AND id_dataset = \'{1}\');'.format(user_id, schema_id))
+                'DELETE FROM Access WHERE (id_user = \'{0}\' AND id_dataset = \'{1}\');'.format(user_id, schema_id))
             cursor.execute(query)
             self.dbconnect.commit()
         except Exception as e:
@@ -394,9 +422,10 @@ class DataLoader:
             raise e
 
     def get_dataset(self, id):
-        '''
+        """
          This method returns a 'Dataset' object according to the requested id
-        '''
+        """
+
         cursor = self.dbconnect.get_cursor()
 
         try:
@@ -413,9 +442,9 @@ class DataLoader:
             raise e
 
     def get_tables(self, id):
-        '''
+        """
          This method returns a list of 'Table' objects associated with the requested dataset
-        '''
+        """
 
         try:
             result = list()

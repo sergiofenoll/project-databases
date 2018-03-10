@@ -1,6 +1,8 @@
 import unittest
-from user_data_access import DBConnection, UserDataAccess, User
+
 from config import *
+from user_data_access import DBConnection, UserDataAccess, User
+
 
 class TestUserDataAccess(unittest.TestCase):
 
@@ -15,7 +17,7 @@ class TestUserDataAccess(unittest.TestCase):
 
         # Create user_obj to compare with self
         user_obj1 = User(username=username, password=password, firstname=firstname, lastname=lastname, email=email,
-                        status=status, active=active)
+                         status=status, active=active)
 
         user_obj2 = User(username=username, password=password, firstname=firstname, lastname=lastname, email=email,
                          status=status, active=active)
@@ -199,7 +201,7 @@ class TestUserDataAccess(unittest.TestCase):
         connection.commit()
 
         # Try login in using non-existant username, raises exception
-        self.assertRaises(Exception, user_data_access_obj.login_user,username)
+        self.assertRaises(Exception, user_data_access_obj.login_user, username)
 
     def test_alter_user(self):
         connection = self.connect()

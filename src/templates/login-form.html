@@ -15,10 +15,16 @@
                            placeholder="Password" required>
                 </div>
                 {% if wrong_password %}
-                <div class="alert alert-danger">
-                    <strong>Failed login attempt!</strong><br>
-                    Check your username and password.
-                </div>
+                    <div class="alert alert-danger">
+                        <strong>Failed login attempt!</strong><br>
+                        Check your username and password.
+                    </div>
+                {% endif %}
+                {% if user_inactive %}
+                    <div class="alert alert-danger">
+                        <strong> User inactive </strong><br>
+                        Your account has been deactivated. Contact an admin.
+                    </div>
                 {% endif %}
                 {% if user_inactive %}
                 <div class="alert alert-danger">

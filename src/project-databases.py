@@ -1,3 +1,8 @@
+# from Lib import os
+import os
+
+from config import config_data
+from data_loader import DataLoader
 from flask import Flask, render_template, request, jsonify, redirect, url_for, abort
 from flask_login import LoginManager, login_user, login_required, logout_user, current_user
 from werkzeug.utils import secure_filename
@@ -6,8 +11,6 @@ from user_data_access import User, DBConnection, UserDataAccess
 from config import config_data
 from data_loader import DataLoader
 
-#from Lib import os
-import os
 
 # INITIALIZE SINGLETON SERVICES
 app = Flask(__name__)
@@ -19,7 +22,7 @@ login.login_view = 'login'
 connection_failed = False
 
 UPLOAD_FOLDER = '../input'
-ALLOWED_EXTENSIONS = ['csv', 'zip']
+ALLOWED_EXTENSIONS = ['csv', 'zip', 'dump', 'sql']
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 try:
@@ -138,22 +141,21 @@ def allowed_file(filename):
     return '.' in filename and \
            filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
+
 @app.route('/data-service/<int:dataset_id>', methods=['POST'])
 def upload_file(dataset_id):
-
     if 'file' not in request.files:
         return show_dataset(dataset_id)
     file = request.files['file']
-    # if user does not select file, browser also
-    # submit a empty part without filename
+    # If the user doesn't select file, the browser
+    # submits an empty part without filename
     if file.filename == '':
         return show_dataset(dataset_id)
 
     if file and allowed_file(file.filename):
+        filename = secure_filename(file.filename)
+        path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
         try:
-
-            filename = secure_filename(file.filename)
-            path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
             file.save(path)
         except Exception as e:
             print("[ERROR] Failed to upload file '" + file.filename + "'")
@@ -167,15 +169,15 @@ def upload_file(dataset_id):
         try:
             if filename[-3:] == "zip":
                 dataloader.process_zip(path, current_user.active_schema)
-
-            else:
+            elif filename[-3:] == "csv":
                 tablename = filename.split('.csv')[0]
                 create_new = not dataloader.table_exists(tablename, dataset_id)
-
                 if create_new:
                     dataloader.process_csv(path, current_user.active_schema, tablename)
                 else:
                     dataloader.process_csv(path, current_user.active_schema, True)
+            else:
+                dataloader.process_dump(path, current_user.active_schema)
         except Exception as e:
             print("[ERROR] Failed to process file '" + filename + "'")
             print(e)
@@ -189,11 +191,11 @@ def upload_file(dataset_id):
 @app.route('/data-service/delete/<int:id>')
 @login_required
 def delete_dataset(id):
-    '''
+    """
      TEMP: this method is called when the button for removing a dataset is clicked.
            It's probably very insecure but since I don't know what I'm doing, this is my solution.
            Please fix this if you actually know how to make buttons work and stuff.
-    '''
+    """
 
     schema_id = "schema-" + str(id)
     dataloader.delete_dataset(schema_id)

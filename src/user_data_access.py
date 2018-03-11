@@ -57,6 +57,7 @@ class User:
     def __eq__(self, other):
         return self.username == other.username and self.password == other.password and self.firstname == other.firstname and self.lastname == other.lastname and self.email == other.email and self.active == other.active and self.status == other.status
 
+
 class UserDataAccess:
     def __init__(self, dbconnect):
         self.dbconnect = dbconnect
@@ -86,7 +87,7 @@ class UserDataAccess:
             self.dbconnect.commit()
 
             return True
-        except:
+        except Exception as e:
             print('Unable to add user!')
             self.dbconnect.rollback()
             return False
@@ -105,9 +106,6 @@ class UserDataAccess:
         except Exception as e:
             self.dbconnect.rollback()
             raise e
-        except:
-            self.dbconnect.rollback()
-            raise Exception("Something went terribly wrong")
 
     def get_user(self, id):
         cursor = self.dbconnect.get_cursor()

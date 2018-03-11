@@ -1,5 +1,7 @@
 # Project Databases
 
+[![Build Status](https://travis-ci.org/sergiofenoll/project-databases.svg?branch=master)](https://travis-ci.org/sergiofenoll/project-databases)
+
 [Verslagen](https://drive.google.com/drive/folders/1DXKPi517U_LaalKiTND5b05a3XTH7IG5?usp=sharing "Wekelijkse verslagen (read only)") 
 
 ### Goal

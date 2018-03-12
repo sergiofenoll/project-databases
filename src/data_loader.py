@@ -500,7 +500,7 @@ class DataLoader:
 
     def get_column_names(self, schema_id, table_name):
         """
-         This method returns a list of 'Table' objects associated with the requested dataset
+         This method returns a list of column names associated with the given table
         """
 
         cursor = self.dbconnect.get_cursor()
@@ -519,6 +519,6 @@ class DataLoader:
             return result
 
         except Exception as e:
-            print("[ERROR] Couldn't fetch column names.")
+            print("[ERROR] Couldn't fetch column names for table '" + table_name + "'.")
             print(e)
             raise e

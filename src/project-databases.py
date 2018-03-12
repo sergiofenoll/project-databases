@@ -181,7 +181,9 @@ def upload_file(dataset_id):
         except Exception as e:
             print("[ERROR] Failed to process file '" + filename + "'")
             print(e)
+            connection.rollback()
 
+        connection.commit()
         file.close()
         os.remove(path)
 

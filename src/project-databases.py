@@ -210,6 +210,15 @@ def show_dataset(dataset_id):
 
     return render_template('dataset-view.html', ds=dataset, tables=tables)
 
+@app.route('/data-service/<int:dataset_id>/<string:table_name>')
+def show_table(dataset_id, table_name):
+    table = dataloader.get_table(dataset_id, table_name)
+    columns = dataloader.get_column_names(dataset_id, table_name)
+    print(columns)
+    print(table)
+    return render_template('table-view.html',columns=columns, table=table)
+
+
 
 # Views
 @app.route('/')

@@ -32,7 +32,11 @@
                 <tbody>
                 {% for t in tables %}
                     <tr>
-                        <td> {{ t.name }} </td>
+                        <td>
+                             <a href="/data-service/{{ ds.id }}/{{t.name }}">{{t.name }}
+
+                             </a>
+                        </td>
 
                         <td> {{ t.desc }}  </td>
 

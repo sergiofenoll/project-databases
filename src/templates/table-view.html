@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block content %}
+
+    <br>
+    {% if table|length > 0 %}
+
+        <div class="row">
+            <div class="spacer4"></div>
+            <div class="col-sm-6">
+
+                <table id="table-data" class="table" cellspacing="0" width="100%">
+                    <thead>
+                    <tr>
+                        {% for column in columns %}
+                        <th>
+                            {{ column[0] }}
+                        </th>
+                        {% endfor %}
+                    </tr>
+                    </thead>
+                    <tbody>
+                    {% for row in table %}
+                        <tr>
+                            {% for element in row %}
+                            <td> {{ element }}  </td>
+                                {% endfor %}
+                        </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+
+            </div>
+            <div class="col-sm-6"></div>
+        </div>
+    {% endif %}
+    <br>
+    <br>
+        <br>
+{% endblock %}

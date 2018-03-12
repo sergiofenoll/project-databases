@@ -231,6 +231,10 @@ class DataLoader:
         cursor = self.dbconnect.get_cursor()
         schemaname = schema_id
         try:
+            for i in range(0,len(values)):
+                values[i] = "\'" + values[i] + "\'"
+
+
             column_string = ", ".join(columns)
             value_string = ", ".join(values)
             query = 'INSERT INTO \"{0}\".\"{1}\"({2}) VALUES ({3});'.format(schemaname, table, column_string,
@@ -466,5 +470,57 @@ class DataLoader:
             return result
         except Exception as e:
             print("[ERROR] Couldn't fetch tables for dataset.")
+            print(e)
+            raise e
+
+    def get_table(self, schema_id, table_name):
+        """
+         This method returns a list of 'Table' objects associated with the requested dataset
+        """
+
+        cursor = self.dbconnect.get_cursor()
+
+        try:
+
+            # Get all tables from the metadata table in the schema
+            table = "\"schema-" + str(schema_id) + "\"." + "\"" + table_name + "\""
+            query = cursor.mogrify('SELECT * FROM {0};'.format(table))
+            print(query)
+            cursor.execute(query)
+            result = list()
+            for row in cursor:
+                result.append(row)
+
+
+            return result
+
+        except Exception as e:
+            print("[ERROR] Couldn't fetch table for dataset.")
+            print(e)
+            raise e
+
+    def get_column_names(self, schema_id, table_name):
+        """
+         This method returns a list of 'Table' objects associated with the requested dataset
+        """
+
+        cursor = self.dbconnect.get_cursor()
+
+        try:
+
+            table = "\'" + table_name + "\'"
+            schema = "\'schema-" + str(schema_id) + "\'"
+
+            query = cursor.mogrify('SELECT column_name FROM information_schema.columns WHERE table_schema={0} and table_name ={1};'.format(schema, table))
+            print(query)
+            cursor.execute(query)
+            result = list()
+            for row in cursor:
+                result.append(row)
+
+            return result
+
+        except Exception as e:
+            print("[ERROR] Couldn't fetch column names.")
             print(e)
             raise e

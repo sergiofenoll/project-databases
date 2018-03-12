@@ -485,7 +485,6 @@ class DataLoader:
             # Get all tables from the metadata table in the schema
             table = "\"schema-" + str(schema_id) + "\"." + "\"" + table_name + "\""
             query = cursor.mogrify('SELECT * FROM {0};'.format(table))
-            print(query)
             cursor.execute(query)
             result = list()
             for row in cursor:
@@ -512,7 +511,6 @@ class DataLoader:
             schema = "\'schema-" + str(schema_id) + "\'"
 
             query = cursor.mogrify('SELECT column_name FROM information_schema.columns WHERE table_schema={0} and table_name ={1};'.format(schema, table))
-            print(query)
             cursor.execute(query)
             result = list()
             for row in cursor:

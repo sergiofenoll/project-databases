@@ -172,7 +172,7 @@ class DataLoader:
         query += 'id serial primary key'  # Since we don't know what the actual primary key should be, just assign an id
 
         for column in columns:
-            query = query + ', \n' + column + ' varchar(255)'
+            query = query + ', \n\"' + column + '\" varchar(255)'
         query += '\n);'
 
         try:

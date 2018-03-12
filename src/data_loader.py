@@ -502,7 +502,6 @@ class DataLoader:
         """
          This method returns a list of column names associated with the given table
         """
-
         cursor = self.dbconnect.get_cursor()
 
         try:

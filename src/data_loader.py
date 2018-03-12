@@ -232,6 +232,8 @@ class DataLoader:
         schemaname = schema_id
         try:
             for i in range(0, len(values)):
+                # Escape all quotes chars in this entry
+                values[i] = values[i].replace("'", "''")
                 values[i] = "\'" + values[i] + "\'"
 
             column_list = ["column"] * len(columns)

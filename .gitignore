@@ -3,3 +3,4 @@ venv
 src/__pycache__
 src/config.py
 *.pyc
+temp_input

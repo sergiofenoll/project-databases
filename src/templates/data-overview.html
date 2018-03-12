@@ -10,63 +10,54 @@
     </div>
     <br>
     {% if datasets|length > 0 %}
-    <div class="row">
-        <div class="col-sm-2"></div>
-        <div class="col-sm-8">
-            <table id="datasetTable" class="table" cellspacing="0" width="100%">
-                <thead>
-                <tr>
-                    <th>
-                        Dataset
-                    </th>
-                    <th>
-                        Description
-                    </th>
-                    <th>
-                        Owner
-                    </th>
-
-                    <th>
-                        Remove
-                    </th>
-                </tr>
-                </thead>
-                <tbody>
-                {% for ds in datasets %}
+        <div class="row">
+            <div class="col-sm-2"></div>
+            <div class="col-sm-8">
+                <table id="datasetTable" class="table table-striped table-bordered" cellspacing="0" width="100%">
+                    <thead>
                     <tr>
-                        <td><a href="/data-service/{{ ds.id }}">{{ ds.name }}</a></td>
-
-                        <td> {{ ds.desc }}  </td>
-
-                        <td>
-                            {% if ds.owner == current_user.username %}
-                                You
-                            {% else %}
-                                {{ ds.owner }}
-                            {% endif %}
-                        </td>
-
-                        <td>
-                            {% if ds.owner == current_user.username %}
-                                <a href="/data-service/delete/{{ ds.id }}">
-                                    <button type="button" class="btn btn-danger">X</button>
-                                </a>
-                            {% endif %}
-                        </td>
+                        <th>Dataset</th>
+                        <th>Description</th>
+                        <th>Owner</th>
+                        <th>Remove</th>
                     </tr>
-                {% endfor %}
-                </tbody>
-            </table>
+                    </thead>
+                    <tbody>
+                    {% for ds in datasets %}
+                        <tr>
+                            <td><a href="/data-service/{{ ds.id }}">{{ ds.name }}</a></td>
+                            <td>{{ ds.desc }}</td>
+                            <td>{{ ds.owner }}</td>
+                            <td style="text-align: center;"><a href="/data-service/delete/{{ ds.id }}">
+                                <button type="button"
+                                        class="btn btn-danger btn-xs {% if ds.owner != current_user.username %}disabled{% endif %}">
+                                    x
+                                </button>
+                            </a></td>
+                        </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+                <script type="text/javascript" charset="utf-8">
+                    $(document).ready(function () {
+                        $('#datasetTable').DataTable({
+                            "order": [[0, "asc"]],
+                            "paging": true,
+                            "ordering": true,
+                            "info": false
+                        });
+                    });
+                </script>
+            </div>
+            <div class="col-sm-2"></div>
         </div>
-        <div class="col-sm-2"></div>
-    </div>
     {% endif %}
     <br>
     <br>
     <div class="row">
-        <div class="col-sm-4">
+        <div class="col-sm-2"></div>
+        <div class="col-sm-8">
             <h4>Create a new dataset</h4>
-            <div class="spacer5"></div>
             <form action="/data-service/new" method="post">
                 <div class="form-group">
                     <span for="ds-name">Name</span>
@@ -81,6 +72,8 @@
                 <button type="submit" class="btn btn-default" id="submit">Submit</button>
             </form>
         </div>
+        <div class="col-sm-2"></div>
+    </div>
     </div>
     <br>
 {% endblock %}

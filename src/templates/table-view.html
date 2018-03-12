@@ -8,7 +8,9 @@
             <div class="spacer4"></div>
             <div class="col-sm-6">
 
-                <table id="table-data" class="table" cellspacing="0" width="100%">
+                <table data-toggle="table" data-pagination="true" data-search="true" id="userTable"
+                       class="table table-striped table-bordered" cellspacing="0"
+                       width="100%" id="table-data">
                     <thead>
                     <tr>
                         {% for column in columns %}

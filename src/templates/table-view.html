@@ -9,7 +9,13 @@
                     <tr>
                         {% for column in columns %}
                             <th>
-                                {{ column[0] }}
+                                <div style="float:left">
+                                    {{ column[0] }}
+                                </div>
+                                <div style="float:right">
+                                    <button type="button" style="padding:0;border:none;background:none;">&#x2699;
+                                    </button>
+                                </div>
                             </th>
                         {% endfor %}
                     </tr>

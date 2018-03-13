@@ -25,5 +25,5 @@ CREATE TABLE Access (
   FOREIGN KEY (id_dataset) REFERENCES Dataset (id),
   FOREIGN KEY (id_user) REFERENCES Member (username),
   PRIMARY KEY (id_dataset, id_user),
-  CHECK (role IN ('owner', 'contributer'))
+  CHECK (role IN ('owner', 'moderator', 'contributor'))
 );

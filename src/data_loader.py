@@ -231,12 +231,18 @@ class DataLoader:
         cursor = self.dbconnect.get_cursor()
         schemaname = schema_id
         try:
-            for i in range(0,len(values)):
+            for i in range(0, len(values)):
+                # Escape all quotes chars in this entry
+                values[i] = values[i].replace("'", "''")
                 values[i] = "\'" + values[i] + "\'"
 
+            column_list = ["column"] * len(columns)
+            for i in range(0, len(columns)):
+                column_list[i] = "\"" + columns[i] + "\""
 
-            column_string = ", ".join(columns)
+            column_string = ", ".join(column_list)
             value_string = ", ".join(values)
+
             query = 'INSERT INTO \"{0}\".\"{1}\"({2}) VALUES ({3});'.format(schemaname, table, column_string,
                                                                             value_string)
             cursor.execute(query)

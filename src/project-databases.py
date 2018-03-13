@@ -214,7 +214,7 @@ def show_dataset(dataset_id):
 def show_table(dataset_id, table_name):
     table = dataloader.get_table(dataset_id, table_name)
     columns = dataloader.get_column_names(dataset_id, table_name)
-    
+
     return render_template('table-view.html',columns=columns, table=table)
 
 

@@ -102,6 +102,10 @@ class DataLoader:
 
             query = cursor.mogrify('DELETE FROM Dataset WHERE id = \'{0}\';'.format(schema_id))
             cursor.execute(query)
+
+            query = cursor.mogrify('DROP SCHEMA IF EXISTS \"{0}\" CASCADE'.format(schema_id))
+            cursor.execute(query)
+
             self.dbconnect.commit()
         except Exception as e:
             print("[ERROR] Failed to properly remove dataset '" + schema_id + "'")
@@ -111,7 +115,7 @@ class DataLoader:
 
         # Delete schema
         try:
-            query = cursor.mogrify('DROP SCHEMA \"{0}\" CASCADE;'.format(schema_id))
+            query = cursor.mogrify('DROP SCHEMA IF EXISTS \"{0}\" CASCADE;'.format(schema_id))
             cursor.execute(query)
             self.dbconnect.commit()
         except Exception as e:

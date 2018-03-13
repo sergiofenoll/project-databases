@@ -27,3 +27,12 @@ CREATE TABLE Access (
   PRIMARY KEY (id_dataset, id_user),
   CHECK (role IN ('owner', 'moderator', 'contributor'))
 );
+
+CREATE TABLE Metadata (
+  id_dataset VARCHAR(255),
+  id_table VARCHAR(255),
+  metadata VARCHAR(255),
+
+  PRIMARY KEY (id_dataset, id_table)
+)
+

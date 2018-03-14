@@ -29,7 +29,7 @@
                             <td>{{ ds.desc }}</td>
                             <td>{{ ds.owner }}</td>
                             <td style="text-align: center;"><a href="/data-service/delete/{{ ds.id }}">
-                                <button type="button" class="btn btn-xs  btn-danger" style="padding:0;border:none;background:none;"
+                                <button type="button" class="btn btn-xs  btn-danger"
                                         {% if ds.owner != current_user.username %}disabled{% endif %}>
                                     ❌
                                 </button>

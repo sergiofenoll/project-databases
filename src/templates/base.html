@@ -21,7 +21,10 @@
     <script type="text/javascript" charset="utf-8">
         $(document).ready(function () {
             $('table.display').DataTable({
-                "order": [[0, "asc"]]
+                "order": [[0, "asc"]],
+                "scrollX": "auto",
+                "scrollY": "50vh",
+                "scrollCollapse": true
             });
         });
     </script>

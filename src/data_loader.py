@@ -118,7 +118,7 @@ class DataLoader:
 
         # Clean up the access & dataset tables
         try:
-            id = schema_id[-1:]
+            id = schema_id.split('-')[1]
             query = cursor.mogrify('INSERT INTO Available_Schema (id) VALUES (%s)', id)
             cursor.execute(query)
 

@@ -7218,7 +7218,7 @@
 	// @todo - Is there need for an augment function?
 	// _Api.augment = function ( inst, name )
 	// {
-	// 	// Find src object in the structure from the name
+	// 	// Find app object in the structure from the name
 	// 	var parts = name.split('.');
 	
 	// 	_Api.extend( inst, obj );

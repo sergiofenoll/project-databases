@@ -1,16 +1,14 @@
 # from Lib import os
 import os
 
-from config import config_data
 from data_loader import DataLoader
 from flask import Flask, render_template, request, jsonify, redirect, url_for, abort
 from flask_login import LoginManager, login_user, login_required, logout_user, current_user
-from werkzeug.utils import secure_filename
 from passlib.hash import sha256_crypt
 from user_data_access import User, DBConnection, UserDataAccess
-from config import config_data
-from data_loader import DataLoader
+from werkzeug.utils import secure_filename
 
+from config import config_data
 
 # INITIALIZE SINGLETON SERVICES
 app = Flask(__name__)
@@ -100,7 +98,7 @@ def change_user_data():
     email = request.form.get('lg-email')
     password = request.form.get('lg-new-password')
 
-    if (password == ''):
+    if password == '':
         password = current_user.password
     else:
         password = sha256_crypt.encrypt(password)
@@ -212,13 +210,13 @@ def show_dataset(dataset_id):
 
     return render_template('dataset-view.html', ds=dataset, tables=tables)
 
+
 @app.route('/data-service/<int:dataset_id>/<string:table_name>')
 def show_table(dataset_id, table_name):
     table = dataloader.get_table(dataset_id, table_name)
     columns = dataloader.get_column_names(dataset_id, table_name)
 
-    return render_template('table-view.html',columns=columns, table=table)
-
+    return render_template('table-view.html', columns=columns, table=table)
 
 
 # Views

@@ -3,7 +3,7 @@
     <div class="row">
         <div class="col-sm-2"></div>
         <div class="col-sm-8">
-            <form action="/admin-page" method="post">
+            <form action="/admin_page" method="post">
                 <table id="userTable" class="display table table-striped table-bordered" cellspacing="0"
                        width="100%">
                     <thead>
@@ -26,7 +26,7 @@
                             <td>{{ user.status }}</td>
                             <td style="text-align: center;"><input id="{{ user.username }}"
                                                                    name="{{ user.username }}"
-                                                                   {% if user.active %}checked{% endif %}
+                                                                   {% if user.is_active %}checked{% endif %}
                                                                    type="checkbox" class="form-check-input"></td>
                         </tr>
                     {% endfor %}

@@ -54,7 +54,7 @@ class DataLoader:
             cursor.execute(query)
             schemaID = cursor.fetchone()[0]  # smallest id of schema gap
 
-            query = cursor.mogrify('DELETE FROM Available_Schema WHERE id = %s;', str(schemaID))
+            query = cursor.mogrify('DELETE FROM Available_Schema WHERE id = %s;', (str(schemaID),))
             cursor.execute(query)
 
         if schemaID == -1:
@@ -119,10 +119,8 @@ class DataLoader:
         # Clean up the access & dataset tables
         try:
             id = schema_id.split('-')[1]
-            query = cursor.mogrify('INSERT INTO Available_Schema (id) VALUES (%s)', id)
+            query = cursor.mogrify('INSERT INTO Available_Schema (id) VALUES (%s)', (id,))
             cursor.execute(query)
-
-
 
             query = cursor.mogrify('DELETE FROM Access WHERE id_dataset = \'{0}\';'.format(schema_id))
             cursor.execute(query)

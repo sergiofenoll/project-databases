@@ -34,5 +34,10 @@ CREATE TABLE Metadata (
   metadata VARCHAR(255),
 
   PRIMARY KEY (id_dataset, id_table)
-)
+);
+
+CREATE TABLE Available_Schema (
+  id INTEGER,
+  PRIMARY KEY (id)
+);
 

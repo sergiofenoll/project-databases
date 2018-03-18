@@ -1,9 +1,6 @@
 import re
 import shutil
 from zipfile import ZipFile
-import psycopg2
-import psycopg2.extras
-import os
 
 
 class Dataset:

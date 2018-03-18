@@ -7,11 +7,10 @@
 from flask import Flask
 from flask_login import LoginManager
 
+from app.data_service.models import DataLoader
 from app.database_connection.models import DBConnection
 from app.user_service.models import UserDataAccess
-from app.data_service.models import DataLoader
 from config import *
-
 
 app = Flask(__name__)
 app.config.from_object('config')  # See: http://flask.pocoo.org/docs/0.12/config/

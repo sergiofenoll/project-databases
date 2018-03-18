@@ -1,7 +1,8 @@
 import unittest
-from config import *
+
 from app.database_connection.models import DBConnection
 from app.user_service.models import UserDataAccess, User
+from config import *
 
 
 class TestUserService(unittest.TestCase):

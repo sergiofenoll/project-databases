@@ -19,13 +19,15 @@ def allowed_file(filename):
 @login_required
 def datasets():
     if request.method == 'GET':
-        return render_template('data_service/datasets.html', datasets=data_loader.get_user_datasets(current_user.username))
+        return render_template('data_service/datasets.html',
+                               datasets=data_loader.get_user_datasets(current_user.username))
     else:
         name = request.form.get('ds-name')
         meta = request.form.get('ds-meta')
         owner_id = current_user.username
         data_loader.create_dataset(name, meta, owner_id)
-        return render_template('data_service/datasets.html', datasets=data_loader.get_user_datasets(current_user.username))
+        return render_template('data_service/datasets.html',
+                               datasets=data_loader.get_user_datasets(current_user.username))
 
 
 @data_service.route('/datasets/<int:dataset_id>', methods=['GET'])

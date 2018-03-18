@@ -1,6 +1,7 @@
 import unittest
-from config import *
+
 from app.database_connection.models import DBConnection
+from config import *
 
 
 class TestDatabaseConnection(unittest.TestCase):

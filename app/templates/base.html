@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 
     <link rel="stylesheet" href="{{ url_for('static', filename='css/bootstrap.min.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/dataTables.min.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/datatables.min.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/dataTables.bootstrap4.min.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/stylesheet.css') }}">
 
@@ -46,7 +46,7 @@
             </li>
             {% if current_user.is_authenticated %}
                 <li class="nav-item ">
-{#                    <a class="nav-link" href="{{ url_for('data_overview') }}">Data management</a>#}
+                    <a class="nav-link" href="{{ url_for('data_service.datasets') }}">Data management</a>
                 </li>
                 <li class="nav-item">
                     <a class="nav-link" href="{{ url_for('user_service.user_data') }}">User Page</a>

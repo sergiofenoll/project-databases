@@ -11,7 +11,7 @@ class DBConnection:
         except Exception as e:
             print('[ERROR] Unable to connect to database')
             print(e)
-            raise Exception('Unable to connect to database')
+            raise Exception('Unable to connect to database')  # TODO: Why not raise e?
 
     def close(self):
         self.conn.close()

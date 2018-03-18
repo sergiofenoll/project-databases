@@ -9,20 +9,18 @@ from flask_login import LoginManager
 
 from app.database_connection.models import DBConnection
 from app.user_service.models import UserDataAccess
-from config import config_data
+from app.data_service.models import DataLoader
+from config import *
 
-ALLOWED_EXTENSIONS = ['zip', 'csv', 'dump']
 
 app = Flask(__name__)
-app.secret_key = '*^*(*&)(*)(*afafafaSDD47j\3yX R~X@H!jmM]Lwf/,?KT'
-app_data = dict()
-app_data['app_name'] = config_data['app_name']
+app.config.from_object('config')  # See: http://flask.pocoo.org/docs/0.12/config/
 
 try:
     connection = DBConnection(dbname=config_data['dbname'], dbuser=config_data['dbuser'], dbpass=config_data['dbpass'],
                               dbhost=config_data['dbhost'])
     user_data_access = UserDataAccess(connection)
-    # data_loader = DataLoader(connection)
+    data_loader = DataLoader(connection)
 except Exception as e:
     print("[ERROR] Failed to establish user connection.")
     print(e)

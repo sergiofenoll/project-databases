@@ -1,8 +1,10 @@
 import unittest
 from config import *
-from user_data_access import DBConnection, UserDataAccess, User
+from app.database_connection.models import DBConnection
+from app.user_service.models import UserDataAccess, User
 
-class TestUserDataAccess(unittest.TestCase):
+
+class TestUserService(unittest.TestCase):
 
     def test_cmp_users(self):
         username = "test_username"
@@ -26,11 +28,6 @@ class TestUserDataAccess(unittest.TestCase):
         connection = DBConnection(dbname=config_data['dbname'], dbuser=config_data['dbuser'],
                                   dbpass=config_data['dbpass'], dbhost=config_data['dbhost'])
         return connection
-
-    def test_connection(self):
-        connection = self.connect()
-        connection.close()
-        print("Connection: ok")
 
     def test_add_user(self):
         connection = self.connect()

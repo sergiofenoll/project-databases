@@ -13,7 +13,8 @@
         <div class="row">
             <div class="col-sm-2"></div>
             <div class="col-sm-8">
-                <table id="datasetTable" class="display table table-striped table-bordered" cellspacing="0" width="100%">
+                <table id="datasetTable" class="display table table-striped table-bordered" cellspacing="0"
+                       width="100%">
                     <thead>
                     <tr>
                         <th>Dataset</th>
@@ -25,15 +26,25 @@
                     <tbody>
                     {% for ds in datasets %}
                         <tr>
-                            <td><a href="/data-service/{{ ds.id }}">{{ ds.name }}</a></td>
+                            <td><a href="/datasets/{{ ds.id }}">{{ ds.name }}</a></td>
                             <td>{{ ds.desc }}</td>
                             <td>{{ ds.owner }}</td>
-                            <td style="text-align: center;"><a href="/data-service/delete/{{ ds.id }}">
-                                <button type="button" class="btn btn-xs  btn-danger"
-                                        {% if ds.owner != current_user.username %}disabled{% endif %}>
-                                    ❌
-                                </button>
-                            </a></td>
+                            <td style="text-align: center;">
+                                <form action="/datasets/{{ ds.id }}">
+                                    <button type="button" class="btn btn-xs btn-danger" onclick="deleteRequest()"
+                                            {% if ds.owner != current_user.username %}disabled{% endif %}>
+                                        ❌
+                                    </button>
+                                </form>
+                                <script>
+                                    function deleteRequest() {
+                                        $.ajax({
+                                            type: 'DELETE',
+                                            url: $("form").attr("action")
+                                        });
+                                    }
+                                </script>
+                            </td>
                         </tr>
                     {% endfor %}
                     </tbody>
@@ -48,7 +59,7 @@
         <div class="col-sm-2"></div>
         <div class="col-sm-8">
             <h4>Create a new dataset</h4>
-            <form action="/data-service/new" method="post">
+            <form action="/datasets" method="post">
                 <div class="form-group">
                     <span for="ds-name">Name</span>
                     <input type="text" class="form-control" id="ds-name" name="ds-name" placeholder="Dataset name"

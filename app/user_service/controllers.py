@@ -11,7 +11,7 @@ user_service = Blueprint('user_service', __name__)
 @user_service.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'GET':
-        return render_template('login-form.html')
+        return render_template('user_service/login-form.html')
     else:
         username = request.form.get('lg-username')
         password = request.form.get('lg-password')
@@ -23,7 +23,7 @@ def login():
                 # Check if user is inactive
                 user = user_data_access.get_user(username)
                 if not user.is_active:
-                    return render_template('login-form.html', user_inactive=True)
+                    return render_template('user_service/login-form.html', user_inactive=True)
 
                 # Login and validate the user.
                 # user should be an instance of your `User` class
@@ -31,16 +31,16 @@ def login():
 
                 return redirect(url_for('main.index'))
             else:
-                return render_template('login-form.html', wrong_password=True)
+                return render_template('user_service/login-form.html', wrong_password=True)
         except Exception as e:
             print(e)
-            return render_template('login-form.html', wrong_password=True)
+            return render_template('user_service/login-form.html', wrong_password=True)
 
 
 @user_service.route('/register', methods=['GET', 'POST'])
 def register():
     if request.method == 'GET':
-        return render_template('register-form.html', wrong_password=False)
+        return render_template('user_service/register-form.html', wrong_password=False)
     else:
         username = request.form.get('lg-username')
         password = sha256_crypt.encrypt(request.form.get('lg-password'))
@@ -57,7 +57,7 @@ def register():
             # user should be an instance of your `User` class
             login_user(user_data_access.get_user(username))
             return redirect(url_for('main.index'))
-        return render_template('register-form.html', wrong_password=True)
+        return render_template('user_service/register-form.html', wrong_password=True)
 
 
 @user_service.route('/logout')
@@ -71,10 +71,10 @@ def logout():
 @login_required
 def user_data():
     if request.method == 'GET':
-        return render_template('user-data.html', data_updated=False)
+        return render_template('user_service/user-data.html', data_updated=False)
     else:
         if not sha256_crypt.verify(request.form.get('lg-current-password'), current_user.password):
-            return render_template('user-data.html', wrong_password=True)
+            return render_template('user_service/user-data.html', wrong_password=True)
 
         fname = request.form.get('lg-fname')
         lname = request.form.get('lg-lname')
@@ -88,7 +88,7 @@ def user_data():
         user_obj = User(login.current_user.username, password, fname, lname, email, login.current_user.status,
                         login.current_user.active)
         user_data_access.alter_user(user_obj)
-        return render_template('user-data.html', data_updated=True)
+        return render_template('user_service/user-data.html', data_updated=True)
 
 
 @user_service.route('/admin_page', methods=['GET', 'POST'])
@@ -97,7 +97,7 @@ def admin_page():
     if current_user.status != 'admin':
         return abort(403)
     if request.method == 'GET':
-        return render_template('admin-page.html', users=user_data_access.get_users())
+        return render_template('user_service/admin-page.html', users=user_data_access.get_users())
     else:
         for user in user_data_access.get_users():
             # Checkbox uses username as it's identifier for Flask
@@ -107,4 +107,4 @@ def admin_page():
                 user.is_active = True
             # I have no clue why they don't just return True or False
             user_data_access.alter_user(user)
-        return render_template('admin-page.html', users=user_data_access.get_users(), data_updated=True)
+        return render_template('user_service/admin-page.html', users=user_data_access.get_users(), data_updated=True)

@@ -119,10 +119,10 @@ class DataLoader:
             query = cursor.mogrify('INSERT INTO Available_Schema (id) VALUES (%s)', (id,))
             cursor.execute(query)
 
-            query = cursor.mogrify('DELETE FROM Access WHERE id_dataset = \'{0}\';'.format(schema_id))
+            query = cursor.mogrify('DELETE FROM Access WHERE id_dataset = %s;', (schema_id,))
             cursor.execute(query)
 
-            query = cursor.mogrify('DELETE FROM Dataset WHERE id = \'{0}\';'.format(schema_id))
+            query = cursor.mogrify('DELETE FROM Dataset WHERE id = %s;', (schema_id,))
             cursor.execute(query)
 
             query = cursor.mogrify('DROP SCHEMA IF EXISTS \"{0}\" CASCADE'.format(schema_id))
@@ -234,9 +234,9 @@ class DataLoader:
 
     def delete_table(self, name, schema_id):
         cursor = self.dbconnect.get_cursor()
-        schemaname = "\"" + schema_id + "\""
+        schema_name = '"' + schema_id + '"'
         try:
-            query = cursor.mogrify('DROP TABLE {0}.{1};'.format(schemaname, name))
+            query = cursor.mogrify('DROP TABLE {0}.{1};'.format(schema_name, name))
             cursor.execute(query)
             self.dbconnect.commit()
         except Exception as e:
@@ -248,7 +248,7 @@ class DataLoader:
         # Delete metadata
         try:
             metadata_name = "\"" + schema_id + "\"" + ".Metadata"
-            query = cursor.mogrify('DELETE FROM {0} WHERE name = \'{1}\';'.format(metadata_name, name))
+            query = cursor.mogrify('DELETE FROM {0} WHERE name = %s;'.format(metadata_name), (name, ))
             cursor.execute(query)
             self.dbconnect.commit()
         except Exception as e:

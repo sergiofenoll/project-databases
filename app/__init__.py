@@ -4,7 +4,7 @@
 # If after reading the above and looking at the existing files
 # you're still not sure how/where to add new functionality, send Sergio a message
 
-from flask import Flask
+from flask import Flask, request, _request_ctx_stack
 from flask_login import LoginManager
 
 from app.data_service.models import DataLoader

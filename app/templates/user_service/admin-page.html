@@ -32,7 +32,7 @@
                                                                    type="checkbox" class="form-check-input"></td>
                             <td style="text-align: center;">
                                 <form action="/admin_page/{{ user.username }}/delete" method="post">
-                                    <button type="submit" class="btn btn-xs btn-danger">
+                                    <button type="submit" class="btn btn-xs btn-danger" {% if user.status == 'admin' %}disabled{% endif %}>
                                         ❌
                                     </button>
                                 </form>

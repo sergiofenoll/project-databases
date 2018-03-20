@@ -119,4 +119,20 @@ def delete_user_as_admin(username):
 
     user_data_access.delete_user(data_loader, username)
 
+    if(current_user.username == username):
+        return logout()
+
     return admin_page()
+
+
+@user_service.route('/user_data/<string:username>/delete', methods=['POST'])
+@login_required
+def delete_own_account(username):
+    print("here2")
+
+    user_data_access.delete_user(data_loader, username)
+
+    if(current_user.username == username):
+        return logout()
+
+    return user_data()

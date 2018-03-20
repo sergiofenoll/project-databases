@@ -73,8 +73,8 @@ class DataLoader:
         # Add schema to dataset table
         try:
             query = cursor.mogrify(
-                'INSERT INTO Dataset(id, nickname, metadata) VALUES(\'{0}\', \'{1}\', \'{2}\');'.format(schemaname,
-                                                                                                        name, desc))
+                'INSERT INTO Dataset(id, nickname, metadata, owner) VALUES(\'{0}\', \'{1}\', \'{2}\',\'{3}\');'.format(schemaname,
+                                                                                                        name, desc, owner_id))
             cursor.execute(query)
 
             # Add user to the access table
@@ -117,9 +117,6 @@ class DataLoader:
         try:
             id = schema_id.split('-')[1]
             query = cursor.mogrify('INSERT INTO Available_Schema (id) VALUES (%s)', (id,))
-            cursor.execute(query)
-
-            query = cursor.mogrify('DELETE FROM Access WHERE id_dataset = %s;', (schema_id,))
             cursor.execute(query)
 
             query = cursor.mogrify('DELETE FROM Dataset WHERE id = %s;', (schema_id,))

@@ -15,6 +15,9 @@ CREATE TABLE Dataset (
   id       VARCHAR(255),
   nickname VARCHAR(255),
   metadata VARCHAR(255),
+  owner VARCHAR(255),
+
+  FOREIGN KEY (owner) REFERENCES Member(Username) ON DELETE CASCADE,
   PRIMARY KEY (id)
 );
 
@@ -22,8 +25,8 @@ CREATE TABLE Access (
   id_dataset VARCHAR(255),
   id_user    VARCHAR(255),
   role       VARCHAR(255),
-  FOREIGN KEY (id_dataset) REFERENCES Dataset (id),
-  FOREIGN KEY (id_user) REFERENCES Member (username),
+  FOREIGN KEY (id_dataset) REFERENCES Dataset (id) ON DELETE CASCADE,
+  FOREIGN KEY (id_user) REFERENCES Member (username) ON DELETE CASCADE ,
   PRIMARY KEY (id_dataset, id_user),
   CHECK (role IN ('owner', 'moderator', 'contributor'))
 );
@@ -33,6 +36,7 @@ CREATE TABLE Metadata (
   id_table VARCHAR(255),
   metadata VARCHAR(255),
 
+  FOREIGN KEY (id_dataset) REFERENCES Dataset(id) ON DELETE CASCADE,
   PRIMARY KEY (id_dataset, id_table)
 );
 

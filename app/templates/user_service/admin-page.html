@@ -14,6 +14,8 @@
                         <th>Email</th>
                         <th>Status</th>
                         <th style="text-align: center;">Active</th>
+                        <th>Delete</th>
+
                     </tr>
                     </thead>
                     <tbody>
@@ -28,6 +30,13 @@
                                                                    name="{{ user.username }}"
                                                                    {% if user.is_active %}checked{% endif %}
                                                                    type="checkbox" class="form-check-input"></td>
+                            <td style="text-align: center;">
+                                <form action="/admin_page/{{ user.username }}/delete" method="post">
+                                    <button type="submit" class="btn btn-xs btn-danger">
+                                        ❌
+                                    </button>
+                                </form>
+                            </td>
                         </tr>
                     {% endfor %}
                     </tbody>

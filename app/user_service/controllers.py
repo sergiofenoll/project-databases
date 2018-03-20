@@ -2,7 +2,8 @@ from flask import Blueprint, request, render_template, url_for, redirect, abort
 from flask_login import login_required, current_user, login_user, logout_user
 from passlib.hash import sha256_crypt
 
-from app import login, user_data_access
+from app import user_data_access, data_loader
+from app import login
 from app.user_service.models import User
 
 user_service = Blueprint('user_service', __name__)
@@ -108,3 +109,14 @@ def admin_page():
             # I have no clue why they don't just return True or False
             user_data_access.alter_user(user)
         return render_template('user_service/admin-page.html', users=user_data_access.get_users(), data_updated=True)
+
+@user_service.route('/admin_page/<string:username>/delete', methods=['POST'])
+@login_required
+def delete_user_as_admin(username):
+    print("here")
+    if (current_user.status != 'admin'):
+        return abort(403)
+
+    user_data_access.delete_user(data_loader, username)
+
+    return admin_page()

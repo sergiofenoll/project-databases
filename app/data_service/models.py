@@ -1,6 +1,7 @@
 import re
 import shutil
 from zipfile import ZipFile
+from psycopg2 import sql
 
 
 class Dataset:
@@ -63,7 +64,8 @@ class DataLoader:
         schemaname = "schema-" + str(schemaID)
 
         try:
-            query = cursor.mogrify('CREATE SCHEMA \"{0}\";'.format(schemaname))
+            query = cursor.mogrify(sql.SQL('CREATE SCHEMA {0};').format(sql.Identifier(schemaname)))
+
             cursor.execute(query)
             self.dbconnect.commit()
         except Exception as e:
@@ -75,15 +77,15 @@ class DataLoader:
         # Add schema to dataset table
         try:
             query = cursor.mogrify(
-                'INSERT INTO Dataset(id, nickname, metadata) VALUES(\'{0}\', \'{1}\', \'{2}\');'.format(schemaname,
-                                                                                                        name, desc))
+                'INSERT INTO Dataset(id, nickname, metadata, owner) VALUES(%s, %s, %s, %s);', (schemaname,
+                                                                                               name, desc, owner_id,))
             cursor.execute(query)
 
             # Add user to the access table
             query = cursor.mogrify(
-                'INSERT INTO Access(id_dataset, id_user, role) VALUES(\'{0}\', \'{1}\', \'{2}\');'.format(schemaname,
-                                                                                                          owner_id,
-                                                                                                          'owner'))
+                'INSERT INTO Access(id_dataset, id_user, role) VALUES(%s, %s, %s);', (schemaname,
+                                                                                      owner_id,
+                                                                                      'owner',))
             cursor.execute(query)
             self.dbconnect.commit()
         except Exception as e:
@@ -94,12 +96,11 @@ class DataLoader:
 
         # Create 'metadata' table for this dataset
         try:
-            metadata_name = "\"" + schemaname + "\"" + ".Metadata"
             query = cursor.mogrify(
-                'CREATE TABLE {0}(\n'.format(metadata_name) +
+                sql.SQL('CREATE TABLE {0}.Metadata(\n' +
                 'name VARCHAR(255) PRIMARY KEY,\n' +
                 'description VARCHAR(255)\n' +
-                ');')
+                ');').format(sql.Identifier(schemaname)))
             cursor.execute(query)
             self.dbconnect.commit()
         except Exception as e:
@@ -121,13 +122,10 @@ class DataLoader:
             query = cursor.mogrify('INSERT INTO Available_Schema (id) VALUES (%s)', (id,))
             cursor.execute(query)
 
-            query = cursor.mogrify('DELETE FROM Access WHERE id_dataset = %s;', (schema_id,))
+            query = cursor.mogrify('DELETE FROM Dataset WHERE id = %s;', (str(schema_id),))
             cursor.execute(query)
 
-            query = cursor.mogrify('DELETE FROM Dataset WHERE id = %s;', (schema_id,))
-            cursor.execute(query)
-
-            query = cursor.mogrify('DROP SCHEMA IF EXISTS \"{0}\" CASCADE'.format(schema_id))
+            query = cursor.mogrify(sql.SQL('DROP SCHEMA IF EXISTS {0} CASCADE').format(sql.Identifier(schema_id)))
             cursor.execute(query)
 
             # check if there are datasets. If not, clean available_schema
@@ -147,7 +145,7 @@ class DataLoader:
 
         # Delete schema
         try:
-            query = cursor.mogrify('DROP SCHEMA IF EXISTS \"{0}\" CASCADE;'.format(schema_id))
+            query = cursor.mogrify(sql.SQL('DROP SCHEMA IF EXISTS {0} CASCADE;').format(sql.Identifier(schema_id)))
             cursor.execute(query)
             self.dbconnect.commit()
         except Exception as e:
@@ -164,7 +162,7 @@ class DataLoader:
         """
 
         cursor = self.dbconnect.get_cursor()
-        query = cursor.mogrify('SELECT id FROM Dataset WHERE nickname = \'{0}\';'.format(name))
+        query = cursor.mogrify('SELECT id FROM Dataset WHERE nickname = %s;', (name,))
         cursor.execute(query)
 
         ids = list()
@@ -184,7 +182,7 @@ class DataLoader:
         try:
             query = cursor.mogrify(
                 "SELECT EXISTS (SELECT 1 FROM information_schema.tables " +
-                "WHERE  table_schema = \'{0}\' AND table_name = \'{1}\');".format(schema_id, name))
+                "WHERE  table_schema = %s AND table_name = %s);", (str(schema_id), name,))
             cursor.execute(query)
             row = cursor.fetchone()
 
@@ -203,13 +201,15 @@ class DataLoader:
         cursor = self.dbconnect.get_cursor()
         schemaname = schema_id
 
-        query = 'CREATE TABLE \"{0}\".\"{1}\" ('.format(schemaname, name)
+        query = 'CREATE TABLE {0}.{1} ('
 
         query += 'id serial primary key'  # Since we don't know what the actual primary key should be, just assign an id
 
         for column in columns:
             query = query + ', \n\"' + column + '\" varchar(255)'
         query += '\n);'
+
+        query = sql.SQL(query).format(sql.Identifier(schemaname), sql.Identifier(name))
 
         try:
             query = cursor.mogrify(query)
@@ -223,9 +223,10 @@ class DataLoader:
 
         # Add metadata for this table
         try:
-            metadata_name = "\"" + schema_id + "\"" + ".Metadata"
+
             query = cursor.mogrify(
-                'INSERT INTO {0}(name, description) VALUES(\'{1}\', \'{2}\');'.format(metadata_name, name, desc))
+                sql.SQL('INSERT INTO {}.Metadata(NAME, description) VALUES(%s, %s);').format(sql.Identifier(schema_id)),
+                (name, desc,))
             cursor.execute(query)
             self.dbconnect.commit()
         except Exception as e:
@@ -236,9 +237,9 @@ class DataLoader:
 
     def delete_table(self, name, schema_id):
         cursor = self.dbconnect.get_cursor()
-        schema_name = '"' + schema_id + '"'
         try:
-            query = cursor.mogrify('DROP TABLE {0}.{1};'.format(schema_name, name))
+            query = cursor.mogrify(
+                sql.SQL('DROP TABLE {0}.{1};').format(sql.Identifier(schema_id), sql.Identifier(name)))
             cursor.execute(query)
             self.dbconnect.commit()
         except Exception as e:
@@ -249,8 +250,9 @@ class DataLoader:
 
         # Delete metadata
         try:
-            metadata_name = "\"" + schema_id + "\"" + ".Metadata"
-            query = cursor.mogrify('DELETE FROM {0} WHERE name = %s;'.format(metadata_name), (name,))
+            query = cursor.mogrify(
+                sql.SQL('DELETE FROM {}.Metadata WHERE NAME = %s;').format(sql.Identifier(schema_id)),
+                (name,))
             cursor.execute(query)
             self.dbconnect.commit()
         except Exception as e:
@@ -267,20 +269,11 @@ class DataLoader:
         cursor = self.dbconnect.get_cursor()
         schemaname = schema_id
         try:
-            for i in range(0, len(values)):
-                # Escape all quotes chars in this entry
-                values[i] = values[i].replace("'", "''")
-                values[i] = "\'" + values[i] + "\'"
-
-            column_list = ["column"] * len(columns)
-            for i in range(0, len(columns)):
-                column_list[i] = "\"" + columns[i] + "\""
-
-            column_string = ", ".join(column_list)
-            value_string = ", ".join(values)
-
-            query = 'INSERT INTO \"{0}\".\"{1}\"({2}) VALUES ({3});'.format(schemaname, table, column_string,
-                                                                            value_string)
+            query = cursor.mogrify(sql.SQL(
+                'INSERT INTO {0}.{1}({2}) VALUES %s;').format(sql.Identifier(schemaname), sql.Identifier(table),
+                                                              sql.SQL(', ').join(
+                                                                  sql.Identifier(column_name) for column_name in
+                                                                  columns)), (tuple(values),))
             cursor.execute(query)
             self.dbconnect.commit()
         except Exception as e:
@@ -409,8 +402,9 @@ class DataLoader:
 
         try:
             query = cursor.mogrify(
-                'SELECT id, nickname, metadata FROM Dataset ds, Access a WHERE (ds.id = a.id_dataset AND a.id_user = \'{0}\');'.format(
-                    user_id))
+                'SELECT id, nickname, metadata FROM Dataset ds, Access a WHERE (ds.id = a.id_dataset AND a.id_user = %s);',
+                (
+                    user_id,))
             cursor.execute(query)
 
             result = list()
@@ -419,8 +413,8 @@ class DataLoader:
                 try:
                     # Find owner for this dataset
                     query = cursor.mogrify(
-                        'SELECT a.id_user FROM Dataset ds, Access a WHERE (ds.id = \'{0}\' AND a.id_dataset = ds.id AND a.role = \'owner\');'.format(
-                            row['id']))
+                        'SELECT a.id_user FROM Dataset ds, Access a WHERE (ds.id = %s AND a.id_dataset = ds.id AND a.role = \'owner\');',
+                        (row['id'],))
                     cursor.execute(query)
                     owner = cursor.fetchone()[0]
 
@@ -444,9 +438,9 @@ class DataLoader:
             cursor = self.dbconnect.get_cursor()
 
             query = cursor.mogrify(
-                'INSERT INTO Access(id_dataset, id_user, role) VALUES(\'{0}\', \'{1}\', \'{2}\');'.format(schema_id,
-                                                                                                          user_id,
-                                                                                                          role))
+                'INSERT INTO Access(id_dataset, id_user, role) VALUES(%s, %s, %s);', (schema_id,
+                                                                                      user_id,
+                                                                                      role,))
             cursor.execute(query)
             self.dbconnect.commit()
         except Exception as e:
@@ -461,7 +455,7 @@ class DataLoader:
             cursor = self.dbconnect.get_cursor()
 
             query = cursor.mogrify(
-                'DELETE FROM Access WHERE (id_user = \'{0}\' AND id_dataset = \'{1}\');'.format(user_id, schema_id))
+                'DELETE FROM Access WHERE (id_user = %s AND id_dataset = %s);', (user_id, schema_id,))
             cursor.execute(query)
             self.dbconnect.commit()
         except Exception as e:
@@ -480,7 +474,7 @@ class DataLoader:
         try:
             schema_id = "schema-" + str(id)
             query = cursor.mogrify(
-                'SELECT id, nickname, metadata FROM Dataset ds WHERE ds.id = \'{0}\';'.format(schema_id))
+                'SELECT id, nickname, metadata FROM Dataset ds WHERE ds.id = %s;', (schema_id,))
             cursor.execute(query)
 
             ds = cursor.fetchone()
@@ -500,8 +494,8 @@ class DataLoader:
         try:
 
             # Get all tables from the metadata table in the schema
-            metadata_name = "\"schema-" + str(schema_id) + "\".Metadata"
-            query = cursor.mogrify('SELECT * FROM {0};'.format(metadata_name))
+            metadata_name = "schema-" + str(schema_id)
+            query = cursor.mogrify(sql.SQL('SELECT * FROM {0}.Metadata;').format(sql.Identifier(metadata_name)))
             cursor.execute(query)
 
             tables = list()
@@ -523,17 +517,13 @@ class DataLoader:
         cursor = self.dbconnect.get_cursor()
         try:
             # Get all tables from the metadata table in the schema
-            table_query = '"schema-{}"."{}"'.format(schema_id, table_name)
+            ordering_query = ''
             if ordering is not None:
                 # ordering tuple is of the form (columns, asc|desc)
                 ordering_query = 'ORDER BY "{}" {}'.format(*ordering)
-                query = cursor.mogrify(
-                    'SELECT * FROM {} {} LIMIT {} OFFSET %s;'.format(table_query, ordering_query, limit),
-                    (offset,))
-            else:
-                query = cursor.mogrify(
-                    'SELECT * FROM {} LIMIT {} OFFSET %s;'.format(table_query, limit),
-                    (offset,))
+            query = cursor.mogrify(
+                'SELECT * FROM "{}"."{}" {} LIMIT {} OFFSET %s;'.format('schema-' + str(schema_id), table_name,
+                                                                        ordering_query, limit), (offset,))
             cursor.execute(query)
 
             table = Table(table_name, '', columns=self.get_column_names(schema_id, table_name)[1:])  # Hack-n-slash
@@ -554,12 +544,11 @@ class DataLoader:
 
         try:
 
-            table = "\'" + table_name + "\'"
-            schema = "\'schema-" + str(schema_id) + "\'"
+            schema = "schema-" + str(schema_id)
 
             query = cursor.mogrify(
-                'SELECT column_name FROM information_schema.columns WHERE table_schema={0} and table_name ={1};'.format(
-                    schema, table))
+                'SELECT column_name FROM information_schema.columns WHERE table_schema=%s AND table_name=%s;', (
+                    schema, table_name,))
             cursor.execute(query)
             result = list()
             for row in cursor:

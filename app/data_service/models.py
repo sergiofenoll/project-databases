@@ -7,10 +7,11 @@ from app import app
 
 class Dataset:
 
-    def __init__(self, id, name, desc, owner):
+    def __init__(self, id, name, desc, owner, moderators=[]):
         self.name = name
         self.desc = desc
         self.owner = owner
+        self.moderators = moderators
         self.id = id
 
 
@@ -412,6 +413,7 @@ class DataLoader:
             datasets = [x for x in cursor]
             for row in datasets:
                 try:
+                    ds_id = row['id']
                     # Find owner for this dataset
                     query = cursor.mogrify(
                         'SELECT a.id_user FROM Dataset ds, Access a WHERE (ds.id = %s AND a.id_dataset = ds.id AND a.role = \'owner\');',
@@ -419,8 +421,15 @@ class DataLoader:
                     cursor.execute(query)
                     owner = cursor.fetchone()[0]
 
-                    schema_id = row['id'].split('-')[1]
-                    result.append(Dataset(schema_id, row['nickname'], row['metadata'], owner))
+                    # Find moderators for this dataset
+                    query = cursor.mogrify(
+                        'SELECT a.id_user FROM Dataset ds, Access a WHERE (ds.id = \'{0}\' AND a.id_dataset = ds.id AND a.role = \'moderator\');'.format(
+                            ds_id))
+                    cursor.execute(query)
+                    moderators = [x for x in cursor]
+
+                    schema_id = ds_id.split('-')[1]
+                    result.append(Dataset(schema_id, row['nickname'], row['metadata'], owner, moderators))
                 except Exception as e:
                     # TODO: Why is this a warning instead of an error? If we can't find the owner of a dataset,
                     # TODO: i.e. that user has been deleted but his dataset remains, shouldn't that be an error?
@@ -479,9 +488,23 @@ class DataLoader:
             query = cursor.mogrify(
                 'SELECT id, nickname, metadata FROM Dataset ds WHERE ds.id = %s;', (schema_id,))
             cursor.execute(query)
-
             ds = cursor.fetchone()
-            return Dataset(id, ds['nickname'], ds['metadata'], "")
+
+            # Find owner for this dataset
+            query = cursor.mogrify(
+                'SELECT a.id_user FROM Dataset ds, Access a WHERE (ds.id = \'{0}\' AND a.id_dataset = ds.id AND a.role = \'owner\');'.format(
+                    schema_id))
+            cursor.execute(query)
+            owner = cursor.fetchone()[0]
+
+            # Find moderators for this dataset
+            query = cursor.mogrify(
+                'SELECT a.id_user FROM Dataset ds, Access a WHERE (ds.id = \'{0}\' AND a.id_dataset = ds.id AND a.role = \'moderator\');'.format(
+                    schema_id))
+            cursor.execute(query)
+            moderators = [x for x in cursor]
+
+            return Dataset(id, ds['nickname'], ds['metadata'], owner, moderators)
         except Exception as e:
             app.logger.error("[ERROR] Couldn't fetch data for dataset.")
             app.logger.exception(e)

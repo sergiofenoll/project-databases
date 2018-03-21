@@ -50,7 +50,19 @@
                 <button type="submit" class="btn btn-default" id="submit">Submit</button>
             </form>
         </div>
-        <div class="col-sm-2"></div>
+        {% if ((current_user.username in ds.moderators) or (current_user.username == ds.owner)) %}
+        <div class="col-sm-2">
+            <h4>Share access to this dataset</h4>
+            <form action="/datasets/{{ ds.id }}/share" method="post">
+                <div class="form-group">
+                    <label for="ds-access">Username</label>
+                    <input type="text" class="form-control" id="ds-access" name="ds-access"
+                           placeholder="Username" required>
+                </div>
+            <button type="submit" class="btn btn-default" id="submit">Submit</button>
+            </form>
+        </div>
+        {% endif %}
     </div>
     <br>
 {% endblock %}

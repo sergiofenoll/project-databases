@@ -126,3 +126,9 @@ def delete_table(dataset_id, table_name):
     schema_name = "schema-" + str(dataset_id)
     data_loader.delete_table(table_name, schema_name)
     return redirect(url_for('data_service.get_dataset', dataset_id=dataset_id), code=303)
+
+
+@data_service.route('/datasets/<int:dataset_id>/share')
+def share_dataset(dataset_id):
+    # TEMP
+    pass

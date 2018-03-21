@@ -107,7 +107,7 @@ class UserDataAccess:
             raise e
 
     def delete_user(self, data_loader, username):
-        '''remove user and all of its datasets'''
+        """remove user and all of its datasets"""
 
         # remove user deletes every row that depends on it because of cascade deletion
 
@@ -121,7 +121,6 @@ class UserDataAccess:
             cursor.execute(query)
 
             for dataset_id in cursor:
-                print(dataset_id[0])
                 data_loader.delete_dataset(dataset_id[0])
 
             query = cursor.mogrify('DELETE FROM Member WHERE username = %s',

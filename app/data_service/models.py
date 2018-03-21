@@ -63,6 +63,7 @@ class DataLoader:
 
         try:
             query = cursor.mogrify(sql.SQL('CREATE SCHEMA {0};').format(sql.Identifier(schemaname)))
+
             cursor.execute(query)
             self.dbconnect.commit()
         except Exception as e:
@@ -93,12 +94,11 @@ class DataLoader:
 
         # Create 'metadata' table for this dataset
         try:
-            metadata_name = "\"" + schemaname + "\"" + ".Metadata"
             query = cursor.mogrify(
-                sql.SQL('CREATE TABLE {0}(\n').format(sql.Identifier(metadata_name)) +
+                sql.SQL('CREATE TABLE {0}.Metadata(\n' +
                 'name VARCHAR(255) PRIMARY KEY,\n' +
                 'description VARCHAR(255)\n' +
-                ');')
+                ');').format(sql.Identifier(schemaname)))
             cursor.execute(query)
             self.dbconnect.commit()
         except Exception as e:

@@ -24,10 +24,10 @@
                     <tbody>
                     {% for t in tables %}
                         <tr>
-                            <td><a href="/datasets/{{ ds.id }}/table/{{ t.name }}">{{ t.name }}</a></td>
+                            <td><a href="/datasets/{{ ds.id }}/tables/{{ t.name }}">{{ t.name }}</a></td>
                             <td> {{ t.desc }}</td>
                             <td style="text-align: center;">
-                                <form action="/datasets/{{ ds.id }}/table/{{ t.name }}/delete" method="post">
+                                <form action="/datasets/{{ ds.id }}/tables/{{ t.name }}/delete" method="post">
                                     <button type="submit" class="btn btn-xs btn-danger">❌
                                     </button>
                                 </form>

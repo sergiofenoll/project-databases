@@ -99,22 +99,23 @@ def add_table(dataset_id):
     return get_dataset(dataset_id)
 
 
-@data_service.route('/datasets/<int:dataset_id>/table/<string:table_name>', methods=['GET'])
+@data_service.route('/datasets/<int:dataset_id>/tables/<string:table_name>', methods=['GET'])
 def get_table(dataset_id, table_name):
     # TODO: Why is the method called get_table() if it returns a list of rows (a list of pseudo dictionaries/lists)?
     # TODO: In fact, why does get_table() return a list of rows instead of a Table object containing the data?
     # TODO: Why *doesn't* a Table object contain any data?
-    rows = data_loader.get_table(dataset_id, table_name)
-    columns = data_loader.get_column_names(dataset_id, table_name)
-    return render_template('data_service/table-view.html', columns=columns, rows=rows)
+    table = data_loader.get_table(dataset_id, table_name)
+    # rows = data_loader.get_table(dataset_id, table_name)
+    # columns = data_loader.get_column_names(dataset_id, table_name)
+    return render_template('data_service/table-view.html', table=table)
 
 
-@data_service.route('/datasets/<int:dataset_id>/table/<string:table_name>/update', methods=['POST'])
+@data_service.route('/datasets/<int:dataset_id>/tables/<string:table_name>/update', methods=['POST'])
 def update_table(dataset_id, table_name):
     pass  # Edit name/description of table
 
 
-@data_service.route('/datasets/<int:dataset_id>/table/<string:table_name>/delete', methods=['POST'])
+@data_service.route('/datasets/<int:dataset_id>/tables/<string:table_name>/delete', methods=['POST'])
 def delete_table(dataset_id, table_name):
     schema_name = "schema-" + str(dataset_id)
     data_loader.delete_table(table_name, schema_name)

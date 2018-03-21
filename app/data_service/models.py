@@ -14,9 +14,11 @@ class Dataset:
 
 class Table:
 
-    def __init__(self, name, desc):
+    def __init__(self, name, desc, rows=None, columns=None):
         self.name = name
         self.desc = desc
+        self.rows = rows or []
+        self.columns = columns or []
 
 
 class DataLoader:
@@ -248,7 +250,7 @@ class DataLoader:
         # Delete metadata
         try:
             metadata_name = "\"" + schema_id + "\"" + ".Metadata"
-            query = cursor.mogrify('DELETE FROM {0} WHERE name = %s;'.format(metadata_name), (name, ))
+            query = cursor.mogrify('DELETE FROM {0} WHERE name = %s;'.format(metadata_name), (name,))
             cursor.execute(query)
             self.dbconnect.commit()
         except Exception as e:
@@ -502,35 +504,42 @@ class DataLoader:
             query = cursor.mogrify('SELECT * FROM {0};'.format(metadata_name))
             cursor.execute(query)
 
-            result = list()
+            tables = list()
             for row in cursor:
                 t = Table(row['name'], row['description'])
-                result.append(t)
+                tables.append(t)
 
-            return result
+            return tables
         except Exception as e:
             print("[ERROR] Couldn't fetch tables for dataset.")
             print(e)
             raise e
 
-    def get_table(self, schema_id, table_name):
+    def get_table(self, schema_id, table_name, offset=0, limit='ALL', ordering=None):
         """
          This method returns a list of 'Table' objects associated with the requested dataset
         """
 
         cursor = self.dbconnect.get_cursor()
-
         try:
-
             # Get all tables from the metadata table in the schema
-            table = "\"schema-" + str(schema_id) + "\"." + "\"" + table_name + "\""
-            query = cursor.mogrify('SELECT * FROM {0};'.format(table))
+            table_query = '"schema-{}"."{}"'.format(schema_id, table_name)
+            if ordering is not None:
+                # ordering tuple is of the form (columns, asc|desc)
+                ordering_query = 'ORDER BY "{}" {}'.format(*ordering)
+                query = cursor.mogrify(
+                    'SELECT * FROM {} {} LIMIT {} OFFSET %s;'.format(table_query, ordering_query, limit),
+                    (offset,))
+            else:
+                query = cursor.mogrify(
+                    'SELECT * FROM {} LIMIT {} OFFSET %s;'.format(table_query, limit),
+                    (offset,))
             cursor.execute(query)
-            result = list()
-            for row in cursor:
-                result.append(row)
 
-            return result
+            table = Table(table_name, '', columns=self.get_column_names(schema_id, table_name)[1:])  # Hack-n-slash
+            for row in cursor:
+                table.rows.append(row[1:])  # skip the system id TODO: find a better solution, this feels like a hack
+            return table
 
         except Exception as e:
             print("[ERROR] Couldn't fetch table for dataset.")

@@ -61,6 +61,12 @@ def add_table(dataset_id):
     # submits an empty part without filename
     if file.filename == '':
         return get_dataset(dataset_id)
+
+    # TEMP solution: create UPLOAD_FOLDER if it doesn't exists to prevent 'file not found' error.
+    # This should probably be done in some setup function and not every time this method is called
+    if not os.path.exists(UPLOAD_FOLDER):
+        os.makedirs(UPLOAD_FOLDER)
+
     if file and allowed_file(file.filename):
         filename = secure_filename(file.filename)
         path = os.path.join(UPLOAD_FOLDER, filename)

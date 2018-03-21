@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block content %}
+    <div class="row">
+        <div class="col-sm-2"></div>
+        <div class="col-sm-8">
+            <h1>Table name PLACEHOLDER</h1>
+            <p>Table description PACEHOLDER</p>
+        </div>
+        <div class="col-sm-2"></div>
+    </div>
+    {% if rows|length > 0 %}
+        <div class="row">
+            <div class="col-sm-2"></div>
+            <div class="col-sm-8">
+                <table class="display table table-striped table-bordered" cellspacing="0" width="100%" id="dataTable">
+                    <thead>
+                    <tr>
+                        {% for column in columns %}
+                            <th>
+                                <div style="float:left">
+                                    {{ column[0] }}
+                                </div>
+                                <div style="float:right">
+                                    <button type="button" style="padding:0;border:none;background:none;">&#x2699;
+                                    </button>
+                                </div>
+                            </th>
+                        {% endfor %}
+                    </tr>
+                    </thead>
+                    <tbody>
+                    {% for row in rows %}
+                        <tr>
+                            {% for element in row %}
+                                <td> {{ element }}  </td>
+                            {% endfor %}
+                        </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <div class="col-sm-2"></div>
+        </div>
+    {% else %}
+        <h1>This is empty</h1>
+    {% endif %}
+    <br>
+    <br>
+    <br>
+{% endblock %}

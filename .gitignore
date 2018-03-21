@@ -1,6 +1,6 @@
 .idea
 venv
-src/__pycache__
-src/config.py
+app/__pycache__
+.pytest_cache
 *.pyc
 temp_input

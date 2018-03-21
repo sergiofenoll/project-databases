@@ -1,4 +1,8 @@
 language: python
+branches:
+  only:
+    - master
+    - development
 python:
   - "3.6"
 services:
@@ -7,7 +11,5 @@ install:
   - pip3 install -r requirements.txt
 before_script:
   - ./setup.sh
-  - cp src/default_config.py src/config.py
 script:
-  - python3 src/test_user_data_access.py
-
+  - pytest

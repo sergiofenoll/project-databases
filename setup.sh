@@ -15,8 +15,6 @@ psql -U postgres -c "GRANT ALL PRIVILEGES ON DATABASE userdb TO dbadmin;"
 
 psql -U dbadmin -d userdb -f sql/tables.sql
 
-cp src/default_config.py src/config.py
-
 virtualenv venv/
 source venv/bin/activate
 pip3 install -r requirements.txt

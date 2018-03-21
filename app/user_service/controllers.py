@@ -2,7 +2,7 @@ from flask import Blueprint, request, render_template, url_for, redirect, abort
 from flask_login import login_required, current_user, login_user, logout_user
 from passlib.hash import sha256_crypt
 
-from app import login, user_data_access
+from app import app, login, user_data_access
 from app.user_service.models import User
 
 user_service = Blueprint('user_service', __name__)
@@ -33,7 +33,7 @@ def login():
             else:
                 return render_template('user_service/login-form.html', wrong_password=True)
         except Exception as e:
-            print(e)
+            app.logger.exception(e)
             return render_template('user_service/login-form.html', wrong_password=True)
 
 

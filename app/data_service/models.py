@@ -1,6 +1,7 @@
 import re
 import shutil
 from zipfile import ZipFile
+from app import app
 
 
 class Dataset:
@@ -55,7 +56,7 @@ class DataLoader:
             cursor.execute(query)
 
         if schemaID == -1:
-            print("Finding a unique schema-name failed")
+            app.logger.warning("[WARNING] Finding a unique schema-name failed")
             return False
 
         schemaname = "schema-" + str(schemaID)
@@ -65,8 +66,8 @@ class DataLoader:
             cursor.execute(query)
             self.dbconnect.commit()
         except Exception as e:
-            print("[ERROR] Failed to created schema '" + name + "'")
-            print(e)
+            app.logger.error("[ERROR] Failed to created schema '" + name + "'")
+            app.logger.exception(e)
             self.dbconnect.rollback()
             raise e
 
@@ -85,8 +86,8 @@ class DataLoader:
             cursor.execute(query)
             self.dbconnect.commit()
         except Exception as e:
-            print("[ERROR] Failed to insert dataset '" + name + "' into the database")
-            print(e)
+            app.logger.error("[ERROR] Failed to insert dataset '" + name + "' into the database")
+            app.logger.exception(e)
             self.dbconnect.rollback()
             raise e
 
@@ -101,8 +102,8 @@ class DataLoader:
             cursor.execute(query)
             self.dbconnect.commit()
         except Exception as e:
-            print("[ERROR] Failed to create metadata table for schema '" + name + "'")
-            print(e)
+            app.logger.error("[ERROR] Failed to create metadata table for schema '" + name + "'")
+            app.logger.exception(e)
             self.dbconnect.rollback()
             raise e
 
@@ -138,8 +139,8 @@ class DataLoader:
 
             self.dbconnect.commit()
         except Exception as e:
-            print("[ERROR] Failed to properly remove dataset '" + schema_id + "'")
-            print(e)
+            app.logger.error("[ERROR] Failed to properly remove dataset '" + schema_id + "'")
+            app.logger.exception(e)
             self.dbconnect.rollback()
             raise e
 
@@ -149,8 +150,8 @@ class DataLoader:
             cursor.execute(query)
             self.dbconnect.commit()
         except Exception as e:
-            print("[ERROR] Failed to delete schema '" + schema_id + "'")
-            print(e)
+            app.logger.error("[ERROR] Failed to delete schema '" + schema_id + "'")
+            app.logger.exception(e)
             self.dbconnect.rollback()
             raise e
 
@@ -189,8 +190,8 @@ class DataLoader:
             return row[0]
 
         except Exception as e:
-            print("[ERROR] Couldn't determine existence of table '" + name + "'")
-            print(e)
+            app.logger.error("[ERROR] Couldn't determine existence of table '" + name + "'")
+            app.logger.exception(e)
             raise e
 
     def create_table(self, name, schema_id, columns, desc="Default description"):
@@ -214,8 +215,8 @@ class DataLoader:
             cursor.execute(query)
             self.dbconnect.commit()
         except Exception as e:
-            print("[ERROR] Failed to create table '" + name + "'")
-            print(e)
+            app.logger.error("[ERROR] Failed to create table '" + name + "'")
+            app.logger.exception(e)
             self.dbconnect.rollback()
             raise e
 
@@ -227,8 +228,8 @@ class DataLoader:
             cursor.execute(query)
             self.dbconnect.commit()
         except Exception as e:
-            print("[ERROR] Failed to insert metadata for table '" + name + "'")
-            print(e)
+            app.logger.error("[ERROR] Failed to insert metadata for table '" + name + "'")
+            app.logger.exception(e)
             self.dbconnect.rollback()
             raise e
 
@@ -240,8 +241,8 @@ class DataLoader:
             cursor.execute(query)
             self.dbconnect.commit()
         except Exception as e:
-            print("[ERROR] Failed to delete table '" + name + "'")
-            print(e)
+            app.logger.error("[ERROR] Failed to delete table '" + name + "'")
+            app.logger.exception(e)
             self.dbconnect.rollback()
             raise e
 
@@ -252,8 +253,8 @@ class DataLoader:
             cursor.execute(query)
             self.dbconnect.commit()
         except Exception as e:
-            print("[ERROR] Failed to delete metadata for table '" + name + "'")
-            print(e)
+            app.logger.error("[ERROR] Failed to delete metadata for table '" + name + "'")
+            app.logger.exception(e)
             self.dbconnect.rollback()
             raise e
 
@@ -282,8 +283,8 @@ class DataLoader:
             cursor.execute(query)
             self.dbconnect.commit()
         except Exception as e:
-            print("[ERROR] Unable to insert into table '" + table + "'")
-            print(e)
+            app.logger.exception("[ERROR] Unable to insert into table '" + table + "'")
+            app.logger.exception(e)
             self.dbconnect.rollback()
             raise e
 
@@ -306,10 +307,10 @@ class DataLoader:
 
         table_exists = self.table_exists(tablename, schema_id)
         if append and not table_exists:
-            print("[ERROR] Appending to non-existent table.")
+            app.logger.error("[ERROR] Appending to non-existent table.")
             return
         elif not append and table_exists:
-            print("[ERROR] Cannot overwrite existing table.")
+            app.logger.error("[ERROR] Cannot overwrite existing table.")
             return
 
         with open(file, "r") as csv:
@@ -356,8 +357,8 @@ class DataLoader:
                 shutil.rmtree("../output/temp")
 
         except Exception as e:
-            print("[ERROR] Failed to load from .zip archive '" + file + "'")
-            print(e)
+            app.logger.error("[ERROR] Failed to load from .zip archive '" + file + "'")
+            app.logger.exception(e)
 
             # Clean up temp folder
             shutil.rmtree("../output/temp")
@@ -425,15 +426,17 @@ class DataLoader:
                     schema_id = row['id'].split('-')[1]
                     result.append(Dataset(schema_id, row['nickname'], row['metadata'], owner))
                 except Exception as e:
-                    print("[WARNING] Failed to find owner of dataset '" + row['nickname'] + "'")
-                    print(e)
+                    # TODO: Why is this a warning instead of an error? If we can't find the owner of a dataset,
+                    # TODO: i.e. that user has been deleted but his dataset remains, shouldn't that be an error?
+                    app.logger.warning("[WARNING] Failed to find owner of dataset '" + row['nickname'] + "'")
+                    app.logger.exception(e)
                     continue
 
             return result
 
         except Exception as e:
-            print("[ERROR] Failed to fetch available datasets for user '" + user_id + "'.")
-            print(e)
+            app.logger.error("[ERROR] Failed to fetch available datasets for user '" + user_id + "'.")
+            app.logger.exception(e)
             raise e
 
     def grant_access(self, user_id, schema_id, role='contributer'):
@@ -448,8 +451,8 @@ class DataLoader:
             cursor.execute(query)
             self.dbconnect.commit()
         except Exception as e:
-            print("[ERROR] Couldn't grant '" + user_id + "' access to '" + schema_id + "'")
-            print(e)
+            app.logger.error("[ERROR] Couldn't grant '" + user_id + "' access to '" + schema_id + "'")
+            app.logger.exception(e)
             self.dbconnect.rollback()
             raise e
 
@@ -463,8 +466,8 @@ class DataLoader:
             cursor.execute(query)
             self.dbconnect.commit()
         except Exception as e:
-            print("[ERROR] Couldn't remove access rights for '" + user_id + "' from '" + schema_id + "'")
-            print(e)
+            app.logger.error("[ERROR] Couldn't remove access rights for '" + user_id + "' from '" + schema_id + "'")
+            app.logger.exception(e)
             self.dbconnect.rollback()
             raise e
 
@@ -484,8 +487,8 @@ class DataLoader:
             ds = cursor.fetchone()
             return Dataset(id, ds['nickname'], ds['metadata'], "")
         except Exception as e:
-            print("[ERROR] Couldn't fetch data for dataset.")
-            print(e)
+            app.logger.error("[ERROR] Couldn't fetch data for dataset.")
+            app.logger.exception(e)
             raise e
 
     def get_tables(self, schema_id):
@@ -509,8 +512,8 @@ class DataLoader:
 
             return result
         except Exception as e:
-            print("[ERROR] Couldn't fetch tables for dataset.")
-            print(e)
+            app.logger.error("[ERROR] Couldn't fetch tables for dataset.")
+            app.logger.exception(e)
             raise e
 
     def get_table(self, schema_id, table_name):
@@ -533,8 +536,8 @@ class DataLoader:
             return result
 
         except Exception as e:
-            print("[ERROR] Couldn't fetch table for dataset.")
-            print(e)
+            app.logger.error("[ERROR] Couldn't fetch table for dataset.")
+            app.logger.exception(e)
             raise e
 
     def get_column_names(self, schema_id, table_name):
@@ -559,6 +562,6 @@ class DataLoader:
             return result
 
         except Exception as e:
-            print("[ERROR] Couldn't fetch column names for table '" + table_name + "'.")
-            print(e)
+            app.logger.error("[ERROR] Couldn't fetch column names for table '" + table_name + "'.")
+            app.logger.exception(e)
             raise e

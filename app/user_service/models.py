@@ -121,7 +121,6 @@ class UserDataAccess:
             cursor.execute(query)
 
             for dataset_id in cursor:
-                print(dataset_id[0])
                 data_loader.delete_dataset(dataset_id[0])
 
             query = cursor.mogrify('DELETE FROM Member WHERE username = %s',

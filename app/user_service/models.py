@@ -107,7 +107,7 @@ class UserDataAccess:
             raise e
 
     def delete_user(self, data_loader, username):
-        '''remove user and all of its datasets'''
+        """remove user and all of its datasets"""
 
         # remove user deletes every row that depends on it because of cascade deletion
 

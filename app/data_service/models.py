@@ -61,7 +61,7 @@ class DataLoader:
         schemaname = "schema-" + str(schemaID)
 
         try:
-            query = cursor.mogrify('CREATE SCHEMA \"{0}\";'.format(schemaname))
+            query = cursor.mogrify('CREATE SCHEMA %s;',(schemaname,))
             cursor.execute(query)
             self.dbconnect.commit()
         except Exception as e:
@@ -73,15 +73,13 @@ class DataLoader:
         # Add schema to dataset table
         try:
             query = cursor.mogrify(
-                'INSERT INTO Dataset(id, nickname, metadata, owner) VALUES(\'{0}\', \'{1}\', \'{2}\',\'{3}\');'.format(schemaname,
-                                                                                                        name, desc, owner_id))
+                'INSERT INTO Dataset(id, nickname, metadata, owner) VALUES(%s, %s, %s,%s);',(schemaname,
+                                                                                                        name, desc, owner_id,))
             cursor.execute(query)
 
             # Add user to the access table
             query = cursor.mogrify(
-                'INSERT INTO Access(id_dataset, id_user, role) VALUES(\'{0}\', \'{1}\', \'{2}\');'.format(schemaname,
-                                                                                                          owner_id,
-                                                                                                          'owner'))
+                'INSERT INTO Access(id_dataset, id_user, role) VALUES(%s, %s,%s);',(schemaname,owner_id,'owner',))
             cursor.execute(query)
             self.dbconnect.commit()
         except Exception as e:

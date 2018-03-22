@@ -109,3 +109,35 @@ class UserDataAccess:
             app.logger.exception(e)
             self.dbconnect.rollback()
             raise e
+
+    def delete_user(self, data_loader, username):
+        """remove user and all of its datasets"""
+
+        # remove user deletes every row that depends on it because of cascade deletion
+
+        cursor = self.dbconnect.get_cursor()
+
+        try:
+            # first drop all schemas owned by the user
+            query = cursor.mogrify('SELECT id FROM dataset WHERE owner = %s',
+                                   (username,))
+
+            cursor.execute(query)
+
+            for dataset_id in cursor:
+                data_loader.delete_dataset(dataset_id[0])
+
+            query = cursor.mogrify('DELETE FROM Member WHERE username = %s',
+                                   (username,))
+
+            cursor.execute(query)
+
+            self.dbconnect.commit()
+
+            return True
+        except Exception as e:
+            print('Unable to delete user!')
+            print(e)
+            self.dbconnect.rollback()
+            return False
+

@@ -36,7 +36,9 @@ def load_user(user_id):
 from app.main.controllers import main
 from app.user_service.controllers import user_service
 from app.data_service.controllers import data_service
+from app.api.controllers import api
 
 app.register_blueprint(main)
 app.register_blueprint(user_service)
 app.register_blueprint(data_service)
+app.register_blueprint(api)

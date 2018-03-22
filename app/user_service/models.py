@@ -1,3 +1,5 @@
+from app import app
+
 class User:
     def __init__(self, username, password, firstname, lastname, email, status, active):
         self.username = username
@@ -56,8 +58,8 @@ class UserDataAccess:
 
             return True
         except Exception as e:
-            print('Unable to add user!')
-            print(e)
+            app.logger.error('[ERROR] Unable to add user!')
+            app.logger.exception(e)
             self.dbconnect.rollback()
             return False
 
@@ -73,14 +75,15 @@ class UserDataAccess:
 
             return row[0]
         except Exception as e:
+            app.logger.exception(e)
             self.dbconnect.rollback()
             raise e
 
-    def get_user(self, id):
+    def get_user(self, user_id):
         cursor = self.dbconnect.get_cursor()
 
         cursor.execute(
-            'SELECT * FROM Member WHERE Username=%s;', (id,))
+            'SELECT * FROM Member WHERE Username=%s;', (user_id,))
         row = cursor.fetchone()
 
         if row is not None:
@@ -103,6 +106,7 @@ class UserDataAccess:
 
             return True
         except Exception as e:
+            app.logger.exception(e)
             self.dbconnect.rollback()
             raise e
 

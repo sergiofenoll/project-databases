@@ -1,5 +1,6 @@
 import psycopg2
 import psycopg2.extras
+from app import app
 
 
 class DBConnection:
@@ -9,8 +10,8 @@ class DBConnection:
                 "dbname='{}' user='{}' host='{}' password='{}'".format(dbname, dbuser, dbhost, dbpass),
                 cursor_factory=psycopg2.extras.DictCursor)
         except Exception as e:
-            print('[ERROR] Unable to connect to database')
-            print(e)
+            app.logger.error('[ERROR] Unable to connect to database')
+            app.logger.exception(e)
             raise Exception('Unable to connect to database')  # TODO: Why not raise e?
 
     def close(self):

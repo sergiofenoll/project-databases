@@ -4,7 +4,7 @@ from flask import Blueprint, request, render_template, redirect, url_for
 from flask_login import login_required, current_user
 from werkzeug.utils import secure_filename
 
-from app import connection, data_loader, ALLOWED_EXTENSIONS, UPLOAD_FOLDER
+from app import app, connection, data_loader, ALLOWED_EXTENSIONS, UPLOAD_FOLDER
 
 data_service = Blueprint('data_service', __name__)
 
@@ -73,8 +73,8 @@ def add_table(dataset_id):
         try:
             file.save(path)
         except Exception as e:
-            print("[ERROR] Failed to upload file '" + file.filename + "'")
-            print(e)
+            app.logger.error("[ERROR] Failed to upload file '" + file.filename + "'")
+            app.logger.exception(e)
             file.close()
             os.remove(path)
             return get_dataset(dataset_id)
@@ -94,8 +94,8 @@ def add_table(dataset_id):
             else:
                 data_loader.process_dump(path, current_user.active_schema)
         except Exception as e:
-            print("[ERROR] Failed to process file '" + filename + "'")
-            print(e)
+            app.logger.error("[ERROR] Failed to process file '" + filename + "'")
+            app.logger.exception(e)
             connection.rollback()
             return get_dataset(dataset_id)
 

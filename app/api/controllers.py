@@ -21,3 +21,20 @@ def get_table(dataset_id, table_name):
                    recordsTotal=len(_table.rows),
                    recordsFiltered=len(_table.rows),
                    data=table.rows)
+
+
+@api.route('/api/datasets/<int:dataset_id>/share', methods=['GET'])
+def get_access_table(dataset_id):
+    start = request.args.get('start')
+    length = request.args.get('length')
+    access_table_columns = ['id_user', 'role']
+    ordering = (access_table_columns[int(request.args.get('order[0][column]'))], request.args.get('order[0][dir]'))
+    search = request.args.get('search[value]')
+
+    table = data_loader.get_dataset_access(dataset_id, offset=start, limit=length, ordering=ordering, search=search)
+    _table = data_loader.get_dataset_access(dataset_id)
+
+    return jsonify(draw=int(request.args.get('draw')),
+                   recordsTotal=len(_table.rows),
+                   recordsFiltered=len(_table.rows),
+                   data=table.rows)

@@ -1,6 +1,6 @@
 import re
 import shutil
-from psycopg2 import sql
+from psycopg2 import sql, IntegrityError
 from zipfile import ZipFile
 from app import app
 
@@ -444,10 +444,48 @@ class DataLoader:
             app.logger.exception(e)
             raise e
 
+    def get_dataset_access(self, schema_id, offset=0, limit='ALL', ordering=None, search=None):
+        """
+         This method returns a table with the users that have access to this dataset
+        """
+
+        try:
+            cursor = self.dbconnect.get_cursor()
+
+            # TODO: Stole this cheeky bit from another method so if we decide to fix it there, don't forget to fix this too
+            ordering_query = ''
+            if ordering is not None:
+                # ordering tuple is of the form (columns, asc|desc)
+                ordering_query = 'ORDER BY "{}" {}'.format(*ordering)
+
+            search_query = ''
+            if search is not None:
+                search_query = 'WHERE id_user LIKE \'%{0}%\' or role LIKE \'%{0}%\''.format(search)
+
+            query = cursor.mogrify(
+                'SELECT * FROM Access {} {} LIMIT {} OFFSET {};'.format(search_query, ordering_query, limit, offset))
+            cursor.execute(query)
+
+            table_name = "schema-" + str(schema_id) + "_access"
+            table = Table(table_name, '', columns=self.get_column_names(schema_id, table_name)[1:])
+            for row in cursor:
+                table.rows.append(row[1:])
+
+            return table
+
+        except Exception as e:
+            app.logger.error("[ERROR] Couldn't fetch dataset access")
+            app.logger.exception(e)
+            self.dbconnect.rollback()
+            raise e
+
+
     def grant_access(self, user_id, schema_id, role='contributer'):
 
         try:
             cursor = self.dbconnect.get_cursor()
+
+            schema_id = 'schema-' + str(schema_id);
 
             query = cursor.mogrify(
                 'INSERT INTO Access(id_dataset, id_user, role) VALUES(%s, %s, %s);', (schema_id,
@@ -455,8 +493,12 @@ class DataLoader:
                                                                                       role,))
             cursor.execute(query)
             self.dbconnect.commit()
+        except IntegrityError as e:
+            app.logger.warning("[WARNING] User " + str(user_id) + " doesn't exists. No access granted")
+            app.logger.exception(e)
+            self.dbconnect.rollback()
         except Exception as e:
-            app.logger.error("[ERROR] Couldn't grant '" + user_id + "' access to '" + schema_id + "'")
+            app.logger.error("[ERROR] Couldn't grant '" + str(user_id) + "' access to '" + str(schema_id) + "'")
             app.logger.exception(e)
             self.dbconnect.rollback()
             raise e

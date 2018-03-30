@@ -128,7 +128,17 @@ def delete_table(dataset_id, table_name):
     return redirect(url_for('data_service.get_dataset', dataset_id=dataset_id), code=303)
 
 
-@data_service.route('/datasets/<int:dataset_id>/share')
-def share_dataset(dataset_id):
+@data_service.route('/datasets/<int:dataset_id>/share', methods=['POST'])
+def grant_dataset_access(dataset_id):
     # TEMP
+    username = request.form.get('ds-share-name')
+    role = request.form.get('ds-share-role')
+
+    data_loader.grant_access(username, dataset_id, role)
+
+    return redirect(url_for('data_service.get_dataset', dataset_id=dataset_id))
+
+
+def delete_dataset_access(dataset_id):
+    # TODO
     pass

@@ -546,7 +546,7 @@ class DataLoader:
             cursor.execute(query)
             moderators = [x for x in cursor]
 
-            return Dataset(id, ds['nickname'], ds['metadata'], owner, moderators)
+            return Dataset(id, ds['nickname'], ds['metadata'], owner, moderators[0])
         except Exception as e:
             app.logger.error("[ERROR] Couldn't fetch data for dataset.")
             app.logger.exception(e)

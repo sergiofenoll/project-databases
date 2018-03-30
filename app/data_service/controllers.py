@@ -37,7 +37,15 @@ def add_dataset():
 def get_dataset(dataset_id):
     dataset = data_loader.get_dataset(dataset_id)
     tables = data_loader.get_tables(dataset_id)
-    return render_template('data_service/dataset-view.html', ds=dataset, tables=tables)
+
+    # TODO: I don't have a clue why the in operator doesn't work, but someone please fix this
+    access_permission = False
+    for w in dataset.moderators:
+        if w == current_user.username:
+            access_permission = True
+            break
+
+    return render_template('data_service/dataset-view.html', ds=dataset, tables=tables, access_permission=access_permission)
 
 
 @data_service.route('/datasets/<int:dataset_id>/update', methods=['POST'])

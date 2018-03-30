@@ -39,7 +39,7 @@
                 </table>
             </div>
             <div class="col-sm-2">
-                {% if ((current_user.username in ds.moderators) or (current_user.username == ds.owner)) %}
+                {% if access_permission or (current_user.username == ds.owner) %}
                 <div class="col-sm-4">
                     <h4>Dataset access</h4>
                     <!-- Button trigger modal -->

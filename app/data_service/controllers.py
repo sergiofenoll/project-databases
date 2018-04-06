@@ -88,11 +88,11 @@ def add_table(dataset_id):
                 tablename = filename.split('.csv')[0]
                 create_new = not data_loader.table_exists(tablename, dataset_id)
                 if create_new:
-                    data_loader.process_csv(path, current_user.active_schema, tablename)
+                    data_loader.process_csv(path, dataset_id, tablename)
                 else:
-                    data_loader.process_csv(path, current_user.active_schema, True)
+                    data_loader.process_csv(path, dataset_id, True)
             else:
-                data_loader.process_dump(path, current_user.active_schema)
+                data_loader.process_dump(path, dataset_id)
         except Exception as e:
             app.logger.error("[ERROR] Failed to process file '" + filename + "'")
             app.logger.exception(e)

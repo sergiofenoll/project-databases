@@ -1,7 +1,9 @@
 import re
 import shutil
-from psycopg2 import sql
 from zipfile import ZipFile
+
+from psycopg2 import sql
+
 from app import app
 
 
@@ -99,9 +101,9 @@ class DataLoader:
         try:
             query = cursor.mogrify(
                 sql.SQL('CREATE TABLE {0}.Metadata(\n' +
-                'name VARCHAR(255) PRIMARY KEY,\n' +
-                'description VARCHAR(255)\n' +
-                ');').format(sql.Identifier(schemaname)))
+                        'name VARCHAR(255) PRIMARY KEY,\n' +
+                        'description VARCHAR(255)\n' +
+                        ');').format(sql.Identifier(schemaname)))
             cursor.execute(query)
             self.dbconnect.commit()
         except Exception as e:
@@ -200,7 +202,7 @@ class DataLoader:
         """
 
         cursor = self.dbconnect.get_cursor()
-        schemaname = schema_id
+        schema_name = 'schema-' + str(schema_id)
 
         query = 'CREATE TABLE {0}.{1} ('
 
@@ -210,7 +212,7 @@ class DataLoader:
             query = query + ', \n\"' + column + '\" varchar(255)'
         query += '\n);'
 
-        query = sql.SQL(query).format(sql.Identifier(schemaname), sql.Identifier(name))
+        query = sql.SQL(query).format(sql.Identifier(schema_name), sql.Identifier(name))
 
         try:
             query = cursor.mogrify(query)
@@ -226,8 +228,8 @@ class DataLoader:
         try:
 
             query = cursor.mogrify(
-                sql.SQL('INSERT INTO {}.Metadata(NAME, description) VALUES(%s, %s);').format(sql.Identifier(schema_id)),
-                (name, desc,))
+                sql.SQL('INSERT INTO {}.Metadata(NAME, description) VALUES(%s, %s);').format(
+                    sql.Identifier(schema_name)), (name, desc,))
             cursor.execute(query)
             self.dbconnect.commit()
         except Exception as e:
@@ -262,13 +264,44 @@ class DataLoader:
             self.dbconnect.rollback()
             raise e
 
+    def delete_row(self, schema_id, table_name, row_ids):
+        cursor = self.dbconnect.get_cursor()
+        schema_name = 'schema-' + str(schema_id)
+        try:
+            for row_id in row_ids:
+                query = cursor.mogrify(sql.SQL('DELETE FROM {0}.{1} WHERE id=%s;').format(sql.Identifier(schema_name),
+                                                                                          sql.Identifier(table_name)),
+                                       (row_id,))
+                cursor.execute(query)
+            self.dbconnect.commit()
+        except Exception as e:
+            app.logger.error("[ERROR] Unable to delete row from table '" + table_name + "'")
+            app.logger.exception(e)
+            self.dbconnect.rollback()
+            raise e
+
+    def delete_column(self, schema_id, table_name, column_name):
+        cursor = self.dbconnect.get_cursor()
+        schema_name = 'schema-' + str(schema_id)
+        try:
+            query = cursor.mogrify(sql.SQL('ALTER TABLE {0}.{1} DROP COLUMN {2};').format(sql.Identifier(schema_name),
+                                                                                          sql.Identifier(table_name),
+                                                                                          sql.Identifier(column_name)))
+            cursor.execute(query)
+            self.dbconnect.commit()
+        except Exception as e:
+            app.logger.error("[ERROR] Unable to delete column from table '" + table_name + "'")
+            app.logger.exception(e)
+            self.dbconnect.rollback()
+            raise e
+
     def insert_row(self, table, schema_id, columns, values):
         """
          This method takes list of values and adds those to the given table.
         """
 
         cursor = self.dbconnect.get_cursor()
-        schemaname = schema_id
+        schemaname = 'schema-' + str(schema_id)
         try:
             query = cursor.mogrify(sql.SQL(
                 'INSERT INTO {0}.{1}({2}) VALUES %s;').format(sql.Identifier(schemaname), sql.Identifier(table),
@@ -278,7 +311,39 @@ class DataLoader:
             cursor.execute(query)
             self.dbconnect.commit()
         except Exception as e:
-            app.logger.exception("[ERROR] Unable to insert into table '" + table + "'")
+            app.logger.error("[ERROR] Unable to insert row into table '" + table + "'")
+            app.logger.exception(e)
+            self.dbconnect.rollback()
+            raise e
+
+    def insert_column(self, schema_id, table_name, column_name, column_type):
+        cursor = self.dbconnect.get_cursor()
+        schema_name = 'schema-' + str(schema_id)
+        try:
+            query = cursor.mogrify(
+                sql.SQL('ALTER TABLE {}.{} ADD {} ' + column_type + ' ;').format(sql.Identifier(schema_name),
+                                                                                 sql.Identifier(table_name),
+                                                                                 sql.Identifier(column_name)))
+            cursor.execute(query)
+            self.dbconnect.commit()
+        except Exception as e:
+            app.logger.error("[ERROR] Unable to insert column into table '{}'".format(table_name))
+            app.logger.exception(e)
+            self.dbconnect.rollback()
+            raise e
+
+    def update_column_type(self, schema_id, table_name, column_name, column_type):
+        cursor = self.dbconnect.get_cursor()
+        schema_name = 'schema-' + str(schema_id)
+        try:
+            query = cursor.mogrify(
+                sql.SQL('ALTER TABLE {}.{} ALTER {}  TYPE ' + column_type + ' ;').format(sql.Identifier(schema_name),
+                                                                                         sql.Identifier(table_name),
+                                                                                         sql.Identifier(column_name)))
+            cursor.execute(query)
+            self.dbconnect.commit()
+        except Exception as e:
+            app.logger.error("[ERROR] Unable to update column type in table '{}'".format(table_name))
             app.logger.exception(e)
             self.dbconnect.rollback()
             raise e
@@ -404,8 +469,7 @@ class DataLoader:
         try:
             query = cursor.mogrify(
                 'SELECT id, nickname, metadata FROM Dataset ds, Access a WHERE (ds.id = a.id_dataset AND a.id_user = %s);',
-                (
-                    user_id,))
+                (user_id,))
             cursor.execute(query)
 
             result = list()
@@ -441,9 +505,7 @@ class DataLoader:
             cursor = self.dbconnect.get_cursor()
 
             query = cursor.mogrify(
-                'INSERT INTO Access(id_dataset, id_user, role) VALUES(%s, %s, %s);', (schema_id,
-                                                                                      user_id,
-                                                                                      role,))
+                'INSERT INTO Access(id_dataset, id_user, role) VALUES(%s, %s, %s);', (schema_id, user_id, role,))
             cursor.execute(query)
             self.dbconnect.commit()
         except Exception as e:
@@ -529,9 +591,9 @@ class DataLoader:
                                                                         ordering_query, limit), (offset,))
             cursor.execute(query)
 
-            table = Table(table_name, '', columns=self.get_column_names(schema_id, table_name)[1:])  # Hack-n-slash
+            table = Table(table_name, '', columns=self.get_column_names(schema_id, table_name))  # Hack-n-slash
             for row in cursor:
-                table.rows.append(row[1:])  # skip the system id TODO: find a better solution, this feels like a hack
+                table.rows.append(row)  # skip the system id TODO: find a better solution, this feels like a hack
             return table
 
         except Exception as e:
@@ -555,7 +617,7 @@ class DataLoader:
             cursor.execute(query)
             result = list()
             for row in cursor:
-                result.append(row)
+                result.append(row[0])
 
             return result
 

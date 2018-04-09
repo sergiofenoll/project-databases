@@ -65,7 +65,7 @@
                                     <tr>
                                         <th>Username</th>
                                         <th>Role</th>
-                                        <!-- <th>Delete</th> -->
+                                        <th>Delete</th>
                                     </tr>
                                 </thead>
                             </table>
@@ -78,7 +78,15 @@
                                         processing: true,
                                         serverSide: true,
                                         ajax: '/api' + window.location.pathname + "/share",
-                                        "sDefaultContent": ""
+                                        "columnDefs": [ {
+                                                            "targets": -1,
+                                                            "data": null,
+                                                            "orderable": false,
+                                                            "defaultContent": 
+                                                            "<form action=\"/datasets/{{ ds.id }}/share/delete\" method=\"post\"> \
+                                                            <button type=\"submit\" class=\"btn btn-xs btn-danger\">❌\
+                                                            </button></form>"
+                                                        } ]
                                     });
                                     $('a.toggle-vis').on('click', function (e) {
                                         e.preventDefault();
@@ -87,6 +95,9 @@
                                         // Toggle the visibility
                                         column.visible(!column.visible());
                                     });
+                                    $('#userTable tbody').on( 'click', 'button', function () {
+                                        alert( "Sike" );
+                                    } );
                                 });
                             </script>
 

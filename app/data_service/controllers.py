@@ -147,6 +147,8 @@ def grant_dataset_access(dataset_id):
     return redirect(url_for('data_service.get_dataset', dataset_id=dataset_id))
 
 
-def delete_dataset_access(dataset_id):
+
+@data_service.route('/datasets/<int:dataset_id>/share/delete', methods=['POST'])
+def delete_dataset_access(dataset_id):    
     # TODO
-    pass
+    return redirect(url_for('data_service.get_dataset', dataset_id=dataset_id))

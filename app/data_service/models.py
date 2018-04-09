@@ -529,6 +529,24 @@ class DataLoader:
             self.dbconnect.rollback()
             raise e
 
+    def has_access(self, user_id, id):
+
+        try:
+            cursor = self.dbconnect.get_cursor()
+            schema_id = "schema-" + str(id)
+            query = cursor.mogrify("SELECT * FROM access WHERE id_user=%s and id_dataset=%s;", (user_id,schema_id,))
+            cursor.execute(query)
+            for _ in cursor:
+                return True
+            else:
+                return False
+
+        except Exception as e:
+            app.logger.error("[ERROR] Couldn't find if '" + user_id + "' has access to '" + schema_id + "'")
+            app.logger.exception(e)
+            self.dbconnect.rollback()
+            raise e
+
     def get_dataset(self, id):
         """
          This method returns a 'Dataset' object according to the requested id

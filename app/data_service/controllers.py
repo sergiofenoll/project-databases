@@ -1,6 +1,6 @@
 import os
 
-from flask import Blueprint, request, render_template, redirect, url_for
+from flask import Blueprint, request, render_template, redirect, url_for, abort
 from flask_login import login_required, current_user
 from werkzeug.utils import secure_filename
 
@@ -35,6 +35,9 @@ def add_dataset():
 
 @data_service.route('/datasets/<int:dataset_id>', methods=['GET'])
 def get_dataset(dataset_id):
+    if (data_loader.has_access(current_user.username, dataset_id)) is False:
+        return abort(403)
+
     dataset = data_loader.get_dataset(dataset_id)
     tables = data_loader.get_tables(dataset_id)
     return render_template('data_service/dataset-view.html', ds=dataset, tables=tables)
@@ -47,6 +50,8 @@ def update_dataset(dataset_id):
 
 @data_service.route('/datasets/<int:dataset_id>/delete', methods=['POST'])
 def delete_dataset(dataset_id):
+    if (data_loader.has_access(current_user.username, dataset_id)) is False:
+        return abort(403)
     schema_name = "schema-" + str(dataset_id)
     data_loader.delete_dataset(schema_name)
     return redirect(url_for('data_service.get_datasets'), code=303)
@@ -54,6 +59,8 @@ def delete_dataset(dataset_id):
 
 @data_service.route('/datasets/<int:dataset_id>', methods=['POST'])
 def add_table(dataset_id):
+    if (data_loader.has_access(current_user.username, dataset_id)) is False:
+        return abort(403)
     if 'file' not in request.files:
         return get_dataset(dataset_id)
     file = request.files['file']
@@ -110,6 +117,8 @@ def get_table(dataset_id, table_name):
     # TODO: Why is the method called get_table() if it returns a list of rows (a list of pseudo dictionaries/lists)?
     # TODO: In fact, why does get_table() return a list of rows instead of a Table object containing the data?
     # TODO: Why *doesn't* a Table object contain any data?
+    if (data_loader.has_access(current_user.username, dataset_id)) is False:
+        return abort(403)
     table = data_loader.get_table(dataset_id, table_name)
     # rows = data_loader.get_table(dataset_id, table_name)
     # columns = data_loader.get_column_names(dataset_id, table_name)
@@ -123,6 +132,8 @@ def update_table(dataset_id, table_name):
 
 @data_service.route('/datasets/<int:dataset_id>/tables/<string:table_name>/delete', methods=['POST'])
 def delete_table(dataset_id, table_name):
+    if (data_loader.has_access(current_user.username, dataset_id)) is False:
+        return abort(403)
     schema_name = "schema-" + str(dataset_id)
     data_loader.delete_table(table_name, schema_name)
     return redirect(url_for('data_service.get_dataset', dataset_id=dataset_id), code=303)

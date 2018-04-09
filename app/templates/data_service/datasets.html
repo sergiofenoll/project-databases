@@ -1,52 +1,45 @@
 {% extends "base.html" %}
 {% block content %}
     <div class="row">
-        <div class="col-sm-2"></div>
-        <div class="col-sm-8">
+        <div>
             <h1>Dataset overview</h1>
             <p>See and manage your datasets.</p>
         </div>
-        <div class="col-sm-2"></div>
     </div>
     {% if datasets|length > 0 %}
         <div class="row">
-            <div class="col-sm-2"></div>
-            <div class="col-sm-8">
-                <table id="datasetTable" class="display table table-striped table-bordered" cellspacing="0"
-                       width="100%">
-                    <thead>
+            <table id="datasetTable" class="display table table-striped table-bordered" cellspacing="0"
+                   width="100%">
+                <thead>
+                <tr>
+                    <th>Dataset</th>
+                    <th>Description</th>
+                    <th>Owner</th>
+                    <th style="text-align: center;">Remove</th>
+                </tr>
+                </thead>
+                <tbody>
+                {% for ds in datasets %}
                     <tr>
-                        <th>Dataset</th>
-                        <th>Description</th>
-                        <th>Owner</th>
-                        <th style="text-align: center;">Remove</th>
+                        <td><a href="/datasets/{{ ds.id }}">{{ ds.name }}</a></td>
+                        <td>{{ ds.desc }}</td>
+                        <td>{{ ds.owner }}</td>
+                        <td style="text-align: center;">
+                            <form action="/datasets/{{ ds.id }}/delete" method="post">
+                                <button type="submit" class="btn btn-xs btn-danger"
+                                        {% if ds.owner != current_user.username %}disabled{% endif %}>
+                                    &times;
+                                </button>
+                            </form>
+                        </td>
                     </tr>
-                    </thead>
-                    <tbody>
-                    {% for ds in datasets %}
-                        <tr>
-                            <td><a href="/datasets/{{ ds.id }}">{{ ds.name }}</a></td>
-                            <td>{{ ds.desc }}</td>
-                            <td>{{ ds.owner }}</td>
-                            <td style="text-align: center;">
-                                <form action="/datasets/{{ ds.id }}/delete" method="post">
-                                    <button type="submit" class="btn btn-xs btn-danger"
-                                            {% if ds.owner != current_user.username %}disabled{% endif %}>
-                                        ❌
-                                    </button>
-                                </form>
-                            </td>
-                        </tr>
-                    {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-            <div class="col-sm-2"></div>
+                {% endfor %}
+                </tbody>
+            </table>
         </div>
     {% endif %}
     <div class="row" style="margin-top: 10px;">
-        <div class="col-sm-2"></div>
-        <div class="col-sm-8">
+        <div>
             <h4>Create a new dataset</h4>
             <form action="/datasets" method="post">
                 <div class="form-group">
@@ -62,8 +55,5 @@
                 <button type="submit" class="btn btn-default" id="submit">Submit</button>
             </form>
         </div>
-        <div class="col-sm-2"></div>
     </div>
-    </div>
-    <br>
 {% endblock %}

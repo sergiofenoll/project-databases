@@ -15,7 +15,7 @@ CREATE TABLE Dataset (
   id       VARCHAR(255),
   nickname VARCHAR(255),
   metadata VARCHAR(255),
-  owner VARCHAR(255),
+  owner    VARCHAR(255),
 
   FOREIGN KEY (owner) REFERENCES Member(Username) ON DELETE CASCADE,
   PRIMARY KEY (id)
@@ -33,8 +33,8 @@ CREATE TABLE Access (
 
 CREATE TABLE Metadata (
   id_dataset VARCHAR(255),
-  id_table VARCHAR(255),
-  metadata VARCHAR(255),
+  id_table   VARCHAR(255),
+  metadata   VARCHAR(255),
 
   FOREIGN KEY (id_dataset) REFERENCES Dataset(id) ON DELETE CASCADE,
   PRIMARY KEY (id_dataset, id_table)
@@ -44,4 +44,3 @@ CREATE TABLE Available_Schema (
   id INTEGER,
   PRIMARY KEY (id)
 );
-

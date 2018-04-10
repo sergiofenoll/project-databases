@@ -1,7 +1,7 @@
 from flask import Blueprint, jsonify, request, render_template, redirect, url_for
 from flask_login import login_required, current_user
 
-from app import connection, data_loader, ALLOWED_EXTENSIONS, UPLOAD_FOLDER
+from app import connection, data_loader, date_time_transformer, ALLOWED_EXTENSIONS, UPLOAD_FOLDER
 
 api = Blueprint('api', __name__)
 
@@ -57,6 +57,12 @@ def update_column(dataset_id, table_name):
 @api.route('/api/datasets/<int:dataset_id>/tables/<string:table_name>/columns', methods=['DELETE'])
 def delete_column(dataset_id, table_name):
     column_name = request.args.get('col-name')
-    print(column_name)
     data_loader.delete_column(dataset_id, table_name, column_name)
+    return jsonify({'success': True}), 200
+
+@api.route('/api/datasets/<int:dataset_id>/tables/<string:table_name>/date-time-transformations', methods=['PUT'])
+def transform_date_or_time(dataset_id, table_name):
+    column_name = request.args.get('col-name')
+    operation_name = request.args.get('operation-name')
+    date_time_transformer.transform(dataset_id, table_name, column_name, operation_name)
     return jsonify({'success': True}), 200

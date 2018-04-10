@@ -4,7 +4,7 @@ from flask import Blueprint, request, render_template, redirect, url_for, abort
 from flask_login import login_required, current_user
 from werkzeug.utils import secure_filename
 
-from app import app, connection, data_loader, ALLOWED_EXTENSIONS, UPLOAD_FOLDER
+from app import app, connection, data_loader, date_time_transformer, ALLOWED_EXTENSIONS, UPLOAD_FOLDER
 
 data_service = Blueprint('data_service', __name__)
 
@@ -120,9 +120,10 @@ def get_table(dataset_id, table_name):
     if (data_loader.has_access(current_user.username, dataset_id)) is False:
         return abort(403)
     table = data_loader.get_table(dataset_id, table_name)
+    time_date_transformations = date_time_transformer.get_transformations()
     # rows = data_loader.get_table(dataset_id, table_name)
     # columns = data_loader.get_column_names(dataset_id, table_name)
-    return render_template('data_service/table-view.html', table=table)
+    return render_template('data_service/table-view.html', table=table, time_date_transformations=time_date_transformations)
 
 
 @data_service.route('/datasets/<int:dataset_id>/tables/<string:table_name>/update', methods=['POST'])

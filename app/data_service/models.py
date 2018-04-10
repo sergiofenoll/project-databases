@@ -337,8 +337,9 @@ class DataLoader:
         schema_name = 'schema-' + str(schema_id)
         try:
             query = cursor.mogrify(
-                sql.SQL('ALTER TABLE {}.{} ALTER {}  TYPE ' + column_type + ' ;').format(sql.Identifier(schema_name),
+                sql.SQL('ALTER TABLE {}.{} ALTER {}  TYPE ' + column_type + ' USING {}::' + column_type + ' ;').format(sql.Identifier(schema_name),
                                                                                          sql.Identifier(table_name),
+                                                                                         sql.Identifier(column_name),
                                                                                          sql.Identifier(column_name)))
             cursor.execute(query)
             self.dbconnect.commit()

@@ -1,4 +1,4 @@
-from flask import Blueprint, jsonify, request, render_template, redirect, url_for
+from flask import Blueprint, jsonify, request, render_template, redirect, url_for, send_from_directory
 from flask_login import login_required, current_user
 
 from app import connection, data_loader, date_time_transformer, ALLOWED_EXTENSIONS, UPLOAD_FOLDER
@@ -66,3 +66,12 @@ def transform_date_or_time(dataset_id, table_name):
     operation_name = request.args.get('operation-name')
     date_time_transformer.transform(dataset_id, table_name, column_name, operation_name)
     return jsonify({'success': True}), 200
+
+@api.route('/api/datasets/<int:dataset_id>/tables/<string:table_name>/export', methods=['GET'])
+def export_table(dataset_id, table_name):
+    # Maybe later we might add other types, but for now this is hardcoded to export as CSV
+    filename = table_name + ".csv"
+    path = UPLOAD_FOLDER + "/" + filename
+    data_loader.export_table(path, dataset_id, table_name)
+    return send_from_directory(UPLOAD_FOLDER, filename, as_attachment=True)
+    #jsonify({'success': True}), 200

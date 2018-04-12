@@ -644,3 +644,31 @@ class DataLoader:
             app.logger.error("[ERROR] Couldn't fetch column names for table '" + table_name + "'.")
             app.logger.exception(e)
             raise e
+
+    # Data exporting handling
+    def export_table(self, filename, schema_id, tablename):
+        """
+         This method return the path to a table exported as a CSV file (that could later be used as input again).
+        """
+
+        with open(filename, "w") as output:
+
+            line = ""
+
+            # First write the column names
+            columns = self.get_column_names(schema_id, tablename)
+            for col in columns:
+                line += str(col) + ","
+            line = line[:-1] + '\n'
+            output.write(line)
+
+            # Then write data, row by row
+            table = self.get_table(schema_id, tablename)
+            for row in table.rows:
+                line = ""
+                for entry in row:
+                    line += str(entry) + ","
+                line = line[:-1] + '\n'
+                output.write(line)
+
+        return filename

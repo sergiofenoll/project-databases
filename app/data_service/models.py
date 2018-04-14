@@ -1,7 +1,9 @@
 import re
 import shutil
-from psycopg2 import sql, IntegrityError
 from zipfile import ZipFile
+
+from psycopg2 import sql, IntegrityError
+
 from app import app
 
 
@@ -100,9 +102,9 @@ class DataLoader:
         try:
             query = cursor.mogrify(
                 sql.SQL('CREATE TABLE {0}.Metadata(\n' +
-                'name VARCHAR(255) PRIMARY KEY,\n' +
-                'description VARCHAR(255)\n' +
-                ');').format(sql.Identifier(schemaname)))
+                        'name VARCHAR(255) PRIMARY KEY,\n' +
+                        'description VARCHAR(255)\n' +
+                        ');').format(sql.Identifier(schemaname)))
             cursor.execute(query)
             self.dbconnect.commit()
         except Exception as e:
@@ -458,9 +460,13 @@ class DataLoader:
                 # ordering tuple is of the form (columns, asc|desc)
                 ordering_query = 'ORDER BY "{}" {}'.format(*ordering)
 
+            schema_name = 'schema-' + str(schema_id)
             search_query = ''
             if search is not None:
-                search_query = 'WHERE id_user LIKE \'%{0}%\' or role LIKE \'%{0}%\''.format(search)
+                search_query = "WHERE id_dataset='{0}' and (id_user LIKE '%{1}%' or role LIKE '%{1}%')".format(
+                    schema_name, search)
+            else:
+                search_query = "WHERE id_dataset='{0}'".format(schema_name)
 
             query = cursor.mogrify(
                 'SELECT * FROM Access {} {} LIMIT {} OFFSET {};'.format(search_query, ordering_query, limit, offset))
@@ -478,7 +484,6 @@ class DataLoader:
             app.logger.exception(e)
             self.dbconnect.rollback()
             raise e
-
 
     def grant_access(self, user_id, schema_id, role='contributer'):
 
@@ -505,11 +510,12 @@ class DataLoader:
 
     def remove_access(self, user_id, schema_id):
 
+        schema_name = 'schema-' + str(schema_id)
         try:
             cursor = self.dbconnect.get_cursor()
 
             query = cursor.mogrify(
-                'DELETE FROM Access WHERE (id_user = %s AND id_dataset = %s);', (user_id, schema_id,))
+                'DELETE FROM Access WHERE (id_user = %s AND id_dataset = %s);', (user_id, schema_name,))
             cursor.execute(query)
             self.dbconnect.commit()
         except Exception as e:
@@ -546,7 +552,7 @@ class DataLoader:
             cursor.execute(query)
             moderators = [x for x in cursor]
 
-            return Dataset(id, ds['nickname'], ds['metadata'], owner, moderators[0])
+            return Dataset(id, ds['nickname'], ds['metadata'], owner, moderators)
         except Exception as e:
             app.logger.error("[ERROR] Couldn't fetch data for dataset.")
             app.logger.exception(e)

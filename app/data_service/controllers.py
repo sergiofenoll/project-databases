@@ -39,13 +39,11 @@ def get_dataset(dataset_id):
     tables = data_loader.get_tables(dataset_id)
 
     # TODO: I don't have a clue why the in operator doesn't work, but someone please fix this
-    access_permission = False
-    for w in dataset.moderators:
-        if w == current_user.username:
-            access_permission = True
-            break
+    users_with_access = data_loader.get_dataset_access(dataset_id).rows
+    access_permission = current_user.username in dataset.moderators
 
-    return render_template('data_service/dataset-view.html', ds=dataset, tables=tables, access_permission=access_permission)
+    return render_template('data_service/dataset-view.html', ds=dataset, tables=tables,
+                           access_permission=access_permission, users_with_access=users_with_access)
 
 
 @data_service.route('/datasets/<int:dataset_id>/update', methods=['POST'])
@@ -147,8 +145,12 @@ def grant_dataset_access(dataset_id):
     return redirect(url_for('data_service.get_dataset', dataset_id=dataset_id))
 
 
-
 @data_service.route('/datasets/<int:dataset_id>/share/delete', methods=['POST'])
-def delete_dataset_access(dataset_id):    
-    # TODO
+def delete_dataset_access(dataset_id):
+    # TEMP... I guess?
+    username = request.form.get('ds-delete-user-select')
+    data_loader.remove_access(username, dataset_id)
+
+    if username == current_user.username:
+        return redirect(url_for('data_service.get_datasets'))
     return redirect(url_for('data_service.get_dataset', dataset_id=dataset_id))

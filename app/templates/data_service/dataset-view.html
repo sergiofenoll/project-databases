@@ -9,12 +9,13 @@
     {% if tables|length > 0 %}
         <div class="row">
             <table id="tablesOverview" class="display table table-striped table-bordered" cellspacing="0"
-                   width="100%">
+                   width="100%" style="text-align: center;">
                 <thead>
                 <tr>
                     <th>Table</th>
                     <th>Description</th>
-                    <th style="text-align: center;">Remove</th>
+                    <th>Edit</th>
+                    <th>Remove</th>
                 </tr>
                 </thead>
                 <tbody>
@@ -22,6 +23,14 @@
                     <tr>
                         <td><a href="/datasets/{{ ds.id }}/tables/{{ t.name }}">{{ t.name }}</a></td>
                         <td> {{ t.desc }}</td>
+                        <td>
+                            <button id="metadata-button" data-toggle="modal" data-target="#metadata"
+
+                                    class="btn btn-xs btn-primary metadataEditButton" data-old-name="{{ t.name }}"
+                                    data-desc="{{ t.desc }}">
+                                Edit
+                            </button>
+                        </td>
                         <td style="text-align: center;">
                             <form action="/datasets/{{ ds.id }}/tables/{{ t.name }}/delete" method="post">
                                 <button type="submit" class="btn btn-xs btn-danger">&times;
@@ -34,6 +43,37 @@
             </table>
         </div>
     {% endif %}
+    <div class="modal" tabindex="-1" role="dialog" aria-hidden="true" id="metadata">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <form class="form-group" id="formMetadata">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Change name and/or description</h5>
+                        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
+                    </div>
+                    <div class="modal-body">
+                        <label for="t-name">Name</label>
+                        <br>
+                        <input type="text" name="t-name" value="" id="t-name"><br>
+
+                        <label for="t-desc">Description</label>
+                        <br>
+                        <textarea type="text" name="t-desc" id="t-desc"></textarea>
+
+                        <input type="hidden" id="t-old-name" name="t-old-name">
+
+                    </div>
+                    <div class="modal-footer">
+                        <button type="submit" class="btn btn-primary">Save changes
+                        </button>
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
     <div class="row" style="margin-top: 10px;">
         <div>
             <h4>Add CSV/Zip</h4>
@@ -44,4 +84,31 @@
             </form>
         </div>
     </div>
+    <script type="text/javascript" charset="utf-8">
+
+
+        $(document).ready(function () {
+            $('.metadataEditButton').click(function (e) { // .stuff wijst op een klasse
+                e.preventDefault();
+                $('#t-name').val($(this).attr('data-old-name'));
+                $('#t-desc').val($(this).attr('data-desc'));
+                $('#t-old-name').val($(this).attr('data-old-name'));
+
+                $('#metadata').show();
+            });
+
+
+            $('#formMetadata').submit(function (e) {
+                e.preventDefault();
+                $.ajax({
+                    type: 'PUT',
+                    url: '/api' + window.location.pathname + '/update-metadata?' + $('#formMetadata').serialize(),
+                    success: function () {
+                        window.location.reload();
+                    }
+                });
+                $('#metadata').modal('hide');
+            });
+        });
+    </script>
 {% endblock %}

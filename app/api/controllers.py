@@ -74,3 +74,11 @@ def update_dataset_metadata():
     new_desc = request.args.get('ds-desc')
     data_loader.update_dataset_metadata(dataset_id,new_name, new_desc)
     return jsonify({'success': True}), 200
+
+@api.route('/api/datasets/<int:dataset_id>/update-metadata', methods=['PUT'])
+def update_table_metadata(dataset_id):
+    old_table_name = request.args.get('t-old-name')
+    new_table_name = request.args.get('t-name')
+    new_desc = request.args.get('t-desc')
+    data_loader.update_table_metadata(dataset_id, old_table_name, new_table_name, new_desc)
+    return jsonify({'success': True}), 200

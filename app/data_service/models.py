@@ -644,3 +644,16 @@ class DataLoader:
             app.logger.error("[ERROR] Couldn't fetch column names for table '" + table_name + "'.")
             app.logger.exception(e)
             raise e
+
+    def update_dataset_metadata(self, schema_id, new_name, new_desc):
+        schema_name = "schema-" + str(schema_id)
+
+        try:
+            cursor = self.dbconnect.get_cursor()
+            query = cursor.mogrify('UPDATE dataset SET (metadata, nickname) = (%s,%s) WHERE id=%s',(new_desc, new_name,schema_name,))
+            cursor.execute(query)
+
+        except Exception as e:
+            app.logger.error("[ERROR] Couldn't update dataset metadata.")
+            app.logger.exception(e)
+            raise e

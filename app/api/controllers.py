@@ -83,3 +83,19 @@ def transform_date_or_time(dataset_id, table_name):
     operation_name = request.args.get('operation-name')
     date_time_transformer.transform(dataset_id, table_name, column_name, operation_name)
     return jsonify({'success': True}), 200
+
+@api.route('/api/datasets/update-dataset-metadata', methods=['PUT'])
+def update_dataset_metadata():
+    dataset_id = request.args.get('ds-id')
+    new_name = request.args.get('ds-name')
+    new_desc = request.args.get('ds-desc')
+    data_loader.update_dataset_metadata(dataset_id,new_name, new_desc)
+    return jsonify({'success': True}), 200
+
+@api.route('/api/datasets/<int:dataset_id>/update-metadata', methods=['PUT'])
+def update_table_metadata(dataset_id):
+    old_table_name = request.args.get('t-old-name')
+    new_table_name = request.args.get('t-name')
+    new_desc = request.args.get('t-desc')
+    data_loader.update_table_metadata(dataset_id, old_table_name, new_table_name, new_desc)
+    return jsonify({'success': True}), 200

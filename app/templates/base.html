@@ -8,6 +8,10 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/bootstrap.min.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/datatables.min.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/dataTables.bootstrap4.min.css') }}">
+    <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/buttons/1.5.1/css/buttons.bootstrap4.css"/>
+    <link rel="stylesheet" type="text/css"
+          href="https://cdn.datatables.net/responsive/2.2.1/css/responsive.bootstrap4.css"/>
+    <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/select/1.2.5/css/select.bootstrap4.css"/>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/stylesheet.css') }}">
 
     <script type="text/javascript" charset="utf-8"
@@ -18,6 +22,14 @@
             src="{{ url_for('static', filename='js/datatables.min.js') }}"></script>
     <script type="text/javascript" charset="utf-8"
             src="{{ url_for('static', filename='js/dataTables.bootstrap4.min.js') }}"></script>
+
+    <script type="text/javascript" src="https://cdn.datatables.net/buttons/1.5.1/js/dataTables.buttons.js"></script>
+    <script type="text/javascript" src="https://cdn.datatables.net/buttons/1.5.1/js/buttons.bootstrap4.js"></script>
+    <script type="text/javascript" src="https://cdn.datatables.net/buttons/1.5.1/js/buttons.colVis.js"></script>
+    <script type="text/javascript" src="https://cdn.datatables.net/buttons/1.5.1/js/buttons.print.js"></script>
+    <script type="text/javascript"
+            src="https://cdn.datatables.net/responsive/2.2.1/js/dataTables.responsive.js"></script>
+    <script type="text/javascript" src="https://cdn.datatables.net/select/1.2.5/js/dataTables.select.js"></script>
     <script type="text/javascript" charset="utf-8">
         $(document).ready(function () {
             $('table.display').DataTable({

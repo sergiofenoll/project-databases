@@ -1,10 +1,10 @@
 import os
 
-from flask import Blueprint, request, render_template, redirect, url_for
+from flask import Blueprint, request, render_template, redirect, url_for, abort
 from flask_login import login_required, current_user
 from werkzeug.utils import secure_filename
 
-from app import app, connection, data_loader, ALLOWED_EXTENSIONS, UPLOAD_FOLDER
+from app import app, connection, data_loader, date_time_transformer, ALLOWED_EXTENSIONS, UPLOAD_FOLDER
 
 data_service = Blueprint('data_service', __name__)
 
@@ -35,6 +35,9 @@ def add_dataset():
 
 @data_service.route('/datasets/<int:dataset_id>', methods=['GET'])
 def get_dataset(dataset_id):
+    if (data_loader.has_access(current_user.username, dataset_id)) is False:
+        return abort(403)
+
     dataset = data_loader.get_dataset(dataset_id)
     tables = data_loader.get_tables(dataset_id)
 
@@ -52,6 +55,8 @@ def update_dataset(dataset_id):
 
 @data_service.route('/datasets/<int:dataset_id>/delete', methods=['POST'])
 def delete_dataset(dataset_id):
+    if (data_loader.has_access(current_user.username, dataset_id)) is False:
+        return abort(403)
     schema_name = "schema-" + str(dataset_id)
     data_loader.delete_dataset(schema_name)
     return redirect(url_for('data_service.get_datasets'), code=303)
@@ -59,6 +64,8 @@ def delete_dataset(dataset_id):
 
 @data_service.route('/datasets/<int:dataset_id>', methods=['POST'])
 def add_table(dataset_id):
+    if (data_loader.has_access(current_user.username, dataset_id)) is False:
+        return abort(403)
     if 'file' not in request.files:
         return get_dataset(dataset_id)
     file = request.files['file']
@@ -93,11 +100,11 @@ def add_table(dataset_id):
                 tablename = filename.split('.csv')[0]
                 create_new = not data_loader.table_exists(tablename, dataset_id)
                 if create_new:
-                    data_loader.process_csv(path, current_user.active_schema, tablename)
+                    data_loader.process_csv(path, dataset_id, tablename)
                 else:
-                    data_loader.process_csv(path, current_user.active_schema, True)
+                    data_loader.process_csv(path, dataset_id, True)
             else:
-                data_loader.process_dump(path, current_user.active_schema)
+                data_loader.process_dump(path, dataset_id)
         except Exception as e:
             app.logger.error("[ERROR] Failed to process file '" + filename + "'")
             app.logger.exception(e)
@@ -115,10 +122,13 @@ def get_table(dataset_id, table_name):
     # TODO: Why is the method called get_table() if it returns a list of rows (a list of pseudo dictionaries/lists)?
     # TODO: In fact, why does get_table() return a list of rows instead of a Table object containing the data?
     # TODO: Why *doesn't* a Table object contain any data?
+    if (data_loader.has_access(current_user.username, dataset_id)) is False:
+        return abort(403)
     table = data_loader.get_table(dataset_id, table_name)
+    time_date_transformations = date_time_transformer.get_transformations()
     # rows = data_loader.get_table(dataset_id, table_name)
     # columns = data_loader.get_column_names(dataset_id, table_name)
-    return render_template('data_service/table-view.html', table=table)
+    return render_template('data_service/table-view.html', table=table, time_date_transformations=time_date_transformations)
 
 
 @data_service.route('/datasets/<int:dataset_id>/tables/<string:table_name>/update', methods=['POST'])
@@ -128,6 +138,8 @@ def update_table(dataset_id, table_name):
 
 @data_service.route('/datasets/<int:dataset_id>/tables/<string:table_name>/delete', methods=['POST'])
 def delete_table(dataset_id, table_name):
+    if (data_loader.has_access(current_user.username, dataset_id)) is False:
+        return abort(403)
     schema_name = "schema-" + str(dataset_id)
     data_loader.delete_table(table_name, schema_name)
     return redirect(url_for('data_service.get_dataset', dataset_id=dataset_id), code=303)

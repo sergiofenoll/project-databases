@@ -38,7 +38,6 @@ def get_dataset(dataset_id):
     dataset = data_loader.get_dataset(dataset_id)
     tables = data_loader.get_tables(dataset_id)
 
-    # TODO: I don't have a clue why the in operator doesn't work, but someone please fix this
     users_with_access = data_loader.get_dataset_access(dataset_id).rows
     access_permission = current_user.username in dataset.moderators
 

@@ -550,7 +550,7 @@ class DataLoader:
                 'SELECT a.id_user FROM Dataset ds, Access a WHERE (ds.id = \'{0}\' AND a.id_dataset = ds.id AND a.role = \'moderator\');'.format(
                     schema_id))
             cursor.execute(query)
-            moderators = [x for x in cursor]
+            moderators = [x[0] for x in cursor]
 
             return Dataset(id, ds['nickname'], ds['metadata'], owner, moderators)
         except Exception as e:

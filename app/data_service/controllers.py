@@ -40,7 +40,12 @@ def get_dataset(dataset_id):
 
     dataset = data_loader.get_dataset(dataset_id)
     tables = data_loader.get_tables(dataset_id)
-    return render_template('data_service/dataset-view.html', ds=dataset, tables=tables)
+
+    users_with_access = data_loader.get_dataset_access(dataset_id).rows
+    access_permission = current_user.username in dataset.moderators
+
+    return render_template('data_service/dataset-view.html', ds=dataset, tables=tables,
+                           access_permission=access_permission, users_with_access=users_with_access)
 
 
 @data_service.route('/datasets/<int:dataset_id>/update', methods=['POST'])
@@ -138,3 +143,25 @@ def delete_table(dataset_id, table_name):
     schema_name = "schema-" + str(dataset_id)
     data_loader.delete_table(table_name, schema_name)
     return redirect(url_for('data_service.get_dataset', dataset_id=dataset_id), code=303)
+
+
+@data_service.route('/datasets/<int:dataset_id>/share', methods=['POST'])
+def grant_dataset_access(dataset_id):
+    # TEMP
+    username = request.form.get('ds-share-name')
+    role = request.form.get('ds-share-role')
+
+    data_loader.grant_access(username, dataset_id, role)
+
+    return redirect(url_for('data_service.get_dataset', dataset_id=dataset_id))
+
+
+@data_service.route('/datasets/<int:dataset_id>/share/delete', methods=['POST'])
+def delete_dataset_access(dataset_id):
+    # TEMP... I guess?
+    username = request.form.get('ds-delete-user-select')
+    data_loader.remove_access(username, dataset_id)
+
+    if username == current_user.username:
+        return redirect(url_for('data_service.get_datasets'))
+    return redirect(url_for('data_service.get_dataset', dataset_id=dataset_id))

@@ -2,17 +2,18 @@ import re
 import shutil
 from zipfile import ZipFile
 
-from psycopg2 import sql
+from psycopg2 import sql, IntegrityError
 
 from app import app
 
 
 class Dataset:
 
-    def __init__(self, id, name, desc, owner):
+    def __init__(self, id, name, desc, owner, moderators=[]):
         self.name = name
         self.desc = desc
         self.owner = owner
+        self.moderators = moderators
         self.id = id
 
 
@@ -449,6 +450,7 @@ class DataLoader:
             datasets = [x for x in cursor]
             for row in datasets:
                 try:
+                    ds_id = row['id']
                     # Find owner for this dataset
                     query = cursor.mogrify(
                         'SELECT a.id_user FROM Dataset ds, Access a WHERE (ds.id = %s AND a.id_dataset = ds.id AND a.role = \'owner\');',
@@ -456,8 +458,15 @@ class DataLoader:
                     cursor.execute(query)
                     owner = cursor.fetchone()[0]
 
-                    schema_id = row['id'].split('-')[1]
-                    result.append(Dataset(schema_id, row['nickname'], row['metadata'], owner))
+                    # Find moderators for this dataset
+                    query = cursor.mogrify(
+                        'SELECT a.id_user FROM Dataset ds, Access a WHERE (ds.id = \'{0}\' AND a.id_dataset = ds.id AND a.role = \'moderator\');'.format(
+                            ds_id))
+                    cursor.execute(query)
+                    moderators = [x for x in cursor]
+
+                    schema_id = ds_id.split('-')[1]
+                    result.append(Dataset(schema_id, row['nickname'], row['metadata'], owner, moderators))
                 except Exception as e:
                     # TODO: Why is this a warning instead of an error? If we can't find the owner of a dataset,
                     # TODO: i.e. that user has been deleted but his dataset remains, shouldn't that be an error?
@@ -472,28 +481,74 @@ class DataLoader:
             app.logger.exception(e)
             raise e
 
+    def get_dataset_access(self, schema_id, offset=0, limit='ALL', ordering=None, search=None):
+        """
+         This method returns a table with the users that have access to this dataset
+        """
+
+        try:
+            cursor = self.dbconnect.get_cursor()
+
+            # TODO: Stole this cheeky bit from another method so if we decide to fix it there, don't forget to fix this too
+            ordering_query = ''
+            if ordering is not None:
+                # ordering tuple is of the form (columns, asc|desc)
+                ordering_query = 'ORDER BY "{}" {}'.format(*ordering)
+
+            schema_name = 'schema-' + str(schema_id)
+            search_query = ''
+            if search is not None:
+                search_query = "WHERE id_dataset='{0}' and (id_user LIKE '%{1}%' or role LIKE '%{1}%')".format(
+                    schema_name, search)
+            else:
+                search_query = "WHERE id_dataset='{0}'".format(schema_name)
+
+            query = cursor.mogrify(
+                'SELECT * FROM Access {} {} LIMIT {} OFFSET {};'.format(search_query, ordering_query, limit, offset))
+            cursor.execute(query)
+
+            table_name = "schema-" + str(schema_id) + "_access"
+            table = Table(table_name, '', columns=self.get_column_names(schema_id, table_name)[1:])
+            for row in cursor:
+                table.rows.append(row[1:])
+
+            return table
+
+        except Exception as e:
+            app.logger.error("[ERROR] Couldn't fetch dataset access")
+            app.logger.exception(e)
+            self.dbconnect.rollback()
+            raise e
+
     def grant_access(self, user_id, schema_id, role='contributer'):
 
         try:
             cursor = self.dbconnect.get_cursor()
 
+            schema_id = 'schema-' + str(schema_id);
+
             query = cursor.mogrify(
                 'INSERT INTO Access(id_dataset, id_user, role) VALUES(%s, %s, %s);', (schema_id, user_id, role,))
             cursor.execute(query)
             self.dbconnect.commit()
+        except IntegrityError as e:
+            app.logger.warning("[WARNING] User " + str(user_id) + " doesn't exists. No access granted")
+            app.logger.exception(e)
+            self.dbconnect.rollback()
         except Exception as e:
-            app.logger.error("[ERROR] Couldn't grant '" + user_id + "' access to '" + schema_id + "'")
+            app.logger.error("[ERROR] Couldn't grant '" + str(user_id) + "' access to '" + str(schema_id) + "'")
             app.logger.exception(e)
             self.dbconnect.rollback()
             raise e
 
     def remove_access(self, user_id, schema_id):
 
+        schema_name = 'schema-' + str(schema_id)
         try:
             cursor = self.dbconnect.get_cursor()
 
             query = cursor.mogrify(
-                'DELETE FROM Access WHERE (id_user = %s AND id_dataset = %s);', (user_id, schema_id,))
+                'DELETE FROM Access WHERE (id_user = %s AND id_dataset = %s);', (user_id, schema_name,))
             cursor.execute(query)
             self.dbconnect.commit()
         except Exception as e:
@@ -532,9 +587,23 @@ class DataLoader:
             query = cursor.mogrify(
                 'SELECT id, nickname, metadata FROM Dataset ds WHERE ds.id = %s;', (schema_id,))
             cursor.execute(query)
-
             ds = cursor.fetchone()
-            return Dataset(id, ds['nickname'], ds['metadata'], "")
+
+            # Find owner for this dataset
+            query = cursor.mogrify(
+                'SELECT a.id_user FROM Dataset ds, Access a WHERE (ds.id = \'{0}\' AND a.id_dataset = ds.id AND a.role = \'owner\');'.format(
+                    schema_id))
+            cursor.execute(query)
+            owner = cursor.fetchone()[0]
+
+            # Find moderators for this dataset
+            query = cursor.mogrify(
+                'SELECT a.id_user FROM Dataset ds, Access a WHERE (ds.id = \'{0}\' AND a.id_dataset = ds.id AND a.role = \'moderator\');'.format(
+                    schema_id))
+            cursor.execute(query)
+            moderators = [x[0] for x in cursor]
+
+            return Dataset(id, ds['nickname'], ds['metadata'], owner, moderators)
         except Exception as e:
             app.logger.error("[ERROR] Couldn't fetch data for dataset.")
             app.logger.exception(e)

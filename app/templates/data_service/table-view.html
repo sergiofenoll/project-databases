@@ -10,8 +10,9 @@
             <tr>
                 <th class="scrolling-disabled"></th>
                 {% for column in table.columns[1:] %}
+
                     <th>
-                        {{ column|capitalize }}
+                        {{ column.name|capitalize }}
                     </th>
                 {% endfor %}
             </tr>
@@ -29,9 +30,9 @@
                         </div>
                         <div class="modal-body">
                             {% for column in table.columns[1:] %}
-                                <label for="value-col-{{ column }}">{{ column|capitalize }}</label>
-                                <input type="text" class="form-control" name="value-col-{{ column }}"
-                                       id="value-col-{{ column }}">
+                                <label for="value-col-{{ column.name }}">{{ column.name|capitalize }}</label>
+                                <input type="text" class="form-control" name="value-col-{{ column.name }}"
+                                       id="value-col-{{ column.name }}">
                             {% endfor %}
                         </div>
                         <div class="modal-footer">
@@ -59,7 +60,7 @@
                             <label for="col-type">Column type</label>
                             <select class="form-control" name="col-type" id="col-type">
                                 <option value="INT">INT</option>
-                                <option value="REAL">REAL</option>
+                                <option value="DOUBLE PRECISION">DOUBLE</option>
                                 <option value="DATETIME">DATETIME</option>
                                 <option value="VARCHAR(255)">VARCHAR(255)</option>
                                 <option value="BIT">BIT</option>
@@ -88,7 +89,7 @@
                             <label for="col-name">Column</label>
                             <select class="form-control" name="col-name" id="col-name">
                                 {% for column in table.columns[1:] %}
-                                    <option value="{{ column }}">{{ column|capitalize }}</option>
+                                    <option value="{{ column.name }}">{{ column.name|capitalize }}</option>
                                 {% endfor %}
                             </select>
                         </div>
@@ -115,14 +116,15 @@
                             <label for="col-name">Column</label>
                             <select class="form-control" name="col-name" id="col-name">
                                 {% for column in table.columns[1:] %}
-                                    <option value="{{ column }}">{{ column|capitalize }}</option>
+                                    <option value="{{ column.name }}">{{ column.name|capitalize }} ({{ column.type|capitalize }})
+                                    </option>
                                 {% endfor %}
                             </select>
                             <label for="col-type">Column type</label>
                             <select class="form-control" name="col-type" id="col-type">
                                 <option value="INT">INTEGER</option>
-                                <option value="REAL">REAL</option>
-                                <option value="DATETIME">DATE/TIME</option>
+                                <option value="DOUBLE PRECISION">DOUBLE</option>
+                                <option value="TIMESTAMP">DATE/TIME</option>
                                 <option value="VARCHAR(255)">STRING</option>
                                 <option value="BIT">BIT</option>
                             </select>
@@ -150,7 +152,9 @@
                             <label for="col-name">Column</label>
                             <select class="form-control" name="col-name" id="col-name">
                                 {% for column in table.columns[1:] %}
-                                    <option value="{{ column }}">{{ column|capitalize }}</option>
+                                    {% if (column.type == "timestamp") %}
+                                        <option value="{{ column.name }}">{{ column.name|capitalize }}</option>
+                                    {% endif %}
                                 {% endfor %}
                             </select>
 
@@ -161,6 +165,42 @@
                                         {{ transformation }}
                                     </option>
                                 {% endfor %}
+                            </select>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="submit" class="btn btn-primary">Save changes
+                            </button>
+                            <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        <div class="modal" tabindex="-1" role="dialog" aria-hidden="true" id="ImputeMissingData">
+            <div class="modal-dialog" role="document">
+                <div class="modal-content">
+                    <form class="form-group" id="formImputeMissingData">
+                        <div class="modal-header">
+                            <h5 class="modal-title">Impute missing data</h5>
+                            <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                                <span aria-hidden="true">&times;</span>
+                            </button>
+                        </div>
+                        <div class="modal-body">
+                            <label for="col-name">Column</label>
+                            <select class="form-control" name="col-name" id="col-name">
+                                {% for column in table.columns[1:] %}
+                                    {% if ((column.type == "real") or (column.type == "double") or (column.type == "integer")) %}
+                                    <option value="{{ column.name }}">{{ column.name|capitalize }} ({{ column.type|capitalize }})
+                                    </option>
+                                    {%  endif %}
+                                {% endfor %}
+                            </select>
+
+                            <label for="function">Based on</label>
+                            <select id="function" class="form-control" name="function">
+                                <option value="AVG">AVERAGE</option>
+                                <option value="MEDIAN">MEDIAN</option>
                             </select>
                         </div>
                         <div class="modal-footer">
@@ -234,7 +274,13 @@
                             action: function () {
                                 $('#DateTimeTransformations').modal('show');
                             }
+                        }, {
+                            text: 'Impute missing data',
+                            action: function () {
+                                $('#ImputeMissingData').modal('show');
+                            }
                         },
+
                         'colvis'
                     ]
                 });
@@ -293,6 +339,17 @@
                         }
                     });
                     $('#formDateTimeTransformations').modal('hide');
+                });
+                $('#formImputeMissingData').submit(function (e) {
+                    e.preventDefault();
+                    $.ajax({
+                        type: 'PUT',
+                        url: '/api' + window.location.pathname + '/impute-missing-data?' + $('#formImputeMissingData').serialize(),
+                        success: function () {
+                            window.location.reload();
+                        }
+                    });
+                    $('#formImputeMissingData').modal('hide');
                 });
             });
         </script>

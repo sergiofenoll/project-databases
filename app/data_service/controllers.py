@@ -91,7 +91,7 @@ def add_table(dataset_id):
             os.remove(path)
             return get_dataset(dataset_id)
 
-        current_user.active_schema = "schema-" + str(dataset_id)
+        current_user.active_schema = dataset_id
 
         try:
             if filename[-3:] == "zip":

@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block content %}
+    <div class="row">
+        <h1>{{ table.name }}</h1>
+        <p>{{ table.desc }}</p>
+    </div>
+    <div class="row">
+        <table class="table table-striped table-bordered" cellspacing="0" width="100%" id="dataTable">
+            <thead>
+            <tr>
+                <th class="scrolling-disabled"></th>
+                {% for column in table.columns[1:] %}
+
+                    <th>
+                        {{ column.name|capitalize }}
+                    </th>
+                {% endfor %}
+            </tr>
+            </thead>
+        </table>
+
+        <script type="text/javascript" charset="utf-8">
+            $(document).ready(function () {
+                var table = $('#dataTable').DataTable({
+                    scrollX: "auto",
+                    scrollY: "50vh",
+                    scrollCollapse: true,
+                    processing: true,
+                    serverSide: true,
+                    ajax: '/api' + window.location.pathname,
+                    order: [[1, 'desc']],
+                    rowsDefs: [{}],
+                    columnDefs: [{
+                        targets: 0,
+                        searchable: false,
+                        orderable: false,
+                        width: '1%', // min width
+                        render: function (data) {
+                            return '<input type="checkbox" name="row-' + data + '" id="row-' + data + '">';
+                        }
+                    }],
+                    dom: 'Bfrtip',
+                    buttons: [
+                        {
+                            text: 'Add row',
+                            action: function () {
+                                $('#addRow').modal('show');
+                            }
+                        },
+                        'colvis'
+                    ]
+                });
+                table.buttons().container().appendTo('#dataTable_wrapper .col-sm-8:eq(0)');
+
+            });
+        </script>
+    </div>
+{% endblock %}

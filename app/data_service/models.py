@@ -783,10 +783,12 @@ class DataLoader:
             query = cursor.mogrify('UPDATE dataset SET (metadata, nickname) = (%s,%s) WHERE id=%s',
                                    (new_desc, new_name, schema_name,))
             cursor.execute(query)
+            self.dbconnect.commit()
 
         except Exception as e:
             app.logger.error("[ERROR] Couldn't update dataset metadata.")
             app.logger.exception(e)
+            self.dbconnect.rollback()
             raise e
 
     def update_table_metadata(self, schema_id, old_table_name, new_table_name, new_desc):
@@ -806,10 +808,19 @@ class DataLoader:
                                                                                              new_table_name)))
                 cursor.execute(query)
 
+                raw_table_old_name = "_raw_" + old_table_name
+                raw_table_new_name = "_raw_" + new_table_name
+                query = cursor.mogrify(sql.SQL('ALTER TABLE {}.{} RENAME TO {};').format(sql.Identifier(schema_name),
+                                                                                         sql.Identifier(raw_table_old_name),
+                                                                                         sql.Identifier(
+                                                                                             raw_table_new_name)))
+                cursor.execute(query)
 
+            self.dbconnect.commit()
         except Exception as e:
             app.logger.error("[ERROR] Couldn't update table metadata for table " + old_table_name + ".")
             app.logger.exception(e)
+            self.dbconnect.rollback()
             raise e
 
     def get_numerical_statistic(self, schema_id, table_name, column, function):

@@ -167,3 +167,9 @@ def delete_dataset_access(dataset_id):
 def revert_to_raw_data(dataset_id, table_name):
     data_loader.revert_back_to_raw_data(dataset_id, table_name)
     return redirect(url_for('data_service.get_table', dataset_id=dataset_id, table_name=table_name))
+
+@data_service.route('/datasets/<int:dataset_id>/tables/<string:table_name>/show-raw-data', methods=['PUT'])
+def show_raw_data(dataset_id, table_name):
+
+    render_template('data_service/raw-table-view.html',
+                    datasets=data_loader.get_user_datasets(current_user.username))

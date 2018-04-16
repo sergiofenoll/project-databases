@@ -59,6 +59,7 @@ def delete_row(dataset_id, table_name):
 def add_column(dataset_id, table_name):
     column_name = request.args.get('col-name')
     column_type = request.args.get('col-type')
+    print(column_type)
     data_loader.insert_column(dataset_id, table_name, column_name, column_type)
     return jsonify({'success': True}), 200
 

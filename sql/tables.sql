@@ -38,7 +38,7 @@ CREATE TABLE History (
   date        TIMESTAMP,
   action_desc VARCHAR(255),
 
-  FOREIGN KEY (id_dataset) REFERENCES Dataset (id),
+  FOREIGN KEY (id_dataset) REFERENCES Dataset (id) ON DELETE CASCADE,
   PRIMARY KEY (id_dataset, id_table, date)
 );
 

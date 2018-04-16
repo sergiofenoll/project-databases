@@ -319,7 +319,7 @@ class DataLoader:
         history = History(self.dbconnect)
         history.log_action(schema_id, table_name, datetime.now(), 'Deleted column ' + column_name)
 
-    def insert_row(self, table, schema_id, columns, values):
+    def insert_row(self, table, schema_id, columns, values, file_upload=False):
         """
          This method takes list of values and adds those to the given table.
         """
@@ -341,8 +341,9 @@ class DataLoader:
             raise e
 
         # Log action to history
-        history = History(self.dbconnect)
-        history.log_action(schema_id, table, datetime.now(), 'Added row with values ' + ' '.join(values))
+        if not file_upload:
+            history = History(self.dbconnect)
+            history.log_action(schema_id, table, datetime.now(), 'Added row with values ' + ' '.join(values))
 
     def insert_column(self, schema_id, table_name, column_name, column_type):
         cursor = self.dbconnect.get_cursor()
@@ -422,7 +423,7 @@ class DataLoader:
                     self.create_table(tablename, schema_id, columns)
                 else:
                     values_list = [x.strip() for x in line.split(",")]
-                    self.insert_row(tablename, schema_id, columns, values_list)
+                    self.insert_row(tablename, schema_id, columns, values_list, True)
 
     def process_zip(self, file, schema_id):
         """
@@ -495,7 +496,7 @@ class DataLoader:
                     if not self.table_exists(tablename, schema_id):
                         self.create_table(tablename, schema_id, columns)
                     for values in values_list:
-                        self.insert_row(tablename, schema_id, columns, values)
+                        self.insert_row(tablename, schema_id, columns, values, True)
 
     # Data access handling
     def get_user_datasets(self, user_id):

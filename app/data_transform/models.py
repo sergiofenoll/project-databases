@@ -1,6 +1,8 @@
 from app import app
+from datetime import datetime
 from psycopg2 import sql
 from app.data_service.models import DataLoader
+from app.history.models import History
 
 
 class DateTimeTransformer:
@@ -28,11 +30,13 @@ class DateTimeTransformer:
             self.dbconnect.rollback()
             raise e
 
+        # Log action to history
+        history = History(self.dbconnect)
+        history.log_action(schema_id, table, datetime.now(), 'Extracted ' + element + ' from column ' + column)
 
     def extract_time_or_date(self, schema_id, table, column, element):
         """extract date or time from datetime type"""
         try:
-
             schema_name = 'schema-' + str(schema_id)
             new_column = column + ' (' + element + ')'
             cursor = self.dbconnect.get_cursor()
@@ -46,12 +50,15 @@ class DateTimeTransformer:
                     sql.Identifier(column)))
             cursor.execute(query)
 
-
         except Exception as e:
             app.logger.error("[ERROR] Unable to extract " + element +" from column '{}'".format(column))
             app.logger.exception(e)
             self.dbconnect.rollback()
             raise e
+
+        # Log action to history
+        history = History(self.dbconnect)
+        history.log_action(schema_id, table, datetime.now(), 'Extracted ' + element + ' from column ' + column)
 
     def get_transformations(self):
         trans = ["extract day of week", "extract month", "extract year", "parse date", "extract time", "extract date"]

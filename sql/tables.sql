@@ -25,10 +25,21 @@ CREATE TABLE Access (
   id_dataset VARCHAR(255),
   id_user    VARCHAR(255),
   role       VARCHAR(255),
+
   FOREIGN KEY (id_dataset) REFERENCES Dataset (id) ON DELETE CASCADE,
   FOREIGN KEY (id_user) REFERENCES Member (username) ON DELETE CASCADE ,
   PRIMARY KEY (id_dataset, id_user),
   CHECK (role IN ('owner', 'moderator', 'contributor'))
+);
+
+CREATE TABLE History (
+  id_dataset  VARCHAR(255),
+  id_table    VARCHAR(255),
+  date        TIMESTAMP,
+  action_desc VARCHAR(255),
+
+  FOREIGN KEY (id_dataset) REFERENCES Dataset (id),
+  PRIMARY KEY (id_dataset, id_table, date)
 );
 
 CREATE TABLE Metadata (

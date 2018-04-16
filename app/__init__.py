@@ -16,6 +16,7 @@ from app.data_service.models import DataLoader
 from app.database_connection.models import DBConnection
 from app.user_service.models import UserDataAccess
 from app.data_transform.models import DateTimeTransformer
+from app.history.models import History
 
 try:
     connection = DBConnection(dbname=config_data['dbname'], dbuser=config_data['dbuser'], dbpass=config_data['dbpass'],
@@ -23,6 +24,7 @@ try:
     user_data_access = UserDataAccess(connection)
     data_loader = DataLoader(connection)
     date_time_transformer = DateTimeTransformer(connection)
+    history = History(connection)
 except Exception as e:
     app.logger.error("[ERROR] Failed to establish user connection.")
     app.logger.exception(e)
@@ -40,10 +42,12 @@ from app.main.controllers import main
 from app.user_service.controllers import user_service
 from app.data_service.controllers import data_service
 from app.data_transform.controllers import data_transform
+from app.history.controllers import _history
 from app.api.controllers import api
 
 app.register_blueprint(main)
 app.register_blueprint(user_service)
 app.register_blueprint(data_service)
 app.register_blueprint(data_transform)
+app.register_blueprint(_history)
 app.register_blueprint(api)

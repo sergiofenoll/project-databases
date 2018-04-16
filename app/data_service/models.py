@@ -29,7 +29,6 @@ class Table:
         self.rows = rows or []
         self.columns = columns or []
 
-
 class DataLoader:
 
     def __init__(self, dbconnect):
@@ -755,3 +754,119 @@ class DataLoader:
             app.logger.error("[ERROR] Couldn't update table metadata for table " + old_table_name + ".")
             app.logger.exception(e)
             raise e
+
+    def get_numerical_statistic(self, schema_id, table_name, column, function):
+
+        """" calculate average of column """
+        try:
+            schema_name = 'schema-' + str(schema_id)
+            cursor = self.dbconnect.get_cursor()
+
+            query = cursor.mogrify(sql.SQL('SELECT ' + function + '( {} ) FROM {}.{}').format(
+                sql.Identifier(column),
+                sql.Identifier(schema_name),
+                sql.Identifier(table_name)
+            ))
+            cursor.execute(query)
+
+            stat = cursor.fetchone()[0]
+            if not stat:
+                stat = 0
+            return stat
+
+        except Exception as e:
+            app.logger.error("[ERROR] Unable to calculate {} for column {}".format(function.lower(), column))
+            app.logger.exception(e)
+            self.dbconnect.rollback()
+            raise e
+
+    def calculate_most_common_value(self, schema_id, table_name, column):
+        """" calculate most common value of a  column """
+        try:
+            schema_name = 'schema-' + str(schema_id)
+            cursor = self.dbconnect.get_cursor()
+
+            query = cursor.mogrify(sql.SQL('SELECT {}, COUNT(*) AS counted '
+                                           'FROM {}.{} '
+                                           'WHERE {} IS NOT NULL '
+                                           'GROUP BY {} '
+                                           'ORDER BY counted DESC, {} '
+                                           'LIMIT 1').format(
+                sql.Identifier(column),
+                sql.Identifier(schema_name),
+                sql.Identifier(table_name),
+                sql.Identifier(column),
+                sql.Identifier(column),
+                sql.Identifier(column),
+            ))
+            cursor.execute(query)
+            value = None
+            for x in cursor:
+                value = x[0]
+            return value
+
+        except Exception as e:
+            app.logger.error("[ERROR] Unable to calculate most commen value for column {}".format(column))
+            app.logger.exception(e)
+            self.dbconnect.rollback()
+            raise e
+
+    def calculate_amount_of_empty_elements(self, schema_id, table_name, column):
+        """" calculate most common value of a  column """
+        try:
+            schema_name = 'schema-' + str(schema_id)
+            cursor = self.dbconnect.get_cursor()
+
+            query = cursor.mogrify(sql.SQL('SELECT COUNT(*) AS counted '
+                                           'FROM {}.{} '
+                                           'WHERE {} IS NULL ').format(
+                sql.Identifier(schema_name),
+                sql.Identifier(table_name),
+                sql.Identifier(column)
+            ))
+            cursor.execute(query)
+            value = None
+            for x in cursor:
+                value = x[0]
+            return value
+
+        except Exception as e:
+            app.logger.error("[ERROR] Unable to calculate most commen value for column {}".format(column))
+            app.logger.exception(e)
+            self.dbconnect.rollback()
+            raise e
+
+    def get_statistics_for_column(self, schema_id, table_name, column, numerical):
+        "calculate statistics of a column"
+
+        stats = list()
+
+        if numerical:
+            stats.append(["Average", self.get_numerical_statistic(schema_id, table_name, column, "AVG")])
+            stats.append(["Minimum", self.get_numerical_statistic(schema_id, table_name, column, "MIN")])
+            stats.append(["Maximum", self.get_numerical_statistic(schema_id, table_name, column, "MAX")])
+
+        stats.append(["Most common value", self.calculate_most_common_value(schema_id, table_name, column,)])
+        stats.append(["Amount of empty elements", self.calculate_amount_of_empty_elements(schema_id, table_name, column, )])
+        return stats
+
+    def get_statistics_for_all_columns(self, schema_id, table_name, columns):
+        "calculate statistics of a column"
+
+        stats = list()
+        for column in columns:
+            type = column.type
+            numerical = False
+            if type == "integer" or type == "double" or type == "real":
+                numerical = True
+
+            stats.append([column.name, self.get_statistics_for_column( schema_id, table_name, column.name, numerical)])
+        return stats
+
+
+
+
+
+
+
+

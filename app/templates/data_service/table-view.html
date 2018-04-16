@@ -223,14 +223,19 @@
                             </button>
                         </div>
                         <div class="modal-body">
-                            <label for="export-type">Export as...</label>
-                            <select class="form-control" name="export-type" id="export-type">
-                                    <option value="csv">CSV file</option>
-                            </select>
-                            <a href="/api/datasets/{{current_user.active_schema}}/tables/{{table.name}}/export" class="btn btn-primary" download>Export</a>
+                            <label for="separator">Separator</label>
+                            <input type="text" class="form-control" name="separator" id="separator" placeholder="Separator">
+
+                            <label for="quote">Quote character</label>
+                            <input type="text" class="form-control" name="quote_char" id="quote_char" placeholder="Quote character">
+
+                            <label for="empty-char">Empty character</label>
+                            <input type="text" class="form-control" name="empty-char" id="empty-char" placeholder="Empty character">
+
+                            <!-- href="/api/datasets/{{current_user.active_schema}}/tables/{{table.name}}/export" -->
                         </div>
                         <div class="modal-footer">
-                            <button type="submit" class="btn btn-primary">Done</button>
+                            <a download><button type="submit" class="btn btn-primary">Done</button></a>
                             <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
                         </div>
                     </form>
@@ -383,6 +388,17 @@
                         }
                     });
                     $('#formImputeMissingData').modal('hide');
+                });
+                $('#formExportOptions').submit(function (e) {
+                    e.preventDefault();
+                    $.ajax({
+                        type: 'PUT',
+                        url: '/api' + window.location.pathname + '/export?' + $('#formExportOptions').serialize(),
+                        success: function () {
+                            window.location.reload();
+                        }
+                    });
+                    $('#formExportOptions').modal('hide');
                 });
             });
         </script>

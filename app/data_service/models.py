@@ -757,10 +757,18 @@ class DataLoader:
             raise e
 
     # Data export handling
-    def export_table(self, filename, schema_id, tablename):
+    def export_table(self, filename, schema_id, tablename, separator=",", quote_char="\"", empty_char=""):
         """
          This method return the path to a table exported as a CSV file (that could later be used as input again).
         """
+
+        # Failsafe
+        if separator == None:
+            separator = ","
+        if quote_char == None:
+            quote_char = "\""
+        if empty_char == None:
+            empty_char = ""
 
         with open(filename, "w") as output:
 
@@ -769,7 +777,9 @@ class DataLoader:
             # First write the column names
             columns = self.get_column_names(schema_id, tablename)
             for col in columns:
-                line += str(col) + ","
+                if col == 'id':
+                    continue
+                line += str(col) + separator
             line = line[:-1] + '\n'
             output.write(line)
 
@@ -778,7 +788,9 @@ class DataLoader:
             for row in table.rows:
                 line = ""
                 for entry in row:
-                    line += str(entry) + ","
+                    if str(entry) == "":
+                        entry = empty_char
+                    line += str(entry) + separator
                 line = line[:-1] + '\n'
                 output.write(line)
 

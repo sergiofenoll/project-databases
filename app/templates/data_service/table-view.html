@@ -227,11 +227,10 @@
                             <select class="form-control" name="export-type" id="export-type">
                                     <option value="csv">CSV file</option>
                             </select>
+                            <a href="/api/datasets/{{current_user.active_schema}}/tables/{{table.name}}/export" class="btn btn-primary" download>Export</a>
                         </div>
                         <div class="modal-footer">
-                            <button type="submit" class="btn btn-primary">
-                                <a href="/api/datasets/0/tables/dolfijnen/export" download>Export</a>
-                            </button>
+                            <button type="submit" class="btn btn-primary">Done</button>
                             <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
                         </div>
                     </form>

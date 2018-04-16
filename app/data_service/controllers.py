@@ -126,6 +126,7 @@ def get_table(dataset_id, table_name):
         return abort(403)
     table = data_loader.get_table(dataset_id, table_name)
     time_date_transformations = date_time_transformer.get_transformations()
+    current_user.active_schema = str(dataset_id)
     # rows = data_loader.get_table(dataset_id, table_name)
     # columns = data_loader.get_column_names(dataset_id, table_name)
     return render_template('data_service/table-view.html', table=table, time_date_transformations=time_date_transformations)

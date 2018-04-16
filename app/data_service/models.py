@@ -16,6 +16,10 @@ class Dataset:
         self.moderators = moderators
         self.id = id
 
+class Column:
+    def __init__(self, name, type):
+        self.name = name
+        self.type = type
 
 class Table:
 
@@ -24,7 +28,6 @@ class Table:
         self.desc = desc
         self.rows = rows or []
         self.columns = columns or []
-
 
 class DataLoader:
 
@@ -303,7 +306,7 @@ class DataLoader:
         schema_name = 'schema-' + str(schema_id)
         try:
             query = cursor.mogrify(
-                sql.SQL('ALTER TABLE {}.{} ADD {} ' + column_type + ' ;').format(sql.Identifier(schema_name),
+                sql.SQL('ALTER TABLE {}.{} ADD {} ' + column_type + ' NULL ;').format(sql.Identifier(schema_name),
                                                                                  sql.Identifier(table_name),
                                                                                  sql.Identifier(column_name)))
             cursor.execute(query)
@@ -508,6 +511,7 @@ class DataLoader:
             cursor.execute(query)
 
             table_name = "schema-" + str(schema_id) + "_access"
+
             table = Table(table_name, '', columns=self.get_column_names(schema_id, table_name)[1:])
             for row in cursor:
                 table.rows.append(row[1:])
@@ -700,6 +704,39 @@ class DataLoader:
             app.logger.exception(e)
             raise e
 
+    def get_column_names_and_types(self, schema_id, table_name):
+        """
+         This method returns a list of column names associated with the given table
+        """
+        cursor = self.dbconnect.get_cursor()
+
+        try:
+
+            schema = "schema-" + str(schema_id)
+
+            query = cursor.mogrify(
+                'SELECT column_name, data_type FROM information_schema.columns WHERE table_schema=%s AND table_name=%s;', (
+                    schema, table_name,))
+            cursor.execute(query)
+            result = list()
+            for row in cursor:
+                type = row[1]
+                if type == "double precision":
+                    type = "double"
+                elif (type == "timestamp without time zone" or type == "timestamp with time zone"):
+                    type = "timestamp"
+                elif type == "character varying":
+                    type = "string"
+
+                result.append(Column(row[0], type))
+
+            return result
+
+        except Exception as e:
+            app.logger.error("[ERROR] Couldn't fetch column names/types for table '" + table_name + "'.")
+            app.logger.exception(e)
+            raise e
+
     def update_dataset_metadata(self, schema_id, new_name, new_desc):
         schema_name = "schema-" + str(schema_id)
 
@@ -731,3 +768,119 @@ class DataLoader:
             app.logger.error("[ERROR] Couldn't update table metadata for table " + old_table_name + ".")
             app.logger.exception(e)
             raise e
+
+    def get_numerical_statistic(self, schema_id, table_name, column, function):
+
+        """" calculate average of column """
+        try:
+            schema_name = 'schema-' + str(schema_id)
+            cursor = self.dbconnect.get_cursor()
+
+            query = cursor.mogrify(sql.SQL('SELECT ' + function + '( {} ) FROM {}.{}').format(
+                sql.Identifier(column),
+                sql.Identifier(schema_name),
+                sql.Identifier(table_name)
+            ))
+            cursor.execute(query)
+
+            stat = cursor.fetchone()[0]
+            if not stat:
+                stat = 0
+            return stat
+
+        except Exception as e:
+            app.logger.error("[ERROR] Unable to calculate {} for column {}".format(function.lower(), column))
+            app.logger.exception(e)
+            self.dbconnect.rollback()
+            raise e
+
+    def calculate_most_common_value(self, schema_id, table_name, column):
+        """" calculate most common value of a  column """
+        try:
+            schema_name = 'schema-' + str(schema_id)
+            cursor = self.dbconnect.get_cursor()
+
+            query = cursor.mogrify(sql.SQL('SELECT {}, COUNT(*) AS counted '
+                                           'FROM {}.{} '
+                                           'WHERE {} IS NOT NULL '
+                                           'GROUP BY {} '
+                                           'ORDER BY counted DESC, {} '
+                                           'LIMIT 1').format(
+                sql.Identifier(column),
+                sql.Identifier(schema_name),
+                sql.Identifier(table_name),
+                sql.Identifier(column),
+                sql.Identifier(column),
+                sql.Identifier(column),
+            ))
+            cursor.execute(query)
+            value = None
+            for x in cursor:
+                value = x[0]
+            return value
+
+        except Exception as e:
+            app.logger.error("[ERROR] Unable to calculate most commen value for column {}".format(column))
+            app.logger.exception(e)
+            self.dbconnect.rollback()
+            raise e
+
+    def calculate_amount_of_empty_elements(self, schema_id, table_name, column):
+        """" calculate most common value of a  column """
+        try:
+            schema_name = 'schema-' + str(schema_id)
+            cursor = self.dbconnect.get_cursor()
+
+            query = cursor.mogrify(sql.SQL('SELECT COUNT(*) AS counted '
+                                           'FROM {}.{} '
+                                           'WHERE {} IS NULL ').format(
+                sql.Identifier(schema_name),
+                sql.Identifier(table_name),
+                sql.Identifier(column)
+            ))
+            cursor.execute(query)
+            value = None
+            for x in cursor:
+                value = x[0]
+            return value
+
+        except Exception as e:
+            app.logger.error("[ERROR] Unable to calculate most commen value for column {}".format(column))
+            app.logger.exception(e)
+            self.dbconnect.rollback()
+            raise e
+
+    def get_statistics_for_column(self, schema_id, table_name, column, numerical):
+        "calculate statistics of a column"
+
+        stats = list()
+
+        if numerical:
+            stats.append(["Average", self.get_numerical_statistic(schema_id, table_name, column, "AVG")])
+            stats.append(["Minimum", self.get_numerical_statistic(schema_id, table_name, column, "MIN")])
+            stats.append(["Maximum", self.get_numerical_statistic(schema_id, table_name, column, "MAX")])
+
+        stats.append(["Most common value", self.calculate_most_common_value(schema_id, table_name, column,)])
+        stats.append(["Amount of empty elements", self.calculate_amount_of_empty_elements(schema_id, table_name, column, )])
+        return stats
+
+    def get_statistics_for_all_columns(self, schema_id, table_name, columns):
+        "calculate statistics of a column"
+
+        stats = list()
+        for column in columns:
+            type = column.type
+            numerical = False
+            if type == "integer" or type == "double" or type == "real":
+                numerical = True
+
+            stats.append([column.name, self.get_statistics_for_column( schema_id, table_name, column.name, numerical)])
+        return stats
+
+
+
+
+
+
+
+

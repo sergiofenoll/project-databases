@@ -125,10 +125,13 @@ def get_table(dataset_id, table_name):
     if (data_loader.has_access(current_user.username, dataset_id)) is False:
         return abort(403)
     table = data_loader.get_table(dataset_id, table_name)
+    statistics = data_loader.get_statistics_for_all_columns(dataset_id, table_name, table.columns)
     time_date_transformations = date_time_transformer.get_transformations()
     # rows = data_loader.get_table(dataset_id, table_name)
     # columns = data_loader.get_column_names(dataset_id, table_name)
-    return render_template('data_service/table-view.html', table=table, time_date_transformations=time_date_transformations)
+    return render_template('data_service/table-view.html', table=table,
+                           time_date_transformations=time_date_transformations,
+                           statistics=statistics)
 
 
 @data_service.route('/datasets/<int:dataset_id>/tables/<string:table_name>/update', methods=['POST'])

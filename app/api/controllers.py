@@ -1,7 +1,6 @@
-from flask import Blueprint, jsonify, request, render_template, redirect, url_for
-from flask_login import login_required, current_user
+from flask import Blueprint, jsonify, request
 
-from app import connection, data_loader, date_time_transformer, data_transformer, ALLOWED_EXTENSIONS, UPLOAD_FOLDER
+from app import connection, data_loader, date_time_transformer, data_transformer, history, ALLOWED_EXTENSIONS, UPLOAD_FOLDER
 
 api = Blueprint('api', __name__)
 
@@ -38,7 +37,27 @@ def get_access_table(dataset_id):
                    recordsFiltered=len(_table.rows),
                    data=table.rows)
 
-  
+
+@api.route('/api/datasets/<int:dataset_id>/tables/<string:table_name>/history', methods=['GET'])
+def get_history(dataset_id, table_name):
+    start = request.args.get('start')
+    length = request.args.get('length')
+    search = request.args.get('search[value]')
+    order_column = int(request.args.get('order[0][column]'))
+    order_direction = request.args.get('order[0][dir]')
+    ordering = (['date', 'action_desc'][order_column], order_direction)
+
+    rows = history.get_actions(dataset_id, table_name, offset=start, limit=length, ordering=ordering, search=search)
+    _rows = history.get_actions(dataset_id, table_name)
+    print(len(rows))
+    print(len(_rows))
+
+    return jsonify(draw=int(request.args.get('draw')),
+                   recordsTotal=len(_rows),
+                   recordsFiltered=len(_rows),
+                   data=rows)
+
+
 @api.route('/api/datasets/<int:dataset_id>/tables/<string:table_name>/rows', methods=['POST'])
 def add_row(dataset_id, table_name):
     values = list()
@@ -76,6 +95,7 @@ def delete_column(dataset_id, table_name):
     column_name = request.args.get('col-name')
     data_loader.delete_column(dataset_id, table_name, column_name)
     return jsonify({'success': True}), 200
+
 
 @api.route('/api/datasets/<int:dataset_id>/tables/<string:table_name>/date-time-transformations', methods=['PUT'])
 def transform_date_or_time(dataset_id, table_name):

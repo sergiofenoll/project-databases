@@ -320,6 +320,11 @@
                                 $('#DateTimeTransformations').modal('show');
                             }
                         }, {
+                            text: 'History',
+                            action: function () {
+                                window.location.href = window.location.pathname + '/history';
+                            }
+                        },{
                             text: 'Impute missing data',
                             action: function () {
                                 $('#ImputeMissingData').modal('show');

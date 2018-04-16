@@ -1,19 +1,20 @@
 import re
 import shutil
+from datetime import datetime
 from zipfile import ZipFile
 
 from psycopg2 import sql, IntegrityError
 
 from app import app
+from app.history.models import History
 
 
 class Dataset:
-
-    def __init__(self, id, name, desc, owner, moderators=[]):
+    def __init__(self, id, name, desc, owner, moderators=None):
         self.name = name
         self.desc = desc
         self.owner = owner
-        self.moderators = moderators
+        self.moderators = moderators or []
         self.id = id
 
 class Column:
@@ -22,7 +23,6 @@ class Column:
         self.type = type
 
 class Table:
-
     def __init__(self, name, desc, rows=None, columns=None):
         self.name = name
         self.desc = desc
@@ -30,7 +30,6 @@ class Table:
         self.columns = columns or []
 
 class DataLoader:
-
     def __init__(self, dbconnect):
         self.dbconnect = dbconnect
 
@@ -213,6 +212,10 @@ class DataLoader:
             self.dbconnect.rollback()
             raise e
 
+        # Log action to history
+        history = History(self.dbconnect)
+        history.log_action(schema_id, name, datetime.now(), 'Created table')
+
         # Add metadata for this table
         try:
 
@@ -249,15 +252,31 @@ class DataLoader:
             self.dbconnect.rollback()
             raise e
 
+        # Delete history
+        try:
+            schema_name = 'schema-' + str(schema_id)
+            query = cursor.mogrify(
+                sql.SQL('DELETE FROM HISTORY WHERE id_dataset=%s AND id_table=%s;'), (schema_name, name))
+            cursor.execute(query)
+            self.dbconnect.commit()
+        except Exception as e:
+            app.logger.error("[ERROR] Failed to delete metadata for table '" + name + "'")
+            app.logger.exception(e)
+            self.dbconnect.rollback()
+            raise e
+
     def delete_row(self, schema_id, table_name, row_ids):
         cursor = self.dbconnect.get_cursor()
         schema_name = 'schema-' + str(schema_id)
+        history = History(self.dbconnect)
         try:
             for row_id in row_ids:
                 query = cursor.mogrify(sql.SQL('DELETE FROM {0}.{1} WHERE id=%s;').format(sql.Identifier(schema_name),
                                                                                           sql.Identifier(table_name)),
                                        (row_id,))
                 cursor.execute(query)
+                # Log action to history
+                history.log_action(schema_id, table_name, datetime.now(), 'Deleted row #' + str(row_id))
             self.dbconnect.commit()
         except Exception as e:
             app.logger.error("[ERROR] Unable to delete row from table '" + table_name + "'")
@@ -280,7 +299,11 @@ class DataLoader:
             self.dbconnect.rollback()
             raise e
 
-    def insert_row(self, table, schema_id, columns, values):
+        # Log action to history
+        history = History(self.dbconnect)
+        history.log_action(schema_id, table_name, datetime.now(), 'Deleted column ' + column_name)
+
+    def insert_row(self, table, schema_id, columns, values, file_upload=False):
         """
          This method takes list of values and adds those to the given table.
         """
@@ -301,6 +324,11 @@ class DataLoader:
             self.dbconnect.rollback()
             raise e
 
+        # Log action to history
+        if not file_upload:
+            history = History(self.dbconnect)
+            history.log_action(schema_id, table, datetime.now(), 'Added row with values ' + ' '.join(values))
+
     def insert_column(self, schema_id, table_name, column_name, column_type):
         cursor = self.dbconnect.get_cursor()
         schema_name = 'schema-' + str(schema_id)
@@ -317,15 +345,20 @@ class DataLoader:
             self.dbconnect.rollback()
             raise e
 
+        # Log action to history
+        history = History(self.dbconnect)
+        history.log_action(schema_id, table_name, datetime.now(), 'Added column with name ' + column_name)
+
     def update_column_type(self, schema_id, table_name, column_name, column_type):
         cursor = self.dbconnect.get_cursor()
         schema_name = 'schema-' + str(schema_id)
         try:
             query = cursor.mogrify(
-                sql.SQL('ALTER TABLE {}.{} ALTER {}  TYPE ' + column_type + ' USING {}::' + column_type + ' ;').format(sql.Identifier(schema_name),
-                                                                                         sql.Identifier(table_name),
-                                                                                         sql.Identifier(column_name),
-                                                                                         sql.Identifier(column_name)))
+                sql.SQL('ALTER TABLE {}.{} ALTER {}  TYPE ' + column_type + ' USING {}::' + column_type + ' ;').format(
+                    sql.Identifier(schema_name),
+                    sql.Identifier(table_name),
+                    sql.Identifier(column_name),
+                    sql.Identifier(column_name)))
             cursor.execute(query)
             self.dbconnect.commit()
         except Exception as e:
@@ -333,6 +366,11 @@ class DataLoader:
             app.logger.exception(e)
             self.dbconnect.rollback()
             raise e
+
+        # Log action to history
+        history = History(self.dbconnect)
+        history.log_action(schema_id, table_name, datetime.now(),
+                           'Updated column ' + column_name + ' to have type ' + column_type)
 
     # Data uploading handling
     def process_csv(self, file, schema_id, tablename, append=False):
@@ -360,7 +398,7 @@ class DataLoader:
                     self.create_table(tablename, schema_id, columns)
                 else:
                     values_list = [x.strip() for x in line.split(",")]
-                    self.insert_row(tablename, schema_id, columns, values_list)
+                    self.insert_row(tablename, schema_id, columns, values_list, True)
 
     def process_zip(self, file, schema_id):
         """
@@ -433,7 +471,7 @@ class DataLoader:
                     if not self.table_exists(tablename, schema_id):
                         self.create_table(tablename, schema_id, columns)
                     for values in values_list:
-                        self.insert_row(tablename, schema_id, columns, values)
+                        self.insert_row(tablename, schema_id, columns, values, True)
 
     # Data access handling
     def get_user_datasets(self, user_id):
@@ -566,7 +604,7 @@ class DataLoader:
         try:
             cursor = self.dbconnect.get_cursor()
             schema_id = "schema-" + str(id)
-            query = cursor.mogrify("SELECT * FROM access WHERE id_user=%s and id_dataset=%s;", (user_id,schema_id,))
+            query = cursor.mogrify("SELECT * FROM access WHERE id_user=%s AND id_dataset=%s;", (user_id, schema_id,))
             cursor.execute(query)
             for _ in cursor:
                 return True

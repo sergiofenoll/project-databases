@@ -638,24 +638,38 @@ class DataLoader:
             app.logger.exception(e)
             raise e
 
-    def get_table(self, schema_id, table_name, offset=0, limit='ALL', ordering=None):
+    def get_table(self, schema_id, table_name, offset=0, limit='ALL', ordering=None, search=None):
         """
          This method returns a list of 'Table' objects associated with the requested dataset
         """
 
         cursor = self.dbconnect.get_cursor()
         try:
+
+            columns = self.get_column_names(schema_id, table_name)
+
             # Get all tables from the metadata table in the schema
             ordering_query = ''
             if ordering is not None:
                 # ordering tuple is of the form (columns, asc|desc)
                 ordering_query = 'ORDER BY "{}" {}'.format(*ordering)
+
+            schema_name = 'schema-' + str(schema_id)
+            search_query = ''
+            if search is not None and search != '':
+                search_query = "WHERE (";
+                # Fill in the search for every column except ID
+                for col in columns[1:]:
+                    search_query += "\"{0}\" LIKE '%{1}%' OR ".format(col, search)
+                search_query = search_query[:-3] + ")"
+            print(search_query)
+
             query = cursor.mogrify(
-                'SELECT * FROM "{}"."{}" {} LIMIT {} OFFSET %s;'.format('schema-' + str(schema_id), table_name,
-                                                                        ordering_query, limit), (offset,))
+                'SELECT * FROM "{}"."{}" {} {} LIMIT {} OFFSET {};'.format('schema-' + str(schema_id), table_name, search_query,
+                                                                        ordering_query, limit, offset))
             cursor.execute(query)
 
-            table = Table(table_name, '', columns=self.get_column_names_and_types(schema_id, table_name))  # Hack-n-slash
+            table = Table(table_name, '', columns=columns)  # Hack-n-slash
             for row in cursor:
                 table.rows.append(row)  # skip the system id TODO: find a better solution, this feels like a hack
             return table

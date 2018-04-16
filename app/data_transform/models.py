@@ -22,6 +22,8 @@ class DataTransformer:
             cursor.execute(query)
 
             average = cursor.fetchone()[0]
+            if not average:
+                average = 0
 
             query = cursor.mogrify(sql.SQL('UPDATE {}.{} SET {}= %s WHERE {} IS NULL;').format(
                 sql.Identifier(schema_name),
@@ -53,7 +55,11 @@ class DataTransformer:
             for value in cursor:
                 if value[0] is not None:
                     values.append(value[0])
-            median_val = median(values)
+
+            if(len(values)) == 0:
+                median_val = 0
+            else:
+                median_val = median(values)
 
             query = cursor.mogrify(sql.SQL('UPDATE {}.{} SET {}= %s WHERE {} IS NULL;').format(
                 sql.Identifier(schema_name),

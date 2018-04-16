@@ -955,14 +955,15 @@ class DataLoader:
                 sql.SQL('CREATE TABLE {}.{} AS TABLE {}.{}').format(sql.Identifier(schema_name),
                     sql.Identifier(table_name),sql.Identifier(schema_name), sql.Identifier(raw_table_name)))
             cursor.execute(query)
-
             self.dbconnect.commit()
+            # Log action to history
+            history = History(self.dbconnect)
+            history.log_action(schema_id, table_name, datetime.now(), 'Reverted to raw data')
+
         except Exception as e:
             app.logger.error("[ERROR] Couldn't convert back to raw data")
             app.logger.exception(e)
             self.dbconnect.rollback()
             raise e
 
-        # Log action to history
-        history = History(self.dbconnect)
-        history.log_action(schema_id, table_name, datetime.now(), 'Reverted to raw data')
+

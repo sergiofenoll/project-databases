@@ -222,8 +222,10 @@
                         <div class="modal-header">
                             <h5 class="modal-title">Revert to raw data</h5></div>
                         <div class="modal-footer">
-                            <button type="submit" class="btn btn-primary">Revert
+
+                            <button type="submit" class="btn btn-primary" {% if not raw_table_exists  %} disabled  {% endif %}>Revert
                             </button>
+
                         </div>
                     </form>
                 </div>

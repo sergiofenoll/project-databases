@@ -15,7 +15,7 @@ app.config.from_object('config')  # See: http://flask.pocoo.org/docs/0.12/config
 from app.data_service.models import DataLoader
 from app.database_connection.models import DBConnection
 from app.user_service.models import UserDataAccess
-from app.data_transform.models import DateTimeTransformer
+from app.data_transform.models import DateTimeTransformer, DataTransformer
 
 try:
     connection = DBConnection(dbname=config_data['dbname'], dbuser=config_data['dbuser'], dbpass=config_data['dbpass'],
@@ -23,6 +23,8 @@ try:
     user_data_access = UserDataAccess(connection)
     data_loader = DataLoader(connection)
     date_time_transformer = DateTimeTransformer(connection)
+    data_transformer = DataTransformer(connection)
+
 except Exception as e:
     app.logger.error("[ERROR] Failed to establish user connection.")
     app.logger.exception(e)

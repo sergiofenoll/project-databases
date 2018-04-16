@@ -16,6 +16,10 @@ class Dataset:
         self.moderators = moderators
         self.id = id
 
+class Column:
+    def __init__(self, name, type):
+        self.name = name
+        self.type = type
 
 class Table:
 
@@ -303,7 +307,7 @@ class DataLoader:
         schema_name = 'schema-' + str(schema_id)
         try:
             query = cursor.mogrify(
-                sql.SQL('ALTER TABLE {}.{} ADD {} ' + column_type + ' ;').format(sql.Identifier(schema_name),
+                sql.SQL('ALTER TABLE {}.{} ADD {} ' + column_type + ' NULL ;').format(sql.Identifier(schema_name),
                                                                                  sql.Identifier(table_name),
                                                                                  sql.Identifier(column_name)))
             cursor.execute(query)
@@ -508,6 +512,7 @@ class DataLoader:
             cursor.execute(query)
 
             table_name = "schema-" + str(schema_id) + "_access"
+
             table = Table(table_name, '', columns=self.get_column_names(schema_id, table_name)[1:])
             for row in cursor:
                 table.rows.append(row[1:])
@@ -651,7 +656,7 @@ class DataLoader:
                                                                         ordering_query, limit), (offset,))
             cursor.execute(query)
 
-            table = Table(table_name, '', columns=self.get_column_names(schema_id, table_name))  # Hack-n-slash
+            table = Table(table_name, '', columns=self.get_column_names_and_types(schema_id, table_name))  # Hack-n-slash
             for row in cursor:
                 table.rows.append(row)  # skip the system id TODO: find a better solution, this feels like a hack
             return table
@@ -683,6 +688,39 @@ class DataLoader:
 
         except Exception as e:
             app.logger.error("[ERROR] Couldn't fetch column names for table '" + table_name + "'.")
+            app.logger.exception(e)
+            raise e
+
+    def get_column_names_and_types(self, schema_id, table_name):
+        """
+         This method returns a list of column names associated with the given table
+        """
+        cursor = self.dbconnect.get_cursor()
+
+        try:
+
+            schema = "schema-" + str(schema_id)
+
+            query = cursor.mogrify(
+                'SELECT column_name, data_type FROM information_schema.columns WHERE table_schema=%s AND table_name=%s;', (
+                    schema, table_name,))
+            cursor.execute(query)
+            result = list()
+            for row in cursor:
+                type = row[1]
+                if type == "double precision":
+                    type = "double"
+                elif (type == "timestamp without time zone" or type == "timestamp with time zone"):
+                    type = "timestamp"
+                elif type == "character varying":
+                    type = "string"
+
+                result.append(Column(row[0], type))
+
+            return result
+
+        except Exception as e:
+            app.logger.error("[ERROR] Couldn't fetch column names/types for table '" + table_name + "'.")
             app.logger.exception(e)
             raise e
 

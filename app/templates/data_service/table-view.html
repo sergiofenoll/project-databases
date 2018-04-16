@@ -116,7 +116,8 @@
                             <label for="col-name">Column</label>
                             <select class="form-control" name="col-name" id="col-name">
                                 {% for column in table.columns[1:] %}
-                                    <option value="{{ column.name }}">{{ column.name|capitalize }} ({{ column.type|capitalize }})
+                                    <option value="{{ column.name }}">{{ column.name|capitalize }}
+                                        ({{ column.type|capitalize }})
                                     </option>
                                 {% endfor %}
                             </select>
@@ -191,9 +192,10 @@
                             <select class="form-control" name="col-name" id="col-name">
                                 {% for column in table.columns[1:] %}
                                     {% if ((column.type == "real") or (column.type == "double") or (column.type == "integer")) %}
-                                    <option value="{{ column.name }}">{{ column.name|capitalize }} ({{ column.type|capitalize }})
-                                    </option>
-                                    {%  endif %}
+                                        <option value="{{ column.name }}">{{ column.name|capitalize }}
+                                            ({{ column.type|capitalize }})
+                                        </option>
+                                    {% endif %}
                                 {% endfor %}
                             </select>
 
@@ -206,6 +208,49 @@
                         <div class="modal-footer">
                             <button type="submit" class="btn btn-primary">Save changes
                             </button>
+                            <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        <div class="modal" tabindex="-1" role="dialog" aria-hidden="true" id="askStats">
+            <div class="modal-dialog" role="document">
+                <div class="modal-content">
+                    <form class="form-group" id="formAskStats">
+                        <div class="modal-header">
+                            <h5 class="modal-title">Statistics</h5>
+                            <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                                <span aria-hidden="true">&times;</span>
+                            </button>
+                        </div>
+                        <div class="modal-body">
+                            <label for="col-name">Column</label>
+                            <select class="form-control" name="col-name" id="stat-column-selector">
+                                <option value="Default" selected="selected">Choose column...
+                                </option>
+                                {% for column in table.columns[1:] %}
+                                    <option value="{{ column.name }}">{{ column.name|capitalize }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                            {% for col_stats in statistics %}
+                                <div tyle="height:10px;"></div>
+                                {% for stat in col_stats[1] %}
+                                    <div>
+                                        <label for="value" id="{{ col_stats[0] }}" class="{{ col_stats[0] }} stats"
+                                               style="display:none">
+                                            {{ stat[0] }}
+                                        </label>
+                                        <input id="value" class="{{ col_stats[0] }} stats"
+                                               value="{{ stat[1] }}" style="display:none" readonly>
+                                    </div>
+
+                                {% endfor %}
+                            {% endfor %}
+
+                        </div>
+                        <div class="modal-footer">
                             <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
                         </div>
                     </form>
@@ -279,7 +324,13 @@
                             action: function () {
                                 $('#ImputeMissingData').modal('show');
                             }
+                        }, {
+                            text: 'Stats',
+                            action: function () {
+                                $('#askStats').modal('show');
+                            }
                         },
+
 
                         'colvis'
                     ]
@@ -350,6 +401,17 @@
                         }
                     });
                     $('#formImputeMissingData').modal('hide');
+                });
+
+
+                $('#stat-column-selector').change(function () {
+                    $('.stats').hide();
+                    var string = "";
+                    var words = $(this).val().split(" ");
+                    for (var i = 0; i < words.length; i++) {
+                        string = string + "." + words[i];
+                    }
+                    $(string).show();
                 });
             });
         </script>

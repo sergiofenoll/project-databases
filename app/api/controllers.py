@@ -106,3 +106,11 @@ def impute_missing_data(dataset_id, table_name):
     function = request.args.get('function')
     data_transformer.impute_missing_data(dataset_id, table_name, column_name, function)
     return jsonify({'success': True}), 200
+
+@api.route('/api/datasets/<int:dataset_id>/tables/<string:table_name>/export', methods=['GET'])
+def export_table(dataset_id, table_name):
+    # Maybe later we might add other types, but for now this is hardcoded to export as CSV
+    filename = table_name + ".csv"
+    path = UPLOAD_FOLDER + "/" + filename
+    data_loader.export_table(path, dataset_id, table_name)
+    return send_from_directory(UPLOAD_FOLDER, filename, as_attachment=True)

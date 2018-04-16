@@ -95,7 +95,7 @@ def add_table(dataset_id):
 
         try:
             if filename[-3:] == "zip":
-                data_loader.process_zip(path, current_user.active_schema)
+                data_loader.process_zip(path, dataset_id)
             elif filename[-3:] == "csv":
                 tablename = filename.split('.csv')[0]
                 create_new = not data_loader.table_exists(tablename, dataset_id)
@@ -133,12 +133,6 @@ def get_table(dataset_id, table_name):
                            time_date_transformations=time_date_transformations,
                            statistics=statistics)
 
-
-@data_service.route('/datasets/<int:dataset_id>/tables/<string:table_name>/update', methods=['POST'])
-def update_table(dataset_id, table_name):
-    pass  # Edit name/description of table
-
-
 @data_service.route('/datasets/<int:dataset_id>/tables/<string:table_name>/delete', methods=['POST'])
 def delete_table(dataset_id, table_name):
     if (data_loader.has_access(current_user.username, dataset_id)) is False:
@@ -159,12 +153,17 @@ def grant_dataset_access(dataset_id):
     return redirect(url_for('data_service.get_dataset', dataset_id=dataset_id))
 
 
-@data_service.route('/datasets/<int:dataset_id>/share/delete', methods=['POST'])
+@data_service.route('/datasets/<int:dataset_id>/share/delete', methods=['GET'])
 def delete_dataset_access(dataset_id):
-    # TEMP... I guess?
     username = request.form.get('ds-delete-user-select')
     data_loader.remove_access(username, dataset_id)
 
     if username == current_user.username:
         return redirect(url_for('data_service.get_datasets'))
     return redirect(url_for('data_service.get_dataset', dataset_id=dataset_id))
+
+
+@data_service.route('/datasets/<int:dataset_id>/tables/<string:table_name>/revert-to-raw-data', methods=['PUT'])
+def revert_to_raw_data(dataset_id, table_name):
+    data_loader.revert_back_to_raw_data(dataset_id, table_name)
+    return redirect(url_for('data_service.get_table', dataset_id=dataset_id, table_name=table_name))

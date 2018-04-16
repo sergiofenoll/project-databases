@@ -214,44 +214,16 @@
                 </div>
             </div>
         </div>
-        <div class="modal" tabindex="-1" role="dialog" aria-hidden="true" id="askStats">
+
+        <div class="modal" tabindex="-1" role="dialog" aria-hidden="true" id="rawData">
             <div class="modal-dialog" role="document">
                 <div class="modal-content">
-                    <form class="form-group" id="formAskStats">
+                    <form class="form-group" id="formRevertRawData">
                         <div class="modal-header">
-                            <h5 class="modal-title">Statistics</h5>
-                            <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-                                <span aria-hidden="true">&times;</span>
-                            </button>
-                        </div>
-                        <div class="modal-body">
-                            <label for="col-name">Column</label>
-                            <select class="form-control" name="col-name" id="stat-column-selector">
-                                <option value="Default" selected="selected">Choose column...
-                                </option>
-                                {% for column in table.columns[1:] %}
-                                    <option value="{{ column.name }}">{{ column.name|capitalize }}
-                                    </option>
-                                {% endfor %}
-                            </select>
-                            {% for col_stats in statistics %}
-                                <div tyle="height:10px;"></div>
-                                {% for stat in col_stats[1] %}
-                                    <div>
-                                        <label for="value" id="{{ col_stats[0] }}" class="{{ col_stats[0] }} stats"
-                                               style="display:none">
-                                            {{ stat[0] }}
-                                        </label>
-                                        <input id="value" class="{{ col_stats[0] }} stats"
-                                               value="{{ stat[1] }}" style="display:none" readonly>
-                                    </div>
-
-                                {% endfor %}
-                            {% endfor %}
-
-                        </div>
+                            <h5 class="modal-title">Revert to raw data</h5></div>
                         <div class="modal-footer">
-                            <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                            <button type="submit" class="btn btn-primary">Revert
+                            </button>
                         </div>
                     </form>
                 </div>
@@ -324,7 +296,7 @@
                             action: function () {
                                 window.location.href = window.location.pathname + '/history';
                             }
-                        },{
+                        }, {
                             text: 'Impute missing data',
                             action: function () {
                                 $('#ImputeMissingData').modal('show');
@@ -333,6 +305,11 @@
                             text: 'Stats',
                             action: function () {
                                 $('#askStats').modal('show');
+                            }
+                        }, {
+                            text: 'Raw',
+                            action: function () {
+                                $('#rawData').modal('show');
                             }
                         },
 
@@ -394,7 +371,7 @@
                             window.location.reload();
                         }
                     });
-                    $('#formDateTimeTransformations').modal('hide');
+                    $('#DateTimeTransformations').modal('hide');
                 });
                 $('#formImputeMissingData').submit(function (e) {
                     e.preventDefault();
@@ -417,6 +394,17 @@
                         string = string + "." + words[i];
                     }
                     $(string).show();
+                });
+                
+                $('#formRevertRawData').submit(function (e) {
+                    e.preventDefault();
+                    $.ajax({
+                        type: 'PUT',
+                        url:  window.location.pathname + '/revert-to-raw-data',
+                    });
+                    window.location.reload();
+                    $('#rawData').modal('hide');
+                    window.location.reload();
                 });
             });
         </script>

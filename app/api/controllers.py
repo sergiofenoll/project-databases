@@ -126,3 +126,18 @@ def impute_missing_data(dataset_id, table_name):
     function = request.args.get('function')
     data_transformer.impute_missing_data(dataset_id, table_name, column_name, function)
     return jsonify({'success': True}), 200
+
+@api.route('/api/datasets/<int:dataset_id>/tables/<string:table_name>/show-raw-data', methods=['GET'])
+def show_raw_data(dataset_id, table_name):
+    start = request.args.get('start')
+    length = request.args.get('length')
+    order_column = int(request.args.get('order[0][column]'))
+    order_direction = request.args.get('order[0][dir]')
+    raw_table_name = "_raw_" + table_name
+    ordering = (data_loader.get_column_names(dataset_id, raw_table_name)[order_column], order_direction)
+    table = data_loader.get_table(dataset_id, raw_table_name, offset=start, limit=length, ordering=ordering)
+    _table = data_loader.get_table(dataset_id, raw_table_name)
+    return jsonify(draw=int(request.args.get('draw')),
+                   recordsTotal=len(_table.rows),
+                   recordsFiltered=len(_table.rows),
+                   data=table.rows)

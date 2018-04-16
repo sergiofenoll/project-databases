@@ -223,11 +223,24 @@
                             <h5 class="modal-title">Revert to raw data</h5></div>
                         <div class="modal-footer">
 
-                            <button type="submit" class="btn btn-primary" {% if not raw_table_exists  %} disabled  {% endif %}>Revert
+                            <button type="submit" class="btn btn-primary" {% if not raw_table_exists %}
+                                    disabled  {% endif %}>Revert
                             </button>
 
                         </div>
                     </form>
+                    <form class="form-group" id="formShowRawData">
+                        <div class="modal-header">
+                            <h5 class="modal-title">Show raw data</h5></div>
+                        <div class="modal-footer">
+
+                            <button type="submit" class="btn btn-primary" {% if not raw_table_exists %}
+                                    disabled  {% endif %}>Show
+                            </button>
+                        </div>
+                    </form>
+
+
                 </div>
             </div>
         </div>
@@ -401,11 +414,19 @@
                     e.preventDefault();
                     $.ajax({
                         type: 'PUT',
-                        url:  window.location.pathname + '/revert-to-raw-data',
+                        url: window.location.pathname + '/revert-to-raw-data',
                     });
                     window.location.reload();
                     $('#rawData').modal('hide');
-                    window.location.reload();
+                });
+
+                $('#formShowRawData').submit(function (e) {
+                    e.preventDefault();
+                    $.ajax({
+                        type: 'GET',
+                        url: window.location.pathname + '/show-raw-data',
+                    });
+                    window.location.assign(window.location.pathname + '/show-raw-data')
                 });
             });
         </script>

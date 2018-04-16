@@ -172,8 +172,16 @@ def revert_to_raw_data(dataset_id, table_name):
     data_loader.revert_back_to_raw_data(dataset_id, table_name)
     return redirect(url_for('data_service.get_table', dataset_id=dataset_id, table_name=table_name))
 
-@data_service.route('/datasets/<int:dataset_id>/tables/<string:table_name>/show-raw-data', methods=['PUT'])
-def show_raw_data(dataset_id, table_name):
 
-    render_template('data_service/raw-table-view.html',
-                    datasets=data_loader.get_user_datasets(current_user.username))
+@data_service.route('/datasets/<int:dataset_id>/tables/<string:table_name>/show-raw-data', methods=['GET'])
+def show_raw_data(dataset_id, table_name):
+    if (data_loader.has_access(current_user.username, dataset_id)) is False:
+        return abort(403)
+    raw_table_name = "_raw_" + table_name
+    raw_table_exists = data_loader.table_exists(raw_table_name, "schema-" + str(dataset_id))
+    if not raw_table_exists:
+        return redirect(url_for('data_service.get_table', dataset_id=dataset_id, table_name=table_name))
+
+    table = data_loader.get_table(dataset_id, raw_table_name)
+    title="Raw data for " + table_name
+    return render_template('data_service/raw-table-view.html', table=table, title=title)

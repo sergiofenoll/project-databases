@@ -6,11 +6,15 @@
 
 from flask import Flask
 from flask_login import LoginManager
-
+from flask_sqlalchemy import SQLAlchemy
 from config import *
 
 app = Flask(__name__)
 app.config.from_object('config')  # See: http://flask.pocoo.org/docs/0.12/config/
+
+database = SQLAlchemy(app)
+login = LoginManager(app)
+login.init_app(app)
 
 from app.data_service.models import DataLoader
 from app.database_connection.models import DBConnection
@@ -26,13 +30,9 @@ try:
     date_time_transformer = DateTimeTransformer(connection)
     history = History(connection)
     data_transformer = DataTransformer(connection)
-    
 except Exception as e:
     app.logger.error("[ERROR] Failed to establish user connection.")
     app.logger.exception(e)
-
-login = LoginManager(app)
-login.init_app(app)
 
 
 @login.user_loader

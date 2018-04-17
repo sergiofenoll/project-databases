@@ -359,7 +359,10 @@ class DataLoader:
                     sql.Identifier(table_name),
                     sql.Identifier(column_name),
                     sql.Identifier(column_name)))
+            print(query)
+            print('before query execution')
             cursor.execute(query)
+            print('after query execution')
             self.dbconnect.commit()
         except Exception as e:
             app.logger.error("[ERROR] Unable to update column type in table '{}'".format(table_name))
@@ -662,6 +665,7 @@ class DataLoader:
 
             # Get all tables from the metadata table in the schema
             schema_name = "schema-" + str(schema_id)
+            query = cursor.mogrify('SELECT id_table,metadata FROM metadata WHERE id_dataset=%s;',(schema_name,))
             query = cursor.mogrify('SELECT id_table,metadata FROM metadata WHERE id_dataset=%s;',(schema_name,))
             cursor.execute(query)
 

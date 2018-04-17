@@ -8,7 +8,7 @@
     </div>
     {% if datasets|length > 0 %}
         <div class="row">
-            <table id="datasetTable" class="display table table-striped table-bordered" cellspacing="0"
+            <table id="datasetTable" class="display table table-striped table-bordered table-responsive-sm" cellspacing="0"
                    width="100%" style="text-align: center;">
                 <thead>
                 <tr>
@@ -50,24 +50,19 @@
         <div class="modal" tabindex="-1" role="dialog" aria-hidden="true" id="metadata">
             <div class="modal-dialog" role="document">
                 <div class="modal-content">
-                    <form class="form-group" id="formMetadata">
+                    <form id="formMetadata">
                         <div class="modal-header">
                             <h5 class="modal-title">Change dataset name and/or description</h5>
                             <button type="button" class="close" data-dismiss="modal" aria-label="Close">
                                 <span aria-hidden="true">&times;</span>
                             </button>
                         </div>
-                        <div class="modal-body">
+                        <div class="modal-body form-group">
                             <label for="ds-name">Name</label>
-                            <br>
-                            <input type="text" name="ds-name" value="" id="ds-name"><br>
-
+                            <input class="form-control" type="text" name="ds-name" value="" id="ds-name">
                             <label for="ds-desc">Description</label>
-                            <br>
-                            <textarea type="text" name="ds-desc" id="ds-desc"></textarea>
-
+                            <textarea class="form-control" name="ds-desc" id="ds-desc"></textarea>
                             <input type="hidden" id="ds-id" name="ds-id">
-
                         </div>
                         <div class="modal-footer">
                             <button type="submit" class="btn btn-primary">Save changes
@@ -98,10 +93,8 @@
         </div>
     </div>
     <script type="text/javascript" charset="utf-8">
-
-
         $(document).ready(function () {
-            $('.metadataEditButton').click(function (e) { // .stuff wijst op een klasse
+            $('.metadataEditButton').click(function (e) {
                 e.preventDefault();
                 $('#ds-name').val($(this).attr('data-name'));
                 $('#ds-desc').val($(this).attr('data-desc'));
@@ -109,7 +102,6 @@
 
                 $('#metadata').show();
             });
-
 
             $('#formMetadata').submit(function (e) {
                 e.preventDefault();

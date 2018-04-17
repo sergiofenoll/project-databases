@@ -858,8 +858,6 @@ class DataLoader:
             csvwriter.writerows(table.rows)
 
         return filename
-            self.dbconnect.rollback()
-            raise e
 
     def get_numerical_statistic(self, schema_id, table_name, column, function):
 

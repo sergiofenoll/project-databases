@@ -241,7 +241,9 @@
                             <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
                         </div>
                     </form>
-
+                </div>
+            </div>
+        </div>
         <div class="modal" tabindex="-1" role="dialog" aria-hidden="true" id="rawData">
             <div class="modal-dialog" role="document">
                 <div class="modal-content">
@@ -339,17 +341,20 @@
                             action: function () {
                                 window.location.href = window.location.pathname + '/history';
                             }
-                        }, {
+                        }, 
+                        {
                             text: 'Impute missing data',
                             action: function () {
                                 $('#ImputeMissingData').modal('show');
                             }
-                        }, {
+                        }, 
+                        {
                             text: 'Stats',
                             action: function () {
                                 $('#askStats').modal('show');
                             }
-                        }, {
+                        }, 
+                        {
                             text: 'Raw',
                             action: function () {
                                 $('#rawData').modal('show');
@@ -442,6 +447,7 @@
                         }
                     });
                     $('#formExportOptions').modal('hide');
+                });
                   
                 $('#stat-column-selector').change(function () {
                     $('.stats').hide();

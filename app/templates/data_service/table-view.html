@@ -235,7 +235,8 @@
                             <!-- href="/api/datasets/{{current_user.active_schema}}/tables/{{table.name}}/export" -->
                         </div>
                         <div class="modal-footer">
-                            <a href="/api/download/{{table.name}}.csv" download><button type="submit" class="btn btn-primary">Done</button></a>
+                            <button type="submit" class="btn btn-primary">Done</button>
+                            <a href="/api/download/{{table.name}}.csv" id="exportDLBtn" download style="display:none"></a>
                             <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
                         </div>
                     </form>
@@ -396,6 +397,7 @@
                         url: '/api' + window.location.pathname + '/export?' + $('#formExportOptions').serialize(),
                         success: function () {
                             window.location.reload();
+                            document.getElementById('exportDLBtn').click();
                         }
                     });
                     $('#formExportOptions').modal('hide');

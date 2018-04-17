@@ -1,5 +1,6 @@
 import re
 import shutil
+import csv
 from zipfile import ZipFile
 
 from psycopg2 import sql, IntegrityError
@@ -765,7 +766,7 @@ class DataLoader:
         # Failsafe
         if separator == None or separator == "":
             separator = ","
-        if quote_char == None:
+        if quote_char == None or quote_char == "":
             quote_char = "\""
         if empty_char == None:
             empty_char = ""
@@ -776,6 +777,20 @@ class DataLoader:
 
             # First write the column names
             columns = self.get_column_names(schema_id, tablename)
+
+            csvwriter = csv.writer(output, delimiter=separator, quotechar=quote_char, quoting=csv.QUOTE_ALL, )
+
+            csvwriter.writerow(columns)
+
+            table = self.get_table(schema_id, tablename)
+            # Replace empty entries by empty_char
+            for row in table.rows:
+                for entry in row:
+                    entry = empty_char
+
+            csvwriter.writerows(table.rows)
+
+            '''
             for col in columns:
                 if col == 'id':
                     continue
@@ -793,5 +808,6 @@ class DataLoader:
                     line += str(entry) + separator
                 line = line[:-1] + '\n'
                 output.write(line)
+            '''
 
         return filename

@@ -1,5 +1,6 @@
 import re
 import shutil
+import csv
 from datetime import datetime
 from zipfile import ZipFile
 
@@ -820,6 +821,43 @@ class DataLoader:
         except Exception as e:
             app.logger.error("[ERROR] Couldn't update table metadata for table " + old_table_name + ".")
             app.logger.exception(e)
+            raise e
+
+    # Data export handling
+    def export_table(self, filename, schema_id, tablename, separator=",", quote_char="\"", empty_char=""):
+        """
+         This method return the path to a table exported as a CSV file (that could later be used as input again).
+        """
+
+        # Failsafe
+        if separator == None or separator == "":
+            separator = ","
+        if quote_char == None or quote_char == "":
+            quote_char = "\""
+        if empty_char == None:
+            empty_char = ""
+
+        with open(filename, "w") as output:
+
+            line = ""
+
+            # First write the column names
+            columns = self.get_column_names(schema_id, tablename)
+
+            csvwriter = csv.writer(output, delimiter=separator, quotechar=quote_char, quoting=csv.QUOTE_ALL, )
+
+            csvwriter.writerow(columns)
+
+            table = self.get_table(schema_id, tablename)
+            # Replace empty entries by empty_char
+            for r_x in range(len(table.rows)):
+                for e_x in range(len(table.rows[r_x])):
+                    if table.rows[r_x][e_x] == None or table.rows[r_x][e_x] == "":
+                        table.rows[r_x][e_x] = empty_char
+
+            csvwriter.writerows(table.rows)
+
+        return filename
             self.dbconnect.rollback()
             raise e
 
@@ -965,5 +1003,3 @@ class DataLoader:
             app.logger.exception(e)
             self.dbconnect.rollback()
             raise e
-
-

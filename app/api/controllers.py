@@ -1,4 +1,5 @@
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify, request, render_template, redirect, url_for, send_from_directory
+from flask_login import login_required, current_user
 
 from app import connection, data_loader, date_time_transformer, data_transformer, history, ALLOWED_EXTENSIONS, UPLOAD_FOLDER
 
@@ -126,6 +127,26 @@ def impute_missing_data(dataset_id, table_name):
     function = request.args.get('function')
     data_transformer.impute_missing_data(dataset_id, table_name, column_name, function)
     return jsonify({'success': True}), 200
+
+
+@api.route('/api/datasets/<int:dataset_id>/tables/<string:table_name>/export', methods=['PUT'])
+def export_table(dataset_id, table_name):
+    # Maybe later we might add other types, but for now this is hardcoded to export as CSV
+    filename = table_name + ".csv"
+    path = UPLOAD_FOLDER + "/" + filename
+
+    separator = request.args.get('separator')
+    quote_char = request.args.get('quote_char')
+    empty_char = request.args.get('empty_char')
+
+    data_loader.export_table(path, dataset_id, table_name, separator=separator, quote_char=quote_char, empty_char=empty_char)
+    return send_from_directory(UPLOAD_FOLDER, filename, as_attachment=True)
+
+  
+@api.route('/api/download/<string:filename>', methods=['GET'])
+def download_file(filename):
+  return send_from_directory(UPLOAD_FOLDER, filename, as_attachment=True)
+
 
 @api.route('/api/datasets/<int:dataset_id>/tables/<string:table_name>/show-raw-data', methods=['GET'])
 def show_raw_data(dataset_id, table_name):

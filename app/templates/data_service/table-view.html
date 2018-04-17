@@ -235,7 +235,7 @@
                             <!-- href="/api/datasets/{{current_user.active_schema}}/tables/{{table.name}}/export" -->
                         </div>
                         <div class="modal-footer">
-                            <a download><button type="submit" class="btn btn-primary">Done</button></a>
+                            <a href="/api/download/{{table.name}}.csv" download><button type="submit" class="btn btn-primary">Done</button></a>
                             <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
                         </div>
                     </form>

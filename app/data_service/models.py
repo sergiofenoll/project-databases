@@ -763,7 +763,7 @@ class DataLoader:
         """
 
         # Failsafe
-        if separator == None:
+        if separator == None or separator == "":
             separator = ","
         if quote_char == None:
             quote_char = "\""

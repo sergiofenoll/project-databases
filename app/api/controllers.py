@@ -12,9 +12,10 @@ def get_table(dataset_id, table_name):
     length = request.args.get('length')
     order_column = int(request.args.get('order[0][column]'))
     order_direction = request.args.get('order[0][dir]')
-
     ordering = (data_loader.get_column_names(dataset_id, table_name)[order_column], order_direction)
-    table = data_loader.get_table(dataset_id, table_name, offset=start, limit=length, ordering=ordering)
+    search = request.args.get('search[value]')
+
+    table = data_loader.get_table(dataset_id, table_name, offset=start, limit=length, ordering=ordering, search=search)
     _table = data_loader.get_table(dataset_id, table_name)  # TODO: This shit is dirty
     return jsonify(draw=int(request.args.get('draw')),
                    recordsTotal=len(_table.rows),

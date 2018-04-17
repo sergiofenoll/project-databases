@@ -712,7 +712,7 @@ class DataLoader:
                 search_query = "WHERE (";
                 # Fill in the search for every column except ID
                 for col in columns[1:]:
-                    search_query += "\"{0}\" LIKE '%{1}%' OR ".format(col, search)
+                    search_query += "\"{0}\"::text LIKE '%{1}%' OR ".format(col, search)
                 search_query = search_query[:-3] + ")"
 
             query = cursor.mogrify(
@@ -720,7 +720,7 @@ class DataLoader:
                                                                         ordering_query, limit, offset))
             cursor.execute(query)
 
-            table = Table(table_name, '', columns=columns)  # Hack-n-slash
+            table = Table(table_name, '', columns=self.get_column_names_and_types(schema_id, table_name))  # Hack-n-slash
             for row in cursor:
                 table.rows.append(row)  # skip the system id TODO: find a better solution, this feels like a hack
             return table

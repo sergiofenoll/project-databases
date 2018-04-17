@@ -784,30 +784,11 @@ class DataLoader:
 
             table = self.get_table(schema_id, tablename)
             # Replace empty entries by empty_char
-            for row in table.rows:
-                for entry in row:
-                    entry = empty_char
+            for r_x in range(len(table.rows)):
+                for e_x in range(len(table.rows[r_x])):
+                    if table.rows[r_x][e_x] == None or table.rows[r_x][e_x] == "":
+                        table.rows[r_x][e_x] = empty_char
 
             csvwriter.writerows(table.rows)
-
-            '''
-            for col in columns:
-                if col == 'id':
-                    continue
-                line += str(col) + separator
-            line = line[:-1] + '\n'
-            output.write(line)
-
-            # Then write data, row by row
-            table = self.get_table(schema_id, tablename)
-            for row in table.rows:
-                line = ""
-                for entry in row:
-                    if str(entry) == "":
-                        entry = empty_char
-                    line += str(entry) + separator
-                line = line[:-1] + '\n'
-                output.write(line)
-            '''
 
         return filename

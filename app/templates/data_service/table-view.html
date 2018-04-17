@@ -116,7 +116,8 @@
                             <label for="col-name">Column</label>
                             <select class="form-control" name="col-name" id="col-name">
                                 {% for column in table.columns[1:] %}
-                                    <option value="{{ column.name }}">{{ column.name|capitalize }} ({{ column.type|capitalize }})
+                                    <option value="{{ column.name }}">{{ column.name|capitalize }}
+                                        ({{ column.type|capitalize }})
                                     </option>
                                 {% endfor %}
                             </select>
@@ -191,9 +192,10 @@
                             <select class="form-control" name="col-name" id="col-name">
                                 {% for column in table.columns[1:] %}
                                     {% if ((column.type == "real") or (column.type == "double") or (column.type == "integer")) %}
-                                    <option value="{{ column.name }}">{{ column.name|capitalize }} ({{ column.type|capitalize }})
-                                    </option>
-                                    {%  endif %}
+                                        <option value="{{ column.name }}">{{ column.name|capitalize }}
+                                            ({{ column.type|capitalize }})
+                                        </option>
+                                    {% endif %}
                                 {% endfor %}
                             </select>
 
@@ -232,12 +234,36 @@
                             <label for="empty-char">Empty character</label>
                             <input type="text" class="form-control" name="empty_char" id="empty_char" placeholder="Empty character">
 
-                            <!-- href="/api/datasets/{{current_user.active_schema}}/tables/{{table.name}}/export" -->
                         </div>
                         <div class="modal-footer">
                             <button type="submit" class="btn btn-primary">Done</button>
                             <a href="/api/download/{{table.name}}.csv" id="exportDLBtn" download style="display:none"></a>
                             <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                        </div>
+                    </form>
+
+        <div class="modal" tabindex="-1" role="dialog" aria-hidden="true" id="rawData">
+            <div class="modal-dialog" role="document">
+                <div class="modal-content">
+                    <form class="form-group" id="formRevertRawData">
+                        <div class="modal-header">
+                            <h5 class="modal-title">Revert to raw data</h5></div>
+                        <div class="modal-footer">
+
+                            <button type="submit" class="btn btn-primary" {% if not raw_table_exists %}
+                                    disabled  {% endif %}>Revert
+                            </button>
+
+                        </div>
+                    </form>
+                    <form class="form-group" id="formShowRawData">
+                        <div class="modal-header">
+                            <h5 class="modal-title">Show raw data</h5></div>
+                        <div class="modal-footer">
+
+                            <button type="submit" class="btn btn-primary" {% if not raw_table_exists %}
+                                    disabled  {% endif %}>Show
+                            </button>
                         </div>
                     </form>
                 </div>
@@ -309,18 +335,33 @@
                             }
                         }, 
                         {
+                            text: 'History',
+                            action: function () {
+                                window.location.href = window.location.pathname + '/history';
+                            }
+                        }, {
                             text: 'Impute missing data',
                             action: function () {
                                 $('#ImputeMissingData').modal('show');
                             }
+                        }, {
+                            text: 'Stats',
+                            action: function () {
+                                $('#askStats').modal('show');
+                            }
+                        }, {
+                            text: 'Raw',
+                            action: function () {
+                                $('#rawData').modal('show');
+                            }
                         },
-                        'colvis',
                         {
                             text: 'Export',
                             action: function () {
                                 $('#exportOptions').modal('show');
                             }
-                        }
+                        },
+                        'colvis'
                     ]
                 });
                 table.buttons().container().appendTo('#dataTable_wrapper .col-sm-8:eq(0)');
@@ -377,7 +418,7 @@
                             window.location.reload();
                         }
                     });
-                    $('#formDateTimeTransformations').modal('hide');
+                    $('#DateTimeTransformations').modal('hide');
                 });
                 $('#formImputeMissingData').submit(function (e) {
                     e.preventDefault();
@@ -401,6 +442,34 @@
                         }
                     });
                     $('#formExportOptions').modal('hide');
+                  
+                $('#stat-column-selector').change(function () {
+                    $('.stats').hide();
+                    var string = "";
+                    var words = $(this).val().split(" ");
+                    for (var i = 0; i < words.length; i++) {
+                        string = string + "." + words[i];
+                    }
+                    $(string).show();
+                });
+                  
+                $('#formRevertRawData').submit(function (e) {
+                    e.preventDefault();
+                    $.ajax({
+                        type: 'PUT',
+                        url: window.location.pathname + '/revert-to-raw-data',
+                    });
+                    window.location.reload();
+                    $('#rawData').modal('hide');
+                });
+
+                $('#formShowRawData').submit(function (e) {
+                    e.preventDefault();
+                    $.ajax({
+                        type: 'GET',
+                        url: window.location.pathname + '/show-raw-data',
+                    });
+                    window.location.assign(window.location.pathname + '/show-raw-data')
                 });
             });
         </script>

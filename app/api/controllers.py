@@ -1,7 +1,7 @@
 from flask import Blueprint, jsonify, request, render_template, redirect, url_for, send_from_directory
 from flask_login import login_required, current_user
 
-from app import connection, data_loader, date_time_transformer, data_transformer, ALLOWED_EXTENSIONS, UPLOAD_FOLDER
+from app import connection, data_loader, date_time_transformer, data_transformer, history, ALLOWED_EXTENSIONS, UPLOAD_FOLDER
 
 api = Blueprint('api', __name__)
 
@@ -38,7 +38,27 @@ def get_access_table(dataset_id):
                    recordsFiltered=len(_table.rows),
                    data=table.rows)
 
-  
+
+@api.route('/api/datasets/<int:dataset_id>/tables/<string:table_name>/history', methods=['GET'])
+def get_history(dataset_id, table_name):
+    start = request.args.get('start')
+    length = request.args.get('length')
+    search = request.args.get('search[value]')
+    order_column = int(request.args.get('order[0][column]'))
+    order_direction = request.args.get('order[0][dir]')
+    ordering = (['date', 'action_desc'][order_column], order_direction)
+
+    rows = history.get_actions(dataset_id, table_name, offset=start, limit=length, ordering=ordering, search=search)
+    _rows = history.get_actions(dataset_id, table_name)
+    print(len(rows))
+    print(len(_rows))
+
+    return jsonify(draw=int(request.args.get('draw')),
+                   recordsTotal=len(_rows),
+                   recordsFiltered=len(_rows),
+                   data=rows)
+
+
 @api.route('/api/datasets/<int:dataset_id>/tables/<string:table_name>/rows', methods=['POST'])
 def add_row(dataset_id, table_name):
     values = list()
@@ -77,6 +97,7 @@ def delete_column(dataset_id, table_name):
     data_loader.delete_column(dataset_id, table_name, column_name)
     return jsonify({'success': True}), 200
 
+
 @api.route('/api/datasets/<int:dataset_id>/tables/<string:table_name>/date-time-transformations', methods=['PUT'])
 def transform_date_or_time(dataset_id, table_name):
     column_name = request.args.get('col-name')
@@ -107,6 +128,7 @@ def impute_missing_data(dataset_id, table_name):
     data_transformer.impute_missing_data(dataset_id, table_name, column_name, function)
     return jsonify({'success': True}), 200
 
+
 @api.route('/api/datasets/<int:dataset_id>/tables/<string:table_name>/export', methods=['PUT'])
 def export_table(dataset_id, table_name):
     # Maybe later we might add other types, but for now this is hardcoded to export as CSV
@@ -120,6 +142,23 @@ def export_table(dataset_id, table_name):
     data_loader.export_table(path, dataset_id, table_name, separator=separator, quote_char=quote_char, empty_char=empty_char)
     return send_from_directory(UPLOAD_FOLDER, filename, as_attachment=True)
 
+  
 @api.route('/api/download/<string:filename>', methods=['GET'])
 def download_file(filename):
   return send_from_directory(UPLOAD_FOLDER, filename, as_attachment=True)
+
+
+@api.route('/api/datasets/<int:dataset_id>/tables/<string:table_name>/show-raw-data', methods=['GET'])
+def show_raw_data(dataset_id, table_name):
+    start = request.args.get('start')
+    length = request.args.get('length')
+    order_column = int(request.args.get('order[0][column]'))
+    order_direction = request.args.get('order[0][dir]')
+    raw_table_name = "_raw_" + table_name
+    ordering = (data_loader.get_column_names(dataset_id, raw_table_name)[order_column], order_direction)
+    table = data_loader.get_table(dataset_id, raw_table_name, offset=start, limit=length, ordering=ordering)
+    _table = data_loader.get_table(dataset_id, raw_table_name)
+    return jsonify(draw=int(request.args.get('draw')),
+                   recordsTotal=len(_table.rows),
+                   recordsFiltered=len(_table.rows),
+                   data=table.rows)

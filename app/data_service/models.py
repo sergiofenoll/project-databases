@@ -1,29 +1,31 @@
 import re
 import shutil
 import csv
+from datetime import datetime
 from zipfile import ZipFile
 
 from psycopg2 import sql, IntegrityError
 
 from app import app
+from app.history.models import History
 
 
 class Dataset:
-
-    def __init__(self, id, name, desc, owner, moderators=[]):
+    def __init__(self, id, name, desc, owner, moderators=None):
         self.name = name
         self.desc = desc
         self.owner = owner
-        self.moderators = moderators
+        self.moderators = moderators or []
         self.id = id
+
 
 class Column:
     def __init__(self, name, type):
         self.name = name
         self.type = type
 
-class Table:
 
+class Table:
     def __init__(self, name, desc, rows=None, columns=None):
         self.name = name
         self.desc = desc
@@ -32,7 +34,6 @@ class Table:
 
 
 class DataLoader:
-
     def __init__(self, dbconnect):
         self.dbconnect = dbconnect
 
@@ -203,11 +204,18 @@ class DataLoader:
             query = query + ', \n\"' + column + '\" varchar(255)'
         query += '\n);'
 
+        raw_table_name = "_raw_" + name
+        raw_table_query = sql.SQL(query).format(sql.Identifier(schema_name), sql.Identifier(raw_table_name))
+
         query = sql.SQL(query).format(sql.Identifier(schema_name), sql.Identifier(name))
 
         try:
             query = cursor.mogrify(query)
             cursor.execute(query)
+
+            raw_table_query = cursor.mogrify(raw_table_query)
+            cursor.execute(raw_table_query)
+
             self.dbconnect.commit()
         except Exception as e:
             app.logger.error("[ERROR] Failed to create table '" + name + "'")
@@ -215,10 +223,14 @@ class DataLoader:
             self.dbconnect.rollback()
             raise e
 
+        # Log action to history
+        history = History(self.dbconnect)
+        history.log_action(schema_id, name, datetime.now(), 'Created table')
+
         # Add metadata for this table
         try:
 
-            query = cursor.mogrify('INSERT INTO metadata VALUES(%s, %s, %s);', (schema_name,name, desc,))
+            query = cursor.mogrify('INSERT INTO metadata VALUES(%s, %s, %s);', (schema_name, name, desc,))
             cursor.execute(query)
             self.dbconnect.commit()
         except Exception as e:
@@ -251,15 +263,31 @@ class DataLoader:
             self.dbconnect.rollback()
             raise e
 
+        # Delete history
+        try:
+            schema_name = 'schema-' + str(schema_id)
+            query = cursor.mogrify(
+                sql.SQL('DELETE FROM HISTORY WHERE id_dataset=%s AND id_table=%s;'), (schema_name, name))
+            cursor.execute(query)
+            self.dbconnect.commit()
+        except Exception as e:
+            app.logger.error("[ERROR] Failed to delete metadata for table '" + name + "'")
+            app.logger.exception(e)
+            self.dbconnect.rollback()
+            raise e
+
     def delete_row(self, schema_id, table_name, row_ids):
         cursor = self.dbconnect.get_cursor()
         schema_name = 'schema-' + str(schema_id)
+        history = History(self.dbconnect)
         try:
             for row_id in row_ids:
                 query = cursor.mogrify(sql.SQL('DELETE FROM {0}.{1} WHERE id=%s;').format(sql.Identifier(schema_name),
                                                                                           sql.Identifier(table_name)),
                                        (row_id,))
                 cursor.execute(query)
+                # Log action to history
+                history.log_action(schema_id, table_name, datetime.now(), 'Deleted row #' + str(row_id))
             self.dbconnect.commit()
         except Exception as e:
             app.logger.error("[ERROR] Unable to delete row from table '" + table_name + "'")
@@ -282,7 +310,11 @@ class DataLoader:
             self.dbconnect.rollback()
             raise e
 
-    def insert_row(self, table, schema_id, columns, values):
+        # Log action to history
+        history = History(self.dbconnect)
+        history.log_action(schema_id, table_name, datetime.now(), 'Deleted column ' + column_name)
+
+    def insert_row(self, table, schema_id, columns, values, file_upload=False):
         """
          This method takes list of values and adds those to the given table.
         """
@@ -303,14 +335,19 @@ class DataLoader:
             self.dbconnect.rollback()
             raise e
 
+        # Log action to history
+        if not file_upload:
+            history = History(self.dbconnect)
+            history.log_action(schema_id, table, datetime.now(), 'Added row with values ' + ' '.join(values))
+
     def insert_column(self, schema_id, table_name, column_name, column_type):
         cursor = self.dbconnect.get_cursor()
         schema_name = 'schema-' + str(schema_id)
         try:
             query = cursor.mogrify(
                 sql.SQL('ALTER TABLE {}.{} ADD {} ' + column_type + ' NULL ;').format(sql.Identifier(schema_name),
-                                                                                 sql.Identifier(table_name),
-                                                                                 sql.Identifier(column_name)))
+                                                                                      sql.Identifier(table_name),
+                                                                                      sql.Identifier(column_name)))
             cursor.execute(query)
             self.dbconnect.commit()
         except Exception as e:
@@ -319,15 +356,20 @@ class DataLoader:
             self.dbconnect.rollback()
             raise e
 
+        # Log action to history
+        history = History(self.dbconnect)
+        history.log_action(schema_id, table_name, datetime.now(), 'Added column with name ' + column_name)
+
     def update_column_type(self, schema_id, table_name, column_name, column_type):
         cursor = self.dbconnect.get_cursor()
         schema_name = 'schema-' + str(schema_id)
         try:
             query = cursor.mogrify(
-                sql.SQL('ALTER TABLE {}.{} ALTER {}  TYPE ' + column_type + ' USING {}::' + column_type + ' ;').format(sql.Identifier(schema_name),
-                                                                                         sql.Identifier(table_name),
-                                                                                         sql.Identifier(column_name),
-                                                                                         sql.Identifier(column_name)))
+                sql.SQL('ALTER TABLE {}.{} ALTER {}  TYPE ' + column_type + ' USING {}::' + column_type + ' ;').format(
+                    sql.Identifier(schema_name),
+                    sql.Identifier(table_name),
+                    sql.Identifier(column_name),
+                    sql.Identifier(column_name)))
             cursor.execute(query)
             self.dbconnect.commit()
         except Exception as e:
@@ -335,6 +377,11 @@ class DataLoader:
             app.logger.exception(e)
             self.dbconnect.rollback()
             raise e
+
+        # Log action to history
+        history = History(self.dbconnect)
+        history.log_action(schema_id, table_name, datetime.now(),
+                           'Updated column ' + column_name + ' to have type ' + column_type)
 
     # Data uploading handling
     def process_csv(self, file, schema_id, tablename, append=False):
@@ -361,8 +408,10 @@ class DataLoader:
                     columns = line.strip().split(',')
                     self.create_table(tablename, schema_id, columns)
                 else:
+                    raw_name = "_raw_" + tablename
                     values_list = [x.strip() for x in line.split(",")]
-                    self.insert_row(tablename, schema_id, columns, values_list)
+                    self.insert_row(tablename, schema_id, columns, values_list, True)
+                    self.insert_row(raw_name, schema_id, columns, values_list, True)
 
     def process_zip(self, file, schema_id):
         """
@@ -435,7 +484,7 @@ class DataLoader:
                     if not self.table_exists(tablename, schema_id):
                         self.create_table(tablename, schema_id, columns)
                     for values in values_list:
-                        self.insert_row(tablename, schema_id, columns, values)
+                        self.insert_row(tablename, schema_id, columns, values, True)
 
     # Data access handling
     def get_user_datasets(self, user_id):
@@ -568,7 +617,7 @@ class DataLoader:
         try:
             cursor = self.dbconnect.get_cursor()
             schema_id = "schema-" + str(id)
-            query = cursor.mogrify("SELECT * FROM access WHERE id_user=%s and id_dataset=%s;", (user_id,schema_id,))
+            query = cursor.mogrify("SELECT * FROM access WHERE id_user=%s AND id_dataset=%s;", (user_id, schema_id,))
             cursor.execute(query)
             for _ in cursor:
                 return True
@@ -626,7 +675,7 @@ class DataLoader:
 
             # Get all tables from the metadata table in the schema
             schema_name = "schema-" + str(schema_id)
-            query = cursor.mogrify('SELECT id_table,metadata FROM metadata WHERE id_dataset=%s;',(schema_name,))
+            query = cursor.mogrify('SELECT id_table,metadata FROM metadata WHERE id_dataset=%s;', (schema_name,))
             cursor.execute(query)
 
             tables = list()
@@ -657,7 +706,8 @@ class DataLoader:
                                                                         ordering_query, limit), (offset,))
             cursor.execute(query)
 
-            table = Table(table_name, '', columns=self.get_column_names_and_types(schema_id, table_name))  # Hack-n-slash
+            table = Table(table_name, '',
+                          columns=self.get_column_names_and_types(schema_id, table_name))  # Hack-n-slash
             for row in cursor:
                 table.rows.append(row)  # skip the system id TODO: find a better solution, this feels like a hack
             return table
@@ -703,7 +753,8 @@ class DataLoader:
             schema = "schema-" + str(schema_id)
 
             query = cursor.mogrify(
-                'SELECT column_name, data_type FROM information_schema.columns WHERE table_schema=%s AND table_name=%s;', (
+                'SELECT column_name, data_type FROM information_schema.columns WHERE table_schema=%s AND table_name=%s;',
+                (
                     schema, table_name,))
             cursor.execute(query)
             result = list()
@@ -730,12 +781,15 @@ class DataLoader:
 
         try:
             cursor = self.dbconnect.get_cursor()
-            query = cursor.mogrify('UPDATE dataset SET (metadata, nickname) = (%s,%s) WHERE id=%s',(new_desc, new_name,schema_name,))
+            query = cursor.mogrify('UPDATE dataset SET (metadata, nickname) = (%s,%s) WHERE id=%s',
+                                   (new_desc, new_name, schema_name,))
             cursor.execute(query)
+            self.dbconnect.commit()
 
         except Exception as e:
             app.logger.error("[ERROR] Couldn't update dataset metadata.")
             app.logger.exception(e)
+            self.dbconnect.rollback()
             raise e
 
     def update_table_metadata(self, schema_id, old_table_name, new_table_name, new_desc):
@@ -744,14 +798,26 @@ class DataLoader:
         try:
             cursor = self.dbconnect.get_cursor()
             query = cursor.mogrify('UPDATE metadata SET (id_table, metadata) = (%s,%s)'
-                                   ' WHERE id_dataset=%s AND id_table=%s',(new_table_name, new_desc, schema_name, old_table_name))
+                                   ' WHERE id_dataset=%s AND id_table=%s',
+                                   (new_table_name, new_desc, schema_name, old_table_name))
             cursor.execute(query)
 
             if new_table_name != old_table_name:
-                query = cursor.mogrify(sql.SQL('ALTER TABLE {}.{} RENAME TO {};').format(sql.Identifier(schema_name), sql.Identifier(old_table_name),sql.Identifier(new_table_name)))
+                query = cursor.mogrify(sql.SQL('ALTER TABLE {}.{} RENAME TO {};').format(sql.Identifier(schema_name),
+                                                                                         sql.Identifier(old_table_name),
+                                                                                         sql.Identifier(
+                                                                                             new_table_name)))
                 cursor.execute(query)
 
+                raw_table_old_name = "_raw_" + old_table_name
+                raw_table_new_name = "_raw_" + new_table_name
+                query = cursor.mogrify(sql.SQL('ALTER TABLE {}.{} RENAME TO {};').format(sql.Identifier(schema_name),
+                                                                                         sql.Identifier(raw_table_old_name),
+                                                                                         sql.Identifier(
+                                                                                             raw_table_new_name)))
+                cursor.execute(query)
 
+            self.dbconnect.commit()
         except Exception as e:
             app.logger.error("[ERROR] Couldn't update table metadata for table " + old_table_name + ".")
             app.logger.exception(e)
@@ -792,3 +858,148 @@ class DataLoader:
             csvwriter.writerows(table.rows)
 
         return filename
+            self.dbconnect.rollback()
+            raise e
+
+    def get_numerical_statistic(self, schema_id, table_name, column, function):
+
+        """" calculate average of column """
+        try:
+            schema_name = 'schema-' + str(schema_id)
+            cursor = self.dbconnect.get_cursor()
+
+            query = cursor.mogrify(sql.SQL('SELECT ' + function + '( {} ) FROM {}.{}').format(
+                sql.Identifier(column),
+                sql.Identifier(schema_name),
+                sql.Identifier(table_name)
+            ))
+            cursor.execute(query)
+
+            stat = cursor.fetchone()[0]
+            if not stat:
+                stat = 0
+            return stat
+
+        except Exception as e:
+            app.logger.error("[ERROR] Unable to calculate {} for column {}".format(function.lower(), column))
+            app.logger.exception(e)
+            self.dbconnect.rollback()
+            raise e
+
+    def calculate_most_common_value(self, schema_id, table_name, column):
+        """" calculate most common value of a  column """
+        try:
+            schema_name = 'schema-' + str(schema_id)
+            cursor = self.dbconnect.get_cursor()
+
+            query = cursor.mogrify(sql.SQL('SELECT {}, COUNT(*) AS counted '
+                                           'FROM {}.{} '
+                                           'WHERE {} IS NOT NULL '
+                                           'GROUP BY {} '
+                                           'ORDER BY counted DESC, {} '
+                                           'LIMIT 1').format(
+                sql.Identifier(column),
+                sql.Identifier(schema_name),
+                sql.Identifier(table_name),
+                sql.Identifier(column),
+                sql.Identifier(column),
+                sql.Identifier(column),
+            ))
+            cursor.execute(query)
+            value = None
+            for x in cursor:
+                value = x[0]
+            return value
+
+        except Exception as e:
+            app.logger.error("[ERROR] Unable to calculate most commen value for column {}".format(column))
+            app.logger.exception(e)
+            self.dbconnect.rollback()
+            raise e
+
+    def calculate_amount_of_empty_elements(self, schema_id, table_name, column):
+        """" calculate most common value of a  column """
+        try:
+            schema_name = 'schema-' + str(schema_id)
+            cursor = self.dbconnect.get_cursor()
+
+            query = cursor.mogrify(sql.SQL('SELECT COUNT(*) AS counted '
+                                           'FROM {}.{} '
+                                           'WHERE {} IS NULL ').format(
+                sql.Identifier(schema_name),
+                sql.Identifier(table_name),
+                sql.Identifier(column)
+            ))
+            cursor.execute(query)
+            value = None
+            for x in cursor:
+                value = x[0]
+            return value
+
+        except Exception as e:
+            app.logger.error("[ERROR] Unable to calculate most commen value for column {}".format(column))
+            app.logger.exception(e)
+            self.dbconnect.rollback()
+            raise e
+
+    def get_statistics_for_column(self, schema_id, table_name, column, numerical):
+        "calculate statistics of a column"
+
+        stats = list()
+
+        if numerical:
+            stats.append(["Average", self.get_numerical_statistic(schema_id, table_name, column, "AVG")])
+            stats.append(["Minimum", self.get_numerical_statistic(schema_id, table_name, column, "MIN")])
+            stats.append(["Maximum", self.get_numerical_statistic(schema_id, table_name, column, "MAX")])
+
+        stats.append(["Most common value", self.calculate_most_common_value(schema_id, table_name, column, )])
+        stats.append(
+            ["Amount of empty elements", self.calculate_amount_of_empty_elements(schema_id, table_name, column, )])
+        return stats
+
+    def get_statistics_for_all_columns(self, schema_id, table_name, columns):
+        "calculate statistics of a column"
+
+        stats = list()
+        for column in columns:
+            type = column.type
+            numerical = False
+            if type == "integer" or type == "double" or type == "real":
+                numerical = True
+
+            stats.append([column.name, self.get_statistics_for_column(schema_id, table_name, column.name, numerical)])
+        return stats
+
+    def revert_back_to_raw_data(self, schema_id, table_name):
+
+        cursor = self.dbconnect.get_cursor()
+        schema_name = "schema-" + str(schema_id)
+        try:
+            query = cursor.mogrify(
+                sql.SQL('DROP TABLE {0}.{1};').format(sql.Identifier(schema_name), sql.Identifier(table_name)))
+
+            cursor.execute(query)
+            self.dbconnect.commit()
+        except Exception as e:
+            app.logger.error("[ERROR] Couldn't convert back to raw data")
+            app.logger.exception(e)
+            self.dbconnect.rollback()
+            raise e
+
+        try:
+            raw_table_name = "_raw_" + table_name
+
+            query = cursor.mogrify(
+                sql.SQL('CREATE TABLE {}.{} AS TABLE {}.{}').format(sql.Identifier(schema_name),
+                    sql.Identifier(table_name),sql.Identifier(schema_name), sql.Identifier(raw_table_name)))
+            cursor.execute(query)
+            self.dbconnect.commit()
+            # Log action to history
+            history = History(self.dbconnect)
+            history.log_action(schema_id, table_name, datetime.now(), 'Reverted to raw data')
+
+        except Exception as e:
+            app.logger.error("[ERROR] Couldn't convert back to raw data")
+            app.logger.exception(e)
+            self.dbconnect.rollback()
+            raise e

@@ -257,9 +257,17 @@ class DataLoader:
 
     def insert_row(self, table, schema_id, columns, values, file_upload=False):
         """
-         This method takes list of values and adds those to the given table.
+         This method takes dict of values and adds those to the given table.
+         The entries in values look like: {column_name: column_value}
         """
         schemaname = 'schema-' + str(schema_id)
+        # Create column/value tuples in proper order
+        column_tuple = list()
+        value_tuple = list()
+        for col in values.keys():
+            if values[col] != '':
+                column_tuple.append(col)
+                value_tuple.append(values[col])
         try:
             query = 'INSERT INTO {}.{}({}) VALUES ({});'.format(*_ci(schemaname, table),
                                                                 ', '.join(_ci(column_name) for column_name in columns),

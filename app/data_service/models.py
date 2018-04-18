@@ -235,7 +235,7 @@ class DataLoader:
         schema_name = 'schema-' + str(schema_id)
         try:
             for row_id in row_ids:
-                db.engine.execute('DELETE FROM {}.{} WHERE id={}};'.format(*_ci(schema_name, table_name), _cv(row_id)))
+                db.engine.execute('DELETE FROM {0}.{1} WHERE id={2};'.format(_ci(schema_name), _ci(table_name), _cv(str(row_id))))
                 # Log action to history
                 history.log_action(schema_id, table_name, datetime.now(), 'Deleted row #' + str(row_id))
         except Exception as e:
@@ -250,11 +250,10 @@ class DataLoader:
          [[AND | OR] [COLUMN] [CONDITION] [VALUE]]
          (where condition can be a logical operator, contains etc.)
         """
-        cursor = self.dbconnect.get_cursor()
         schema_name = 'schema-' + str(schema_id)
 
         # Gather all ids for rows to be deleted
-        query_select = sql.SQL('SELECT id FROM {0}.{1} WHERE (').format(sql.Identifier(schema_name), sql.Identifier(table_name))
+        query_select = 'SELECT id FROM {0}.{1} WHERE ('.format(*_ci(schema_name, table_name))
         where_queries = list()
         for p_ix in range(len(predicates)):
             predicate = predicates[p_ix]
@@ -264,16 +263,17 @@ class DataLoader:
                 predicate[3] = "%" + predicate[3] + "%"
             # TODO: make this safe!
             if (p_ix == 0):
-                q = sql.SQL('\"{0}\" {1} \'{2}\''.format(predicate[1], predicate[2], predicate[3]))
+                q = '{0} {1} {2}'.format(_ci(predicate[1]), predicate[2], _cv(str(predicate[3])))
                 where_queries.append(q)
             else:
-                q = sql.SQL('{0} \"{1}\" {2} \'{3}\''.format(predicate[0], predicate[1], predicate[2], predicate[3]))
+                q = '{0} {1} {2} {3}'.format(predicate[0], _ci(predicate[1]), predicate[2], _cv(str(predicate[3])))
                 where_queries.append(q)
-        query = cursor.mogrify(query_select + sql.SQL(' ').join(where_queries) + sql.SQL(');'))
+        query = query_select + ' '.join(where_queries) + ');'
 
         try:
-            cursor.execute(query)
-            to_delete = [r[0] for r in cursor]
+            print ("---> QUERY HERE: \n" + query)
+            result = db.engine.execute(query)
+            to_delete = [r[0] for r in result]
 
             # Pass ids to 'traditional' delete_row
             self.delete_row(schema_id, table_name, to_delete)
@@ -281,7 +281,6 @@ class DataLoader:
         except Exception as e:
             app.logger.error('[ERROR] Unable to fetch rows to delete from ' + table_name)
             app.logger.exception(e)
-            self.dbconnect.rollback()
 
     def delete_column(self, schema_id, table_name, column_name):
         schema_name = 'schema-' + str(schema_id)
@@ -310,8 +309,8 @@ class DataLoader:
                 value_tuple.append(values[col])
         try:
             query = 'INSERT INTO {}.{}({}) VALUES ({});'.format(*_ci(schemaname, table),
-                                                                ', '.join(_ci(column_name) for column_name in columns),
-                                                                ', '.join(_cv(value) for value in values))
+                                                                ', '.join(_ci(column_name) for column_name in column_tuple),
+                                                                ', '.join(_cv(value) for value in value_tuple))
             db.engine.execute(query)
         except Exception as e:
             app.logger.error("[ERROR] Unable to insert row into table '" + table + "'")

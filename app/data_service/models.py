@@ -778,7 +778,7 @@ class DataLoader:
                 elif (type == "timestamp without time zone" or type == "timestamp with time zone"):
                     type = "timestamp"
                 elif type == "character varying":
-                    type = "string"
+                    type = "text"
 
                 result.append(Column(row[0], type))
 

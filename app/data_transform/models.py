@@ -87,7 +87,35 @@ class DataTransformer:
         else:
             app.logger.error("[ERROR] Unable to impute missing data for column {}".format(column))
 
+    def find_and_replace(self, schema_id, table, column, to_be_replaced, replacement,replacement_function):
+        """" find and replace """
+        try:
+            schema_name = 'schema-' + str(schema_id)
+            cursor = self.dbconnect.get_cursor()
+            query = ""
+            if replacement_function == "substring":
+                query = cursor.mogrify(sql.SQL('UPDATE {}.{} SET {} = replace({}, %s, %s)').format(
+                    sql.Identifier(schema_name),
+                    sql.Identifier(table),
+                    sql.Identifier(column),
+                    sql.Identifier(column)
+                ), (to_be_replaced, replacement))
 
+            elif replacement_function == "full replace":
+                query = cursor.mogrify(sql.SQL('UPDATE {}.{} SET {} = %s WHERE {}=%s').format(
+                    sql.Identifier(schema_name),
+                    sql.Identifier(table),
+                    sql.Identifier(column),
+                    sql.Identifier(column)
+                ), (replacement, to_be_replaced))
+
+            cursor.execute(query)
+            self.dbconnect.commit()
+        except Exception as e:
+            app.logger.error("[ERROR] Unable to perform find and replace".format(column))
+            app.logger.exception(e)
+            self.dbconnect.rollback()
+            raise e
 
 class DateTimeTransformer:
     def __init__(self, dbconnection):

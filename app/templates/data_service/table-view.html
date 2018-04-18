@@ -62,7 +62,7 @@
                                 <option value="INT">INTEGER</option>
                                 <option value="DOUBLE PRECISION">DOUBLE</option>
                                 <option value="TIMESTAMP">DATE/TIME</option>
-                                <option value="VARCHAR(255)">STRING</option>
+                                <option value="VARCHAR(255)">TEXT</option>
                                 <option value="BIT">BIT</option>
                             </select>
                         </div>
@@ -126,7 +126,7 @@
                                 <option value="INT">INTEGER</option>
                                 <option value="DOUBLE PRECISION">DOUBLE</option>
                                 <option value="TIMESTAMP">DATE/TIME</option>
-                                <option value="VARCHAR(255)">STRING</option>
+                                <option value="VARCHAR(255)">TEXT</option>
                                 <option value="BIT">BIT</option>
                             </select>
                         </div>
@@ -226,18 +226,22 @@
                         </div>
                         <div class="modal-body">
                             <label for="separator">Separator</label>
-                            <input type="text" class="form-control" name="separator" id="separator" placeholder="Separator">
+                            <input type="text" class="form-control" name="separator" id="separator"
+                                   placeholder="Separator">
 
                             <label for="quote">Quote character</label>
-                            <input type="text" class="form-control" name="quote_char" id="quote_char" placeholder="Quote character">
+                            <input type="text" class="form-control" name="quote_char" id="quote_char"
+                                   placeholder="Quote character">
 
                             <label for="empty-char">Empty character</label>
-                            <input type="text" class="form-control" name="empty_char" id="empty_char" placeholder="Empty character">
+                            <input type="text" class="form-control" name="empty_char" id="empty_char"
+                                   placeholder="Empty character">
 
                         </div>
                         <div class="modal-footer">
                             <button type="submit" class="btn btn-primary">Done</button>
-                            <a href="/api/download/{{table.name}}.csv" id="exportDLBtn" download style="display:none"></a>
+                            <a href="/api/download/{{ table.name }}.csv" id="exportDLBtn" download
+                               style="display:none"></a>
                             <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
                         </div>
                     </form>
@@ -315,6 +319,47 @@
                 </div>
             </div>
         </div>
+        <div class="modal" tabindex="-1" role="dialog" aria-hidden="true" id="findAndReplace">
+            <div class="modal-dialog" role="document">
+                <div class="modal-content">
+                    <form class="form-group" id="formFindAndReplace">
+                        <div class="modal-header">
+                            <h5 class="modal-title">Find and replace</h5>
+                            <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                                <span aria-hidden="true">&times;</span>
+                            </button>
+                        </div>
+                        <div class="modal-body">
+                            <label for="col-name">Column</label>
+                            <select class="form-control" name="col-name" id="replace-column-selector">
+                                <option value="Default" selected="selected">Choose column...
+                                </option>
+                                {% for column in table.columns[1:] %}
+                                    <option value="{{ column.name }}" data-type="{{ column.type }}">{{ column.name|capitalize }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                            <label for="replacement-function">Column</label>
+                            <select class="form-control" name="replacement-function" id="replacement-function">
+                                <option value="Default" selected="selected">Choose find and replace type...
+                                </option>
+                                <option value="substring" class="textOnly">Substring</option>
+                                <option value="full replace">Full replace</option>
+                            </select>
+                            <label for="value-to-be-replaced">Replace</label>
+                            <input class="form-control" name="value-to-be-replaced" id="value-to-be-replaced" required>
+                            <label for="replacement-value">Replace with</label>
+                            <input class="form-control" name="replacement-value" id="replacement-value" required>
+
+                        </div>
+                        <div class="modal-footer">
+                            <button type="submit" class="btn btn-primary">Save changes</button>
+                            <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
         <script type="text/javascript" charset="utf-8">
             $(document).ready(function () {
                 var table = $('#dataTable').DataTable({
@@ -367,37 +412,37 @@
                             action: function () {
                                 $('#deleteColumn').modal('show');
                             }
-                        }, 
+                        },
                         {
                             text: 'Update column type',
                             action: function () {
                                 $('#updateColumn').modal('show');
                             }
-                        }, 
+                        },
                         {
                             text: 'Time/Date transformations',
                             action: function () {
                                 $('#DateTimeTransformations').modal('show');
                             }
-                        }, 
+                        },
                         {
                             text: 'History',
                             action: function () {
                                 window.location.href = window.location.pathname + '/history';
                             }
-                        }, 
+                        },
                         {
                             text: 'Impute missing data',
                             action: function () {
                                 $('#ImputeMissingData').modal('show');
                             }
-                        }, 
+                        },
                         {
                             text: 'Stats',
                             action: function () {
                                 $('#askStats').modal('show');
                             }
-                        }, 
+                        },
                         {
                             text: 'Raw',
                             action: function () {
@@ -408,6 +453,12 @@
                             text: 'Export',
                             action: function () {
                                 $('#exportOptions').modal('show');
+                            }
+                        },
+                        {
+                            text: 'Find and replace',
+                            action: function () {
+                                $('#findAndReplace').modal('show');
                             }
                         },
                         'colvis'
@@ -492,7 +543,7 @@
                     });
                     $('#formExportOptions').modal('hide');
                 });
-                  
+
                 $('#stat-column-selector').change(function () {
                     $('.stats').hide();
                     var string = "";
@@ -502,7 +553,7 @@
                     }
                     $(string).show();
                 });
-                  
+
                 $('#formRevertRawData').submit(function (e) {
                     e.preventDefault();
                     $.ajax({
@@ -520,6 +571,26 @@
                         url: window.location.pathname + '/show-raw-data',
                     });
                     window.location.assign(window.location.pathname + '/show-raw-data')
+                });
+
+                $('#replace-column-selector').change(function () {
+                    if ($(this).find(':selected').data('type') != "text") {
+                        $('.textOnly').hide();
+                    }
+                    else {
+                        $('.textOnly').show();
+                    }
+                });
+                $('#formFindAndReplace').submit(function (e) {
+                    e.preventDefault();
+                    $.ajax({
+                        type: 'PUT',
+                        url: '/api' + window.location.pathname + '/find-and-replace?' + $('#formFindAndReplace').serialize(),
+                        success: function () {
+                            window.location.reload();
+                        }
+                    });
+                    $('#formFindAndReplace').modal('hide');
                 });
             });
         </script>

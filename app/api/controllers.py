@@ -163,3 +163,20 @@ def show_raw_data(dataset_id, table_name):
                    recordsTotal=len(_table.rows),
                    recordsFiltered=len(_table.rows),
                    data=table.rows)
+
+
+@api.route('/api/datasets/<int:dataset_id>/tables/<string:table_name>/find-and-replace', methods=['PUT'])
+def find_and_replace(dataset_id, table_name):
+    colomn = request.args.get('col-name')
+    replacement_function = request.args.get('replacement-function')
+    replacement_value = request.args.get('replacement-value')
+    value_to_be_replaced = request.args.get('value-to-be-replaced')
+
+    print(colomn)
+    print(replacement_function)
+    print(replacement_value)
+    print(value_to_be_replaced)
+    data_transformer.find_and_replace(dataset_id, table_name, colomn, value_to_be_replaced, replacement_value,
+                                      replacement_function)
+
+    return jsonify({'success': True}), 200

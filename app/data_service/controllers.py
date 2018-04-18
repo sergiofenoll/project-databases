@@ -192,7 +192,6 @@ def show_raw_data(dataset_id, table_name):
 @data_service.route('/datasets/<int:dataset_id>/tables/<string:table_name>/remove-rows', methods=['POST'])
 def remove_rows_predicate(dataset_id, table_name):
 
-    # Go over each row (='join[ID') and handle predicates
     predicates = list()
     for entry in request.form.keys():
         if (entry.startswith('join')):

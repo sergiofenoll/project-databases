@@ -310,6 +310,10 @@ class DataLoader:
         where_queries = list()
         for p_ix in range(len(predicates)):
             predicate = predicates[p_ix]
+            # Special conditions first
+            if predicate[2] == "CONTAINS":
+                predicate[2] = "LIKE "
+                predicate[3] = "%" + predicate[3] + "%"
             # TODO: make this safe!
             if (p_ix == 0):
                 q = sql.SQL('\"{0}\" {1} \'{2}\''.format(predicate[1], predicate[2], predicate[3]))

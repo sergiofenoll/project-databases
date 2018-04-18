@@ -1,6 +1,6 @@
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify, request, send_from_directory
 
-from app import data_loader, date_time_transformer, data_transformer, numerical_transformer
+from app import data_loader, date_time_transformer, data_transformer, numerical_transformer, UPLOAD_FOLDER
 from app.history.models import History
 
 api = Blueprint('api', __name__)
@@ -14,9 +14,10 @@ def get_table(dataset_id, table_name):
     length = request.args.get('length')
     order_column = int(request.args.get('order[0][column]'))
     order_direction = request.args.get('order[0][dir]')
-
     ordering = (data_loader.get_column_names(dataset_id, table_name)[order_column], order_direction)
-    table = data_loader.get_table(dataset_id, table_name, offset=start, limit=length, ordering=ordering)
+    search = request.args.get('search[value]')
+
+    table = data_loader.get_table(dataset_id, table_name, offset=start, limit=length, ordering=ordering, search=search)
     _table = data_loader.get_table(dataset_id, table_name)  # TODO: This shit is dirty
     return jsonify(draw=int(request.args.get('draw')),
                    recordsTotal=len(_table.rows),
@@ -132,6 +133,42 @@ def impute_missing_data(dataset_id, table_name):
     return jsonify({'success': True}), 200
 
 
+@api.route('/api/datasets/<int:dataset_id>/tables/<string:table_name>/export', methods=['PUT'])
+def export_table(dataset_id, table_name):
+    # Maybe later we might add other types, but for now this is hardcoded to export as CSV
+    filename = table_name + ".csv"
+    path = UPLOAD_FOLDER + "/" + filename
+
+    separator = request.args.get('separator')
+    quote_char = request.args.get('quote_char')
+    empty_char = request.args.get('empty_char')
+
+    data_loader.export_table(path, dataset_id, table_name, separator=separator, quote_char=quote_char,
+                             empty_char=empty_char)
+    return send_from_directory(UPLOAD_FOLDER, filename, as_attachment=True)
+
+
+@api.route('/api/download/<string:filename>', methods=['GET'])
+def download_file(filename):
+    return send_from_directory(UPLOAD_FOLDER, filename, as_attachment=True)
+
+
+@api.route('/api/datasets/<int:dataset_id>/tables/<string:table_name>/show-raw-data', methods=['GET'])
+def show_raw_data(dataset_id, table_name):
+    start = request.args.get('start')
+    length = request.args.get('length')
+    order_column = int(request.args.get('order[0][column]'))
+    order_direction = request.args.get('order[0][dir]')
+    raw_table_name = "_raw_" + table_name
+    ordering = (data_loader.get_column_names(dataset_id, raw_table_name)[order_column], order_direction)
+    table = data_loader.get_table(dataset_id, raw_table_name, offset=start, limit=length, ordering=ordering)
+    _table = data_loader.get_table(dataset_id, raw_table_name)
+    return jsonify(draw=int(request.args.get('draw')),
+                   recordsTotal=len(_table.rows),
+                   recordsFiltered=len(_table.rows),
+                   data=table.rows)
+
+
 @api.route('/api/datasets/<int:dataset_id>/tables/<string:table_name>/normalize', methods=['PUT'])
 def normalize(dataset_id, table_name):
     column_name = request.args.get('col-name')
@@ -172,4 +209,3 @@ def outliers(dataset_id, table_name):
         return jsonify({'success': False,
                         'message': 'Unable to convert value into a numerical type. Did you send a number?'}), 400
     return jsonify({'success': True}), 200
-

@@ -91,7 +91,7 @@ def add_table(dataset_id):
             os.remove(path)
             return get_dataset(dataset_id)
 
-        current_user.active_schema = "schema-" + str(dataset_id)
+        current_user.active_schema = dataset_id
 
         try:
             if filename[-3:] == "zip":
@@ -127,17 +127,14 @@ def get_table(dataset_id, table_name):
     table = data_loader.get_table(dataset_id, table_name)
     statistics = data_loader.get_statistics_for_all_columns(dataset_id, table_name, table.columns)
     time_date_transformations = date_time_transformer.get_transformations()
-    # rows = data_loader.get_table(dataset_id, table_name)
-    # columns = data_loader.get_column_names(dataset_id, table_name)
+
+    raw_table_name = "_raw_" + table_name
+    raw_table_exists = data_loader.table_exists(raw_table_name, "schema-" + str(dataset_id))
+    
     return render_template('data_service/table-view.html', table=table,
                            time_date_transformations=time_date_transformations,
-                           statistics=statistics)
-
-
-@data_service.route('/datasets/<int:dataset_id>/tables/<string:table_name>/update', methods=['POST'])
-def update_table(dataset_id, table_name):
-    pass  # Edit name/description of table
-
+                           statistics=statistics, raw_table_exists=raw_table_exists)
+  
 
 @data_service.route('/datasets/<int:dataset_id>/tables/<string:table_name>/delete', methods=['POST'])
 def delete_table(dataset_id, table_name):
@@ -159,12 +156,31 @@ def grant_dataset_access(dataset_id):
     return redirect(url_for('data_service.get_dataset', dataset_id=dataset_id))
 
 
-@data_service.route('/datasets/<int:dataset_id>/share/delete', methods=['POST'])
+@data_service.route('/datasets/<int:dataset_id>/share/delete', methods=['GET'])
 def delete_dataset_access(dataset_id):
-    # TEMP... I guess?
     username = request.form.get('ds-delete-user-select')
     data_loader.remove_access(username, dataset_id)
 
     if username == current_user.username:
         return redirect(url_for('data_service.get_datasets'))
     return redirect(url_for('data_service.get_dataset', dataset_id=dataset_id))
+
+
+@data_service.route('/datasets/<int:dataset_id>/tables/<string:table_name>/revert-to-raw-data', methods=['PUT'])
+def revert_to_raw_data(dataset_id, table_name):
+    data_loader.revert_back_to_raw_data(dataset_id, table_name)
+    return redirect(url_for('data_service.get_table', dataset_id=dataset_id, table_name=table_name))
+
+
+@data_service.route('/datasets/<int:dataset_id>/tables/<string:table_name>/show-raw-data', methods=['GET'])
+def show_raw_data(dataset_id, table_name):
+    if (data_loader.has_access(current_user.username, dataset_id)) is False:
+        return abort(403)
+    raw_table_name = "_raw_" + table_name
+    raw_table_exists = data_loader.table_exists(raw_table_name, "schema-" + str(dataset_id))
+    if not raw_table_exists:
+        return redirect(url_for('data_service.get_table', dataset_id=dataset_id, table_name=table_name))
+
+    table = data_loader.get_table(dataset_id, raw_table_name)
+    title="Raw data for " + table_name
+    return render_template('data_service/raw-table-view.html', table=table, title=title)

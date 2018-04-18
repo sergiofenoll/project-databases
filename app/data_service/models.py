@@ -1,5 +1,6 @@
 import re
 import shutil
+import csv
 from datetime import datetime
 from zipfile import ZipFile
 
@@ -180,11 +181,14 @@ class DataLoader:
         for column in columns:
             query = query + ', \n\"' + column + '\" varchar(255)'
         query += '\n);'
+        raw_table_name = "_raw_" + name
+        raw_table_query = query.format(*_ci(schema_name, raw_table_name))
 
         query = query.format(*_ci(schema_name, name))
 
         try:
             db.engine.execute(query)
+            db.engine.execute(raw_table_query)
         except Exception as e:
             app.logger.error("[ERROR] Failed to create table '" + name + "'")
             app.logger.exception(e)
@@ -326,8 +330,10 @@ class DataLoader:
                     columns = line.strip().split(',')
                     self.create_table(tablename, schema_id, columns)
                 else:
+                    raw_name = "_raw_" + tablename
                     values_list = [x.strip() for x in line.split(",")]
                     self.insert_row(tablename, schema_id, columns, values_list, True)
+                    self.insert_row(raw_name, schema_id, columns, values_list, True)
 
     def process_zip(self, file, schema_id):
         """
@@ -571,21 +577,34 @@ class DataLoader:
             app.logger.exception(e)
             raise e
 
-    def get_table(self, schema_id, table_name, offset=0, limit='ALL', ordering=None):
+
+    def get_table(self, schema_id, table_name, offset=0, limit='ALL', ordering=None, search=None):
         """
          This method returns a list of 'Table' objects associated with the requested dataset
         """
         try:
+
+            columns = self.get_column_names(schema_id, table_name)
+
+            schema_name = 'schema-' + str(schema_id)
             # Get all tables from the metadata table in the schema
             ordering_query = ''
             if ordering is not None:
                 # ordering tuple is of the form (columns, asc|desc)
                 ordering_query = 'ORDER BY {} {}'.format(_ci(ordering[0]), ordering[1])
+
+            search_query = ''
+            if search is not None and search != '':
+                search_query = "WHERE (";
+                # Fill in the search for every column except ID
+                for col in columns[1:]:
+                    search_query += "{}::text LIKE '%{}%' OR ".format(_ci(col), search)
+                search_query = search_query[:-3] + ")"
+
             rows = db.engine.execute(
-                'SELECT * FROM {}.{} {} LIMIT {} OFFSET {};'.format(*_ci('schema-' + str(schema_id), table_name),
-                                                                    ordering_query, limit, offset))
-            table = Table(table_name, '',
-                          columns=self.get_column_names_and_types(schema_id, table_name))  # Hack-n-slash
+                'SELECT * FROM {}.{} {} {} LIMIT {} OFFSET {};'.format(*_ci(schema_name, table_name), search_query,
+                                                                       ordering_query, limit, offset))
+            table = Table(table_name, '', columns=self.get_column_names_and_types(schema_id, table_name))  # Hack-n-slash
             for row in rows:
                 table.rows.append(list(row))
             return table
@@ -649,6 +668,7 @@ class DataLoader:
         except Exception as e:
             app.logger.error("[ERROR] Couldn't update dataset metadata.")
             app.logger.exception(e)
+            self.dbconnect.rollback()
             raise e
 
     def update_table_metadata(self, schema_id, old_table_name, new_table_name, new_desc):
@@ -659,12 +679,51 @@ class DataLoader:
                     *_cv(new_table_name, new_desc, schema_name, old_table_name)))
             if new_table_name != old_table_name:
                 db.engine.execute(
-                    'ALTER TABLE "{}"."{}" RENAME TO {};'.format(schema_name, old_table_name, new_table_name))
-
+                    'ALTER TABLE {}.{} RENAME TO {};'.format(*_ci(schema_name, old_table_name, new_table_name)))
+                raw_table_old_name = "_raw_" + old_table_name
+                raw_table_new_name = "_raw_" + new_table_name
+                db.engine.execute(
+                    'ALTER TABLE {}.{} RENAME TO {};'.format(*_ci(schema_name, raw_table_old_name, raw_table_new_name)))
         except Exception as e:
             app.logger.error("[ERROR] Couldn't update table metadata for table " + old_table_name + ".")
             app.logger.exception(e)
             raise e
+
+    # Data export handling
+    def export_table(self, filename, schema_id, tablename, separator=",", quote_char="\"", empty_char=""):
+        """
+         This method return the path to a table exported as a CSV file (that could later be used as input again).
+        """
+
+        # Failsafe
+        if separator == None or separator == "":
+            separator = ","
+        if quote_char == None or quote_char == "":
+            quote_char = "\""
+        if empty_char == None:
+            empty_char = ""
+
+        with open(filename, "w") as output:
+
+            line = ""
+
+            # First write the column names
+            columns = self.get_column_names(schema_id, tablename)
+
+            csvwriter = csv.writer(output, delimiter=separator, quotechar=quote_char, quoting=csv.QUOTE_ALL, )
+
+            csvwriter.writerow(columns)
+
+            table = self.get_table(schema_id, tablename)
+            # Replace empty entries by empty_char
+            for r_x in range(len(table.rows)):
+                for e_x in range(len(table.rows[r_x])):
+                    if table.rows[r_x][e_x] == None or table.rows[r_x][e_x] == "":
+                        table.rows[r_x][e_x] = empty_char
+
+            csvwriter.writerows(table.rows)
+
+        return filename
 
     def get_numerical_statistic(self, schema_id, table_name, column, function):
 
@@ -746,3 +805,26 @@ class DataLoader:
 
             stats.append([column.name, self.get_statistics_for_column(schema_id, table_name, column.name, numerical)])
         return stats
+
+    def revert_back_to_raw_data(self, schema_id, table_name):
+        schema_name = "schema-" + str(schema_id)
+        try:
+            db.engine.execute('DROP TABLE {}.{};'.format(*_ci(schema_name, table_name)))
+        except Exception as e:
+            app.logger.error("[ERROR] Couldn't convert back to raw data")
+            app.logger.exception(e)
+            raise e
+
+        try:
+            raw_table_name = "_raw_" + table_name
+
+            db.engine.execute(
+                'CREATE TABLE {}.{} AS TABLE {}.{}'.format(*_ci(schema_name, table_name, schema_name, raw_table_name)))
+
+            # Log action to history
+            history.log_action(schema_id, table_name, datetime.now(), 'Reverted to raw data')
+
+        except Exception as e:
+            app.logger.error("[ERROR] Couldn't convert back to raw data")
+            app.logger.exception(e)
+            raise e

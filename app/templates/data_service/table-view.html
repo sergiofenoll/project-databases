@@ -113,6 +113,18 @@
 							 href="#askStats"><i class="fas fa-pie-chart"></i> Statistics</a>
 					</div>
 				</div>
+				<div class="panel panel-default">
+					<div class="panel-heading">
+						<a class="btn btn-dark panel-button" data-toggle="modal" data-target="#rawData"
+							 href="#rawData"><i class="fas fa-undo"></i> Raw data</a>
+					</div>
+				</div>
+				<div class="panel panel-default">
+					<div class="panel-heading">
+						<a class="btn btn-dark panel-button" data-toggle="modal" data-target="#exportOptions"
+							 href="#exportOptions"><i class="fas fa-file-code"></i> Export</a>
+					</div>
+				</div>
 			</div>
 		</div>
 		<div class="col-sm-10">
@@ -311,6 +323,7 @@
 								{% endfor %}
 							</select>
 
+							<<<<<<< HEAD
 							<label for="function">Based on</label>
 							<select id="function" class="form-control" name="function">
 								<option value="AVG">AVERAGE</option>
@@ -321,6 +334,64 @@
 							<button type="submit" class="btn btn-primary">Save changes
 							</button>
 							<button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+						</div>
+					</form>
+				</div>
+			</div>
+		</div>
+		<div class="modal" tabindex="-1" role="dialog" aria-hidden="true" id="exportOptions">
+			<div class="modal-dialog" role="document">
+				<div class="modal-content">
+					<form class="form-group" id="formExportOptions">
+						<div class="modal-header">
+							<h5 class="modal-title">Export table</h5>
+							<button type="button" class="close" data-dismiss="modal" aria-label="Close">
+								<span aria-hidden="true">&times;</span>
+							</button>
+						</div>
+						<div class="modal-body">
+							<label for="separator">Separator</label>
+							<input type="text" class="form-control" name="separator" id="separator" placeholder="Separator">
+
+							<label for="quote">Quote character</label>
+							<input type="text" class="form-control" name="quote_char" id="quote_char" placeholder="Quote character">
+
+							<label for="empty-char">Empty character</label>
+							<input type="text" class="form-control" name="empty_char" id="empty_char" placeholder="Empty character">
+
+						</div>
+						<div class="modal-footer">
+							<button type="submit" class="btn btn-primary">Done</button>
+							<a href="/api/download/{{ table.name }}.csv" id="exportDLBtn" download style="display:none"></a>
+							<button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+						</div>
+					</form>
+				</div>
+			</div>
+		</div>
+		<div class="modal" tabindex="-1" role="dialog" aria-hidden="true" id="rawData">
+			<div class="modal-dialog" role="document">
+				<div class="modal-content">
+					<form class="form-group" id="formRevertRawData">
+						<div class="modal-header">
+							<h5 class="modal-title">Revert to raw data</h5>
+						</div>
+						<div class="modal-footer">
+
+							<button type="submit" class="btn btn-primary" {% if not raw_table_exists %}
+											disabled  {% endif %}>Revert
+							</button>
+
+						</div>
+					</form>
+					<form class="form-group" id="formShowRawData">
+						<div class="modal-header">
+							<h5 class="modal-title">Show raw data</h5></div>
+						<div class="modal-footer">
+
+							<button type="submit" class="btn btn-primary" {% if not raw_table_exists %}
+											disabled  {% endif %}>Show
+							</button>
 						</div>
 					</form>
 				</div>
@@ -357,10 +428,8 @@
 										<input id="value" class="{{ col_stats[0] }} stats form-control"
 													 value="{{ stat[1] }}" style="display:none" readonly>
 									</div>
-
 								{% endfor %}
 							{% endfor %}
-
 						</div>
 						<div class="modal-footer">
 							<button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
@@ -490,8 +559,8 @@
 									</select>
 								</div>
 								<div class="col">
-										<label for="value">Value</label>
-										<input class="form-control" name="value" id="value">
+									<label for="value">Value</label>
+									<input class="form-control" name="value" id="value">
 								</div>
 							</div>
 							<div class="modal-footer">
@@ -611,6 +680,25 @@
 						string = string + "." + words[i];
 					}
 					$(string).show();
+				});
+
+				$('#formRevertRawData').submit(function (e) {
+					e.preventDefault();
+					$.ajax({
+						type: 'PUT',
+						url: window.location.pathname + '/revert-to-raw-data',
+					});
+					window.location.reload();
+					$('#rawData').modal('hide');
+				});
+
+				$('#formShowRawData').submit(function (e) {
+					e.preventDefault();
+					$.ajax({
+						type: 'GET',
+						url: window.location.pathname + '/show-raw-data',
+					});
+					window.location.assign(window.location.pathname + '/show-raw-data')
 				});
 
 				$('#formNormalizeModal').submit(function (e) {

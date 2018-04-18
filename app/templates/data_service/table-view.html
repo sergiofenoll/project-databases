@@ -1,10 +1,10 @@
 {% extends "base.html" %}
 {% block content %}
-	<div class="row">
-		<h1>{{ table.name }}</h1>
-		<p>{{ table.desc }}</p>
-	</div>
-	<div class="row">
+    <div class="row">
+        <h1>{{ table.name }}</h1>
+        <p>{{ table.desc }}</p>
+    </div>
+<div class="row">
 		<div class="col-sm-2">
 			<div class="panel-group" id="accordion">
 				<div class="panel panel-default">
@@ -145,6 +145,7 @@
             </tr>
             </thead>
         </table>
+		</div>
         <div class="modal" tabindex="-1" role="dialog" aria-hidden="true" id="addRow">
             <div class="modal-dialog" role="document">
                 <div class="modal-content">
@@ -285,193 +286,47 @@
                                     {% endif %}
                                 {% endfor %}
                             </select>
-						<th>
-							{{ column.name|capitalize }}
-						</th>
-					{% endfor %}
-				</tr>
-				</thead>
-			</table>
-		</div>
-		<div class="modal" tabindex="-1" role="dialog" aria-hidden="true" id="addRow">
-			<div class="modal-dialog" role="document">
-				<div class="modal-content">
-					<form class="form-group" method="post" id="formAddRow">
-						<div class="modal-header">
-							<h5 class="modal-title">Add row</h5>
-							<button type="button" class="close" data-dismiss="modal" aria-label="Close">
-								<span aria-hidden="true">&times;</span>
-							</button>
-						</div>
-						<div class="modal-body">
-							{% for column in table.columns[1:] %}
-								<label for="value-col-{{ column.name }}">{{ column.name|capitalize }}</label>
-								<input type="text" class="form-control" name="value-col-{{ column.name }}"
-											 id="value-col-{{ column.name }}">
-							{% endfor %}
-						</div>
-						<div class="modal-footer">
-							<button type="submit" class="btn btn-primary">Save changes
-							</button>
-							<button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
-						</div>
-					</form>
-				</div>
-			</div>
-		</div>
-		<div class="modal" tabindex="-1" role="dialog" aria-hidden="true" id="addColumn">
-			<div class="modal-dialog" role="document">
-				<div class="modal-content">
-					<form class="form-group" id="formAddColumn">
-						<div class="modal-header">
-							<h5 class="modal-title">Add column</h5>
-							<button type="button" class="close" data-dismiss="modal" aria-label="Close">
-								<span aria-hidden="true">&times;</span>
-							</button>
-						</div>
-						<div class="modal-body">
-							<label for="col-name">Column name</label>
-							<input type="text" class="form-control" name="col-name" id="col-name">
-							<label for="col-type">Column type</label>
-							<select class="form-control" name="col-type" id="col-type">
-								<option value="INT">INTEGER</option>
-								<option value="DOUBLE PRECISION">DOUBLE</option>
-								<option value="TIMESTAMP">DATE/TIME</option>
-								<option value="VARCHAR(255)">STRING</option>
-								<option value="BIT">BIT</option>
-							</select>
-						</div>
-						<div class="modal-footer">
-							<button type="submit" class="btn btn-primary">Save changes
-							</button>
-							<button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
-						</div>
-					</form>
-				</div>
-			</div>
-		</div>
-		<div class="modal" tabindex="-1" role="dialog" aria-hidden="true" id="deleteColumn">
-			<div class="modal-dialog" role="document">
-				<div class="modal-content">
-					<form class="form-group" id="formDeleteColumn">
-						<div class="modal-header">
-							<h5 class="modal-title">Delete column</h5>
-							<button type="button" class="close" data-dismiss="modal" aria-label="Close">
-								<span aria-hidden="true">&times;</span>
-							</button>
-						</div>
-						<div class="modal-body">
-							<label for="col-name">Column</label>
-							<select class="form-control" name="col-name" id="col-name">
-								{% for column in table.columns[1:] %}
-									<option value="{{ column.name }}">{{ column.name|capitalize }}</option>
-								{% endfor %}
-							</select>
-						</div>
-						<div class="modal-footer">
-							<button type="submit" class="btn btn-primary">Save changes
-							</button>
-							<button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
-						</div>
-					</form>
-				</div>
-			</div>
-		</div>
-		<div class="modal" tabindex="-1" role="dialog" aria-hidden="true" id="updateColumn">
-			<div class="modal-dialog" role="document">
-				<div class="modal-content">
-					<form class="form-group" id="formUpdateColumn">
-						<div class="modal-header">
-							<h5 class="modal-title">Update column type</h5>
-							<button type="button" class="close" data-dismiss="modal" aria-label="Close">
-								<span aria-hidden="true">&times;</span>
-							</button>
-						</div>
-						<div class="modal-body">
-							<label for="col-name">Column</label>
-							<select class="form-control" name="col-name" id="col-name">
-								{% for column in table.columns[1:] %}
-									<option value="{{ column.name }}">{{ column.name|capitalize }}
-										({{ column.type|capitalize }})
-									</option>
-								{% endfor %}
-							</select>
-							<label for="col-type">Column type</label>
-							<select class="form-control" name="col-type" id="col-type">
-								<option value="INT">INTEGER</option>
-								<option value="DOUBLE PRECISION">DOUBLE</option>
-								<option value="TIMESTAMP">DATE/TIME</option>
-								<option value="VARCHAR(255)">STRING</option>
-								<option value="BIT">BIT</option>
-							</select>
-						</div>
-						<div class="modal-footer">
-							<button type="submit" class="btn btn-primary">Save changes
-							</button>
-							<button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
-						</div>
-					</form>
-				</div>
-			</div>
-		</div>
-		<div class="modal" tabindex="-1" role="dialog" aria-hidden="true" id="DateTimeTransformations">
-			<div class="modal-dialog" role="document">
-				<div class="modal-content">
-					<form class="form-group" id="formDateTimeTransformations">
-						<div class="modal-header">
-							<h5 class="modal-title">Time/Date transformations</h5>
-							<button type="button" class="close" data-dismiss="modal" aria-label="Close">
-								<span aria-hidden="true">&times;</span>
-							</button>
-						</div>
-						<div class="modal-body">
-							<label for="col-name">Column</label>
-							<select class="form-control" name="col-name" id="col-name">
-								{% for column in table.columns[1:] %}
-									{% if (column.type == "timestamp") %}
-										<option value="{{ column.name }}">{{ column.name|capitalize }}</option>
-									{% endif %}
-								{% endfor %}
-							</select>
-							<label for="transformation-name">Transformation</label>
-							<select id="operation-name" class="form-control" name="operation-name">
-								{% for transformation in time_date_transformations %}
-									<option value="{{ transformation }}">
-										{{ transformation }}
-									</option>
-								{% endfor %}
-							</select>
-						</div>
-						<div class="modal-footer">
-							<button type="submit" class="btn btn-primary">Save changes
-							</button>
-							<button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
-						</div>
-					</form>
-				</div>
-			</div>
-		</div>
-		<div class="modal" tabindex="-1" role="dialog" aria-hidden="true" id="ImputeMissingData">
-			<div class="modal-dialog" role="document">
-				<div class="modal-content">
-					<form class="form-group" id="formImputeMissingData">
-						<div class="modal-header">
-							<h5 class="modal-title">Impute missing data</h5>
-							<button type="button" class="close" data-dismiss="modal" aria-label="Close">
-								<span aria-hidden="true">&times;</span>
-							</button>
-						</div>
-						<div class="modal-body">
-							<label for="col-name">Column</label>
-							<select class="form-control" name="col-name" id="col-name">
-								{% for column in table.columns[1:] %}
-									{% if ((column.type == "real") or (column.type == "double") or (column.type == "integer")) %}
-										<option value="{{ column.name }}">{{ column.name|capitalize }}
-											({{ column.type|capitalize }})
-										</option>
-									{% endif %}
-								{% endfor %}
-							</select>
+
+                            <label for="transformation-name">Transformation</label>
+                            <select id="operation-name" class="form-control" name="operation-name">
+                                {% for transformation in time_date_transformations %}
+                                    <option value="{{ transformation }}">
+                                        {{ transformation }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="submit" class="btn btn-primary">Save changes
+                            </button>
+                            <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        <div class="modal" tabindex="-1" role="dialog" aria-hidden="true" id="ImputeMissingData">
+            <div class="modal-dialog" role="document">
+                <div class="modal-content">
+                    <form class="form-group" id="formImputeMissingData">
+                        <div class="modal-header">
+                            <h5 class="modal-title">Impute missing data</h5>
+                            <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                                <span aria-hidden="true">&times;</span>
+                            </button>
+                        </div>
+                        <div class="modal-body">
+                            <label for="col-name">Column</label>
+                            <select class="form-control" name="col-name" id="col-name">
+                                {% for column in table.columns[1:] %}
+                                    {% if ((column.type == "real") or (column.type == "double") or (column.type == "integer")) %}
+                                        <option value="{{ column.name }}">{{ column.name|capitalize }}
+                                            ({{ column.type|capitalize }})
+                                        </option>
+                                    {% endif %}
+                                {% endfor %}
+                            </select>
+
                             <label for="function">Based on</label>
                             <select id="function" class="form-control" name="function">
                                 <option value="AVG">AVERAGE</option>
@@ -530,299 +385,60 @@
                         </div>
                         <div class="modal-footer">
 
-						</div>
-						<div class="modal-footer">
-							<button type="submit" class="btn btn-primary">Save changes
-							</button>
-							<button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
-						</div>
-					</form>
-				</div>
-			</div>
-		</div>
-		<div class="modal" tabindex="-1" role="dialog" aria-hidden="true" id="exportOptions">
-			<div class="modal-dialog" role="document">
-				<div class="modal-content">
-					<form class="form-group" id="formExportOptions">
-						<div class="modal-header">
-							<h5 class="modal-title">Export table</h5>
-							<button type="button" class="close" data-dismiss="modal" aria-label="Close">
-								<span aria-hidden="true">&times;</span>
-							</button>
-						</div>
-						<div class="modal-body">
-							<label for="separator">Separator</label>
-							<input type="text" class="form-control" name="separator" id="separator" placeholder="Separator">
+                            <button type="submit" class="btn btn-primary" {% if not raw_table_exists %}
+                                    disabled  {% endif %}>Revert
+                            </button>
 
-							<label for="quote">Quote character</label>
-							<input type="text" class="form-control" name="quote_char" id="quote_char" placeholder="Quote character">
+                        </div>
+                    </form>
+                    <form class="form-group" id="formShowRawData">
+                        <div class="modal-header">
+                            <h5 class="modal-title">Show raw data</h5></div>
+                        <div class="modal-footer">
 
-							<label for="empty-char">Empty character</label>
-							<input type="text" class="form-control" name="empty_char" id="empty_char" placeholder="Empty character">
+                            <button type="submit" class="btn btn-primary" {% if not raw_table_exists %}
+                                    disabled  {% endif %}>Show
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        <div class="modal" tabindex="-1" role="dialog" aria-hidden="true" id="askStats">
+            <div class="modal-dialog" role="document">
+                <div class="modal-content">
+                    <form class="form-group" id="formAskStats">
+                        <div class="modal-header">
+                            <h5 class="modal-title">Statistics</h5>
+                            <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                                <span aria-hidden="true">&times;</span>
+                            </button>
+                        </div>
+                        <div class="modal-body">
+                            <label for="col-name">Column</label>
+                            <select class="form-control" name="col-name" id="stat-column-selector">
+                                <option value="Default" selected="selected">Choose column...
+                                </option>
+                                {% for column in table.columns[1:] %}
+                                    <option value="{{ column.name }}">{{ column.name|capitalize }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                            {% for col_stats in statistics %}
+                                <div tyle="height:10px;"></div>
+                                {% for stat in col_stats[1] %}
+                                    <div>
+                                        <label for="value" id="{{ col_stats[0] }}" class="{{ col_stats[0] }} stats"
+                                               style="display:none">
+                                            {{ stat[0] }}
+                                        </label>
+                                        <input id="value" class="{{ col_stats[0] }} stats"
+                                               value="{{ stat[1] }}" style="display:none" readonly>
+                                    </div>
 
-						</div>
-						<div class="modal-footer">
-							<button type="submit" class="btn btn-primary">Done</button>
-							<a href="/api/download/{{ table.name }}.csv" id="exportDLBtn" download style="display:none"></a>
-							<button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
-						</div>
-					</form>
-				</div>
-			</div>
-		</div>
-		<div class="modal" tabindex="-1" role="dialog" aria-hidden="true" id="rawData">
-			<div class="modal-dialog" role="document">
-				<div class="modal-content">
-					<form class="form-group" id="formRevertRawData">
-						<div class="modal-header">
-							<h5 class="modal-title">Revert to raw data</h5>
-						</div>
-						<div class="modal-footer">
-							<button type="submit" class="btn btn-primary" {% if not raw_table_exists %}
-											disabled  {% endif %}>Revert
-							</button>
+                                {% endfor %}
+                            {% endfor %}
 
-						</div>
-					</form>
-					<form class="form-group" id="formShowRawData">
-						<div class="modal-header">
-							<h5 class="modal-title">Show raw data</h5></div>
-						<div class="modal-footer">
-
-							<button type="submit" class="btn btn-primary" {% if not raw_table_exists %}
-											disabled  {% endif %}>Show
-							</button>
-						</div>
-					</form>
-				</div>
-			</div>
-		</div>
-		<div class="modal" tabindex="-1" role="dialog" aria-hidden="true" id="askStats">
-			<div class="modal-dialog" role="document">
-				<div class="modal-content">
-					<form class="form-group" id="formAskStats">
-						<div class="modal-header">
-							<h5 class="modal-title">Statistics</h5>
-							<button type="button" class="close" data-dismiss="modal" aria-label="Close">
-								<span aria-hidden="true">&times;</span>
-							</button>
-						</div>
-						<div class="modal-body form-group">
-							<label for="stat-column-selector">Column</label>
-							<select class="form-control" name="col-name" id="stat-column-selector">
-								<option value="Default" selected="selected">Choose column...
-								</option>
-								{% for column in table.columns[1:] %}
-									<option value="{{ column.name }}">{{ column.name|capitalize }}
-									</option>
-								{% endfor %}
-							</select>
-							{% for col_stats in statistics %}
-								<div tyle="height:10px;"></div>
-								{% for stat in col_stats[1] %}
-									<div>
-										<label for="value" id="{{ col_stats[0] }}" class="{{ col_stats[0] }} stats"
-													 style="display:none">
-											{{ stat[0] }}
-										</label>
-										<input id="value" class="{{ col_stats[0] }} stats form-control"
-													 value="{{ stat[1] }}" style="display:none" readonly>
-									</div>
-								{% endfor %}
-							{% endfor %}
-						</div>
-						<div class="modal-footer">
-							<button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
-						</div>
-					</form>
-				</div>
-			</div>
-		</div>
-		<div class="modal" tabindex="-1" role="dialog" aria-hidden="true" id="normalizeModal">
-			<div class="modal-dialog" role="document">
-				<div class="modal-content">
-					<form class="form-group" id="formNormalizeModal">
-						<div class="modal-header">
-							<h5 class="modal-title">Normalize data</h5>
-							<button type="button" class="close" data-dismiss="modal" aria-label="Close">
-								<span aria-hidden="true">&times;</span>
-							</button>
-						</div>
-						<div class="modal-body">
-							<label for="col-name">Column</label>
-							<select class="form-control" name="col-name" id="col-name">
-								{% for column in table.columns[1:] %}
-									{% if ((column.type == "real") or (column.type == "double") or (column.type == "integer")) %}
-										<option value="{{ column.name }}">{{ column.name|capitalize }}
-											({{ column.type|capitalize }})
-										</option>
-									{% endif %}
-								{% endfor %}
-							</select>
-						</div>
-						<div class="modal-footer">
-							<button type="submit" class="btn btn-primary">Normalize
-							</button>
-							<button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
-						</div>
-					</form>
-				</div>
-			</div>
-		</div>
-		<div class="modal" tabindex="-1" role="dialog" aria-hidden="true" id="discretizeModal">
-			<div class="modal-dialog" role="document">
-				<div class="modal-content">
-					<form class="form-group" id="formDiscretizeModal">
-						<div class="modal-header">
-							<h5 class="modal-title">Normalize data</h5>
-							<button type="button" class="close" data-dismiss="modal" aria-label="Close">
-								<span aria-hidden="true">&times;</span>
-							</button>
-						</div>
-						<div class="modal-body">
-							<label for="col-name">Column</label>
-							<select class="form-control" name="col-name" id="col-name">
-								{% for column in table.columns[1:] %}
-									{% if ((column.type == "real") or (column.type == "double") or (column.type == "integer")) %}
-										<option value="{{ column.name }}">{{ column.name|capitalize }}
-											({{ column.type|capitalize }})
-										</option>
-									{% endif %}
-								{% endfor %}
-							</select>
-							<label for="discretization">Option</label>
-							<select class="form-control" name="discretization" id="discretization" onchange="displayOnSelect(this);">
-								<option value="eq-width" selected>Equal width ranges</option>
-								<option value="eq-freq">Equal frequency ranges</option>
-								<option value="manual">Manual ranges</option>
-							</select>
-							<div class="show-when-discretization select-eq-width select-eq-freq" style="display: none;">
-								<label for="num-intervals">Number of intervals</label>
-								<input name="num-intervals" id="num-intervals" class="form-control"
-											 aria-describedby="numIntervalsHelpBlock">
-								<small id="numIntervalsHelpBlock" class="form-text text-muted">
-									Choose the amount of intervals you want
-								</small>
-							</div>
-							<div class="show-when-discretization select-manual" style="display: none;">
-								<label for="intervals">Ranges</label>
-								<input name="intervals" id="intervals" class="form-control" aria-describedby="intervalsHelpBlock">
-								<small id="intervalsHelpBlock" class="form-text text-muted">
-									Define a range [a, b), [b, c) as follows: a, b, c
-								</small>
-							</div>
-							<script>
-								function displayOnSelect(select) {
-									$('.show-when-' + select.id).hide();
-									$('.select-' + select.value).show();
-								}
-							</script>
-						</div>
-						<div class="modal-footer">
-							<button type="submit" class="btn btn-primary">Discretize
-							</button>
-							<button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
-						</div>
-					</form>
-				</div>
-			</div>
-		</div>
-		<div class="modal" tabindex="-1" role="dialog" aria-hidden="true" id="renameColumnModal">
-			<div class="modal-dialog" role="document">
-				<div class="modal-content">
-					<form class="form-group" id="formRenameColumn">
-						<div class="modal-header">
-							<h5 class="modal-title">Change column name</h5>
-							<button type="button" class="close" data-dismiss="modal" aria-label="Close">
-								<span aria-hidden="true">&times;</span>
-							</button>
-						</div>
-						<div class="modal-body">
-							<label for="col-name">Column</label>
-							<select class="form-control" name="col-name" id="col-name">
-								{% for column in table.columns[1:] %}
-									<option value="{{ column.name }}">{{ column.name|capitalize }}</option>
-								{% endfor %}
-							</select>
-
-							<label for="col-type">New name</label>
-							<input class="form-control" name="new-name" id="new-name">
-						</div>
-						<div class="modal-footer">
-							<button type="submit" class="btn btn-primary">Rename</button>
-							<button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
-						</div>
-					</form>
-				</div>
-			</div>
-		</div>
-		<div class="modal" tabindex="-1" role="dialog" aria-hidden="true" id="outlierModal">
-			<div class="modal-dialog" role="document">
-				<div class="modal-content">
-					<form class="form-group" id="formOutlierModal">
-						<div class="modal-header">
-							<h5 class="modal-title">Remove outliers</h5>
-							<button type="button" class="close" data-dismiss="modal" aria-label="Close">
-								<span aria-hidden="true">&times;</span>
-							</button>
-						</div>
-						<div class="modal-body">
-							<div class="form-group col">
-								<label for="col-name">Column</label>
-								<select class="custom-select" name="col-name" id="col-name">
-									{% for column in table.columns[1:] %}
-										{% if ((column.type == "real") or (column.type == "double") or (column.type == "integer")) %}
-											<option value="{{ column.name }}">{{ column.name|capitalize }}
-												({{ column.type|capitalize }})
-											</option>
-										{% endif %}
-									{% endfor %}
-								</select>
-							</div>
-							<div class="form-group">
-								<div class="col">
-									<label for="option">Option</label>
-									<select class="custom-select" name="option" id="option">
-										<option value="less-than" selected>Less than</option>
-										<option value="more-than">More than</option>
-									</select>
-								</div>
-								<div class="col">
-									<label for="value">Value</label>
-									<input class="form-control" name="value" id="value">
-								</div>
-							</div>
-							<div class="modal-footer">
-								<button type="submit" class="btn btn-primary">Remove outliers
-								</button>
-								<button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
-							</div>
-					</form>
-				</div>
-			</div>
-		</div>
-		
-		<script type="text/javascript" charset="utf-8">
-			$(document).ready(function () {
-				var table = $('#dataTable').DataTable({
-					scrollX: "auto",
-					scrollY: "50vh",
-					scrollCollapse: true,
-					processing: true,
-					serverSide: true,
-					ajax: '/api' + window.location.pathname,
-					order: [[1, 'desc']],
-					rowsDefs: [{}],
-					columnDefs: [{
-						targets: 0,
-						searchable: false,
-						orderable: false,
-						width: '1%', // min width
-						render: function (data) {
-							return '<input type="checkbox" class="form-check" name="row-' + data + '" id="row-' + data + '">';
-						}
-					}]
-				});
                         </div>
                         <div class="modal-footer">
                             <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
@@ -870,8 +486,6 @@
                                 with</label>
                             <input class="form-control regexAndNoRegex" name="replacement-value" id="replacement-value"
                                    style="display:none">
-
-
                         </div>
                         <div class="modal-footer">
                             <button type="submit" class="btn btn-primary">Replace</button>
@@ -1064,7 +678,6 @@
                     });
                     $('#formExportOptions').modal('hide');
                 });
-
                 $('#stat-column-selector').change(function () {
                     $('.stats').hide();
                     var string = "";
@@ -1074,7 +687,6 @@
                     }
                     $(string).show();
                 });
-
                 $('#formRevertRawData').submit(function (e) {
                     e.preventDefault();
                     $.ajax({
@@ -1084,7 +696,6 @@
                     window.location.reload();
                     $('#rawData').modal('hide');
                 });
-
                 $('#formShowRawData').submit(function (e) {
                     e.preventDefault();
                     $.ajax({
@@ -1093,7 +704,6 @@
                     });
                     window.location.assign(window.location.pathname + '/show-raw-data')
                 });
-
                 $('#replace-column-selector').change(function () {
                     if ($(this).find(':selected').data('type') != "text") {
                         $('.textOnly').hide();
@@ -1102,7 +712,6 @@
                         $('.textOnly').show();
                     }
                 });
-
                 $('#replace-function-selector').change(function () {
                     if ($(this).val() == "regex") {
                         $('.noRegex').hide();
@@ -1113,7 +722,6 @@
                         $('.noRegex').show();
                         $('.regex').hide();
                         $('.regexAndNoRegex').show();
-
                     }
                     else {
                         $('.noRegex').hide();
@@ -1121,7 +729,6 @@
                         $('.regexAndNoRegex').hide();
                     }
                 });
-
                 $('#formFindAndReplace').submit(function (e) {
                     e.preventDefault();
                     $.ajax({
@@ -1133,84 +740,7 @@
                     });
                     $('#formFindAndReplace').modal('hide');
                 });
-            });
-        
-				$('#removeRow').click(function () {
-					$.ajax({
-						type: 'DELETE',
-						url: '/api' + window.location.pathname + '/rows?' + $('input:checked').serialize(),
-						contentType: 'application/json;charset=UTF-8',
-						success: function () {
-							window.location.reload();
-						}
-					})
-				});
-				
-				$('#formDateTimeTransformations').submit(function (e) {
-					e.preventDefault();
-					$.ajax({
-						type: 'PUT',
-						url: '/api' + window.location.pathname + '/date-time-transformations?' + $('#formDateTimeTransformations').serialize(),
-						success: function () {
-							window.location.reload();
-						}
-					});
-					$('#formDateTimeTransformations').modal('hide');
-				});
-				$('#formImputeMissingData').submit(function (e) {
-					e.preventDefault();
-					$.ajax({
-						type: 'PUT',
-						url: '/api' + window.location.pathname + '/impute-missing-data?' + $('#formImputeMissingData').serialize(),
-						success: function () {
-							window.location.reload();
-						}
-					});
-					$('#formImputeMissingData').modal('hide');
-				});
-
-
-				$('#stat-column-selector').change(function () {
-					$('.stats').hide();
-					var string = "";
-					var words = $(this).val().split(" ");
-					for (var i = 0; i < words.length; i++) {
-						string = string + "." + words[i];
-					}
-					$(string).show();
-				});
-
-				$('#formRevertRawData').submit(function (e) {
-					e.preventDefault();
-					$.ajax({
-						type: 'PUT',
-						url: window.location.pathname + '/revert-to-raw-data',
-					});
-					window.location.reload();
-					$('#rawData').modal('hide');
-				});
-
-				$('#formShowRawData').submit(function (e) {
-					e.preventDefault();
-					$.ajax({
-						type: 'GET',
-						url: window.location.pathname + '/show-raw-data',
-					});
-					window.location.assign(window.location.pathname + '/show-raw-data')
-				});
-
-				$('#formNormalizeModal').submit(function (e) {
-					e.preventDefault();
-					$.ajax({
-						type: 'PUT',
-						url: '/api' + window.location.pathname + '/normalize?' + $('#formNormalizeModal').serialize(),
-						success: function () {
-							window.location.reload();
-						}
-					});
-				});
-
-				$('#formDiscretizeModal').submit(function (e) {
+                $('#formDiscretizeModal').submit(function (e) {
 					e.preventDefault();
 					$.ajax({
 						type: 'PUT',
@@ -1223,7 +753,6 @@
 						}
 					});
 				});
-
 				$('#formOutlierModal').submit(function (e) {
 					e.preventDefault();
 					console.log($('#formOutlierModal').serialize());
@@ -1238,24 +767,11 @@
 						}
 					});
 				});
-
-				$('#formRenameColumn').submit(function (e) {
-					e.preventDefault();
-					$.ajax({
-						type: 'PUT',
-						url: '/api' + window.location.pathname + '/rename-column?' + $('#formRenameColumn').serialize(),
-						success: function () {
-							window.location.reload();
-							$('#formRenameColumn').modal('hide');
-						}
-					});
-				});
-
 				$('#history').click(function (e) {
 					e.preventDefault();
 					window.location.href = window.location.pathname + '/history';
 				});
-			});
-		</script>
-	</div>
+            });
+        </script>
+    </div>
 {% endblock %}

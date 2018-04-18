@@ -6,33 +6,34 @@
 
 from flask import Flask
 from flask_login import LoginManager
-
+from flask_sqlalchemy import SQLAlchemy
 from config import *
 
 app = Flask(__name__)
 app.config.from_object('config')  # See: http://flask.pocoo.org/docs/0.12/config/
 
+database = SQLAlchemy(app)
+login = LoginManager(app)
+login.init_app(app)
+
 from app.data_service.models import DataLoader
 from app.database_connection.models import DBConnection
 from app.user_service.models import UserDataAccess
-from app.history.models import History
-from app.data_transform.models import DateTimeTransformer, DataTransformer
+from app.data_transform.models import DateTimeTransformer, DataTransformer, NumericalTransformations
+
 
 try:
     connection = DBConnection(dbname=config_data['dbname'], dbuser=config_data['dbuser'], dbpass=config_data['dbpass'],
                               dbhost=config_data['dbhost'])
-    user_data_access = UserDataAccess(connection)
-    data_loader = DataLoader(connection)
-    date_time_transformer = DateTimeTransformer(connection)
-    history = History(connection)
-    data_transformer = DataTransformer(connection)
-    
 except Exception as e:
     app.logger.error("[ERROR] Failed to establish user connection.")
     app.logger.exception(e)
 
-login = LoginManager(app)
-login.init_app(app)
+user_data_access = UserDataAccess()
+data_loader = DataLoader()
+date_time_transformer = DateTimeTransformer()
+data_transformer = DataTransformer()
+numerical_transformer = NumericalTransformations()
 
 
 @login.user_loader

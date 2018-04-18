@@ -1,8 +1,6 @@
-from flask import Blueprint, request, render_template, redirect, url_for, abort
-from flask_login import login_required, current_user
-from werkzeug.utils import secure_filename
+from flask import Blueprint, render_template
 
-from app import app, connection, data_loader, date_time_transformer, ALLOWED_EXTENSIONS, UPLOAD_FOLDER
+from app import data_loader
 
 _history = Blueprint('_history', __name__)
 

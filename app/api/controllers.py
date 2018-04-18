@@ -233,7 +233,7 @@ def outliers(dataset_id, table_name):
 
 @api.route('/api/datasets/<int:dataset_id>/tables/<string:table_name>/rename-column', methods=['PUT'])
 def rename_column(dataset_id, table_name):
-  to_rename = request.args.get('col-name')
-  new_name = request.args.get('new-name')
-  data_loader.rename_column(dataset_id, table_name, to_rename, new_name)
-  return jsonify({'success': True}), 200
+    to_rename = request.args.get('col-name')
+    new_name = request.args.get('new-name')
+    data_loader.rename_column(dataset_id, table_name, to_rename, new_name)
+    return jsonify({'success': True}), 200

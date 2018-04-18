@@ -1,0 +1,1 @@
+INSERT INTO people2 (Name, Status, Age) VALUES ('Brock', 'asian', 19);

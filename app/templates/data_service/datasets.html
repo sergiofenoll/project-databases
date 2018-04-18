@@ -1,127 +1,132 @@
 {% extends "base.html" %}
 {% block content %}
-    <div class="row">
-        <div>
-            <h1>Dataset overview</h1>
-            <p>See and manage your datasets.</p>
-        </div>
-    </div>
-    {% if datasets|length > 0 %}
-        <div class="row">
-            <table id="datasetTable" class="display table table-striped table-bordered" cellspacing="0"
-                   width="100%" style="text-align: center;">
-                <thead>
-                <tr>
-                    <th>Dataset</th>
-                    <th>Description</th>
-                    <th>Owner</th>
-                    <th>Edit</th>
-                    <th>Remove</th>
-                </tr>
-                </thead>
-                <tbody>
-                {% for ds in datasets %}
-                    <tr>
-                        <td><a href="/datasets/{{ ds.id }}">{{ ds.name }}</a></td>
-                        <td>{{ ds.desc }}</td>
-                        <td>{{ ds.owner }}</td>
-                        <td>
-                            <button id="metadata-button" data-toggle="modal" data-target="#metadata"
+	<div class="row">
+		<div>
+			<h1>Dataset overview</h1>
+			<p>See and manage your datasets.</p>
+		</div>
+	</div>
+	<div class="row">
+		<div class="col-sm-2">
+			<div class="panel-group" id="accordion">
+				<div class="panel panel-default">
+					<div class="panel-heading">
+						<a data-toggle="collapse" data-parent="#accordion"
+							 class="btn btn-dark panel-button"
+							 href="#collapseOne"><i class="fas fa-plus-square"></i>
+							Create dataset</a>
+					</div>
+					<div id="collapseOne" class="panel-collapse collapse in">
+						<div class="panel-body panel-form form-group">
+							<form action="/datasets" method="post">
+								<div class="form-group">
+									<label for="ds-name">Name</label>
+									<input type="text" class="form-control" id="ds-name" name="ds-name" placeholder="Dataset name"
+												 required>
+								</div>
+								<div class="form-group">
+									<label for="ds-meta">Description</label>
+									<textarea class="form-control" id="ds-meta" name="ds-meta"
+														placeholder="Dataset description"></textarea>
+								</div>
+								<button type="submit" class="btn btn-default" id="submit">Create dataset</button>
+							</form>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+		{% if datasets|length > 0 %}
+			<div class="col-sm-10">
+				<table id="datasetTable" class="display table table-striped table-bordered table-responsive-sm" cellspacing="0"
+							 width="100%" style="text-align: center;">
+					<thead>
+					<tr>
+						<th>Dataset</th>
+						<th>Description</th>
+						<th>Owner</th>
+						<th>Edit</th>
+						<th>Remove</th>
+					</tr>
+					</thead>
+					<tbody>
+					{% for ds in datasets %}
+						<tr>
+							<td><a href="/datasets/{{ ds.id }}">{{ ds.name }}</a></td>
+							<td>{{ ds.desc }}</td>
+							<td>{{ ds.owner }}</td>
+							<td>
+								<button id="metadata-button" data-toggle="modal" data-target="#metadata"
 
-                                    class="btn btn-xs btn-primary metadataEditButton" data-name="{{ ds.name }}"
-                                    data-desc="{{ ds.desc }}" data-ds="{{ ds.id }}"
-                                    {% if ds.owner != current_user.username %}disabled{% endif %}>
-                                Edit
-                            </button>
-                        </td>
-                        <td>
-                            <form action="/datasets/{{ ds.id }}/delete" method="post">
-                                <button type="submit" class="btn btn-xs btn-danger"
-                                        {% if ds.owner != current_user.username %}disabled{% endif %}>
-                                    &times;
-                                </button>
-                            </form>
-                        </td>
-                    </tr>
-                {% endfor %}
-                </tbody>
-            </table>
-        </div>
-        <div class="modal" tabindex="-1" role="dialog" aria-hidden="true" id="metadata">
-            <div class="modal-dialog" role="document">
-                <div class="modal-content">
-                    <form class="form-group" id="formMetadata">
-                        <div class="modal-header">
-                            <h5 class="modal-title">Change dataset name and/or description</h5>
-                            <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-                                <span aria-hidden="true">&times;</span>
-                            </button>
-                        </div>
-                        <div class="modal-body">
-                            <label for="ds-name">Name</label>
-                            <br>
-                            <input type="text" name="ds-name" value="" id="ds-name"><br>
+												class="btn btn-xs btn-primary metadataEditButton" data-name="{{ ds.name }}"
+												data-desc="{{ ds.desc }}" data-ds="{{ ds.id }}"
+												{% if ds.owner != current_user.username %}disabled{% endif %}>
+									Edit
+								</button>
+							</td>
+							<td>
+								<form action="/datasets/{{ ds.id }}/delete" method="post">
+									<button type="submit" class="btn btn-xs btn-danger"
+													{% if ds.owner != current_user.username %}disabled{% endif %}>
+										&times;
+									</button>
+								</form>
+							</td>
+						</tr>
+					{% endfor %}
+					</tbody>
+				</table>
+			</div>
+			<div class="modal" tabindex="-1" role="dialog" aria-hidden="true" id="metadata">
+				<div class="modal-dialog" role="document">
+					<div class="modal-content">
+						<form id="formMetadata">
+							<div class="modal-header">
+								<h5 class="modal-title">Change dataset name and/or description</h5>
+								<button type="button" class="close" data-dismiss="modal" aria-label="Close">
+									<span aria-hidden="true">&times;</span>
+								</button>
+							</div>
+							<div class="modal-body form-group">
+								<label for="ds-name">Name</label>
+								<input class="form-control" type="text" name="ds-name" value="" id="ds-name">
+								<label for="ds-desc">Description</label>
+								<textarea class="form-control" name="ds-desc" id="ds-desc"></textarea>
+								<input type="hidden" id="ds-id" name="ds-id">
+							</div>
+							<div class="modal-footer">
+								<button type="submit" class="btn btn-primary">Save changes
+								</button>
+								<button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+							</div>
+						</form>
+					</div>
+				</div>
+			</div>
+		{% endif %}
+	</div>
+	<script type="text/javascript" charset="utf-8">
+		$(document).ready(function () {
+			$('.metadataEditButton').click(function (e) {
+				e.preventDefault();
+				$('#ds-name').val($(this).attr('data-name'));
+				$('#ds-desc').val($(this).attr('data-desc'));
+				$('#ds-id').val($(this).attr('data-ds'));
 
-                            <label for="ds-desc">Description</label>
-                            <br>
-                            <textarea type="text" name="ds-desc" id="ds-desc"></textarea>
+				$('#metadata').show();
+			});
 
-                            <input type="hidden" id="ds-id" name="ds-id">
-
-                        </div>
-                        <div class="modal-footer">
-                            <button type="submit" class="btn btn-primary">Save changes
-                            </button>
-                            <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
-                        </div>
-                    </form>
-                </div>
-            </div>
-        </div>
-    {% endif %}
-    <div class="row" style="margin-top: 10px;">
-        <div class="modal-body">
-            <h4>Create a new dataset</h4>
-            <form action="/datasets" method="post">
-                <div class="form-group">
-                    <span for="ds-name">Name</span>
-                    <input type="text" class="form-control" id="ds-name" name="ds-name" placeholder="Dataset name"
-                           required>
-                </div>
-                <div class="form-group">
-                    <span for="ds-meta">Description</span>
-                    <input type="text" class="form-control" id="ds-meta" name="ds-meta"
-                           placeholder="Dataset description">
-                </div>
-                <button type="submit" class="btn btn-default" id="submit">Submit</button>
-            </form>
-        </div>
-    </div>
-    <script type="text/javascript" charset="utf-8">
-
-
-        $(document).ready(function () {
-            $('.metadataEditButton').click(function (e) { // .stuff wijst op een klasse
-                e.preventDefault();
-                $('#ds-name').val($(this).attr('data-name'));
-                $('#ds-desc').val($(this).attr('data-desc'));
-                $('#ds-id').val($(this).attr('data-ds'));
-
-                $('#metadata').show();
-            });
-
-
-            $('#formMetadata').submit(function (e) {
-                e.preventDefault();
-                $.ajax({
-                    type: 'PUT',
-                    url: '/api' + window.location.pathname + '/update-dataset-metadata?' + $('#formMetadata').serialize(),
-                    success: function () {
-                        window.location.reload();
-                    }
-                });
-                $('#metadata').modal('hide');
-            });
-        });
-    </script>
+			$('#formMetadata').submit(function (e) {
+				e.preventDefault();
+				$.ajax({
+					type: 'PUT',
+					url: '/api' + window.location.pathname + '/update-dataset-metadata?' + $('#formMetadata').serialize(),
+					success: function () {
+						window.location.reload();
+					}
+				});
+				$('#metadata').modal('hide');
+			});
+		});
+	</script>
 {% endblock %}

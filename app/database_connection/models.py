@@ -1,14 +1,19 @@
 import psycopg2
 import psycopg2.extras
+
 from app import app
 
 
 class DBConnection:
-    def __init__(self, dbname, dbuser, dbhost, dbpass):
+    def __init__(self, dbname, dbuser, dbhost, dbpass, use_dict_factory=True):
         try:
-            self.conn = psycopg2.connect(
-                "dbname='{}' user='{}' host='{}' password='{}'".format(dbname, dbuser, dbhost, dbpass),
-                cursor_factory=psycopg2.extras.DictCursor)
+            if use_dict_factory:
+                self.conn = psycopg2.connect(
+                    "dbname='{}' user='{}' host='{}' password='{}'".format(dbname, dbuser, dbhost, dbpass),
+                    cursor_factory=psycopg2.extras.DictCursor)
+            else:
+                self.conn = psycopg2.connect(
+                    "dbname='{}' user='{}' host='{}' password='{}'".format(dbname, dbuser, dbhost, dbpass))
         except Exception as e:
             app.logger.error('[ERROR] Unable to connect to database')
             app.logger.exception(e)

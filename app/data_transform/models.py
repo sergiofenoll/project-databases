@@ -108,11 +108,32 @@ class DataTransformer:
                     sql.Identifier(column),
                     sql.Identifier(column)
                 ), (replacement, to_be_replaced))
+            else:
+                app.logger.error("[ERROR] Unable to perform find and replace")
 
             cursor.execute(query)
             self.dbconnect.commit()
         except Exception as e:
-            app.logger.error("[ERROR] Unable to perform find and replace".format(column))
+            app.logger.error("[ERROR] Unable to perform find and replace")
+            app.logger.exception(e)
+            self.dbconnect.rollback()
+            raise e
+
+    def find_and_replace_by_regex(self, schema_id, table, column, regex, replacement):
+        """" find and replace """
+        try:
+            schema_name = 'schema-' + str(schema_id)
+            cursor = self.dbconnect.get_cursor()
+            query = cursor.mogrify(sql.SQL('UPDATE {}.{} SET {} = regexp_replace({}, %s, %s)').format(
+                    sql.Identifier(schema_name),
+                    sql.Identifier(table),
+                    sql.Identifier(column),
+                    sql.Identifier(column)
+                ), (regex, replacement))
+            cursor.execute(query)
+            self.dbconnect.commit()
+        except Exception as e:
+            app.logger.error("[ERROR] Unable to perform find and replace by regex")
             app.logger.exception(e)
             self.dbconnect.rollback()
             raise e

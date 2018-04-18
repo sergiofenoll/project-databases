@@ -44,6 +44,8 @@ def get_dataset(dataset_id):
     users_with_access = data_loader.get_dataset_access(dataset_id).rows
     access_permission = current_user.username in dataset.moderators
 
+    current_user.active_schema = dataset_id
+
     return render_template('data_service/dataset-view.html', ds=dataset, tables=tables,
                            access_permission=access_permission, users_with_access=users_with_access)
 
@@ -130,6 +132,8 @@ def get_table(dataset_id, table_name):
 
     raw_table_name = "_raw_" + table_name
     raw_table_exists = data_loader.table_exists(raw_table_name, "schema-" + str(dataset_id))
+
+    current_user.active_schema = dataset_id
     
     return render_template('data_service/table-view.html', table=table,
                            time_date_transformations=time_date_transformations,
@@ -184,3 +188,16 @@ def show_raw_data(dataset_id, table_name):
     table = data_loader.get_table(dataset_id, raw_table_name)
     title="Raw data for " + table_name
     return render_template('data_service/raw-table-view.html', table=table, title=title)
+
+@data_service.route('/datasets/<int:dataset_id>/tables/<string:table_name>/remove-rows', methods=['POST'])
+def remove_rows_predicate(dataset_id, table_name):
+
+    predicates = list()
+    for entry in request.form.keys():
+        if (entry.startswith('join')):
+            p = request.form.getlist(entry)
+            predicates.append(p)
+
+    data_loader.delete_row_predicate(dataset_id, table_name, predicates)
+  
+    return redirect(url_for('data_service.get_table', dataset_id=dataset_id, table_name=table_name))

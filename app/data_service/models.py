@@ -236,13 +236,52 @@ class DataLoader:
         schema_name = 'schema-' + str(schema_id)
         try:
             for row_id in row_ids:
-                db.engine.execute('DELETE FROM {}.{} WHERE id={}};'.format(*_ci(schema_name, table_name), _cv(row_id)))
+                db.engine.execute('DELETE FROM {0}.{1} WHERE id={2};'.format(_ci(schema_name), _ci(table_name), _cv(str(row_id))))
                 # Log action to history
                 history.log_action(schema_id, table_name, datetime.now(), 'Deleted row #' + str(row_id))
         except Exception as e:
             app.logger.error("[ERROR] Unable to delete row from table '" + table_name + "'")
             app.logger.exception(e)
             raise e
+
+    def delete_row_predicate(self, schema_id, table_name, predicates):
+        """
+         Accepts a list of predicates to delete rows on. 
+         Predicates are of the form:
+         [[AND | OR] [COLUMN] [CONDITION] [VALUE]]
+         (where condition can be a logical operator, contains etc.)
+        """
+        schema_name = 'schema-' + str(schema_id)
+
+        # Gather all ids for rows to be deleted
+        query_select = 'SELECT id FROM {0}.{1} WHERE ('.format(*_ci(schema_name, table_name))
+        where_queries = list()
+        for p_ix in range(len(predicates)):
+            predicate = predicates[p_ix]
+            # Special conditions first
+            if predicate[2] == "CONTAINS":
+                predicate[2] = "LIKE"
+                predicate[3] = "%%" + predicate[3] + "%%"
+            # TODO: make this safe!
+            if (p_ix == 0):
+                q = '{0} {1} {2}'.format(_ci(predicate[1]), predicate[2], _cv(str(predicate[3])))
+                where_queries.append(q)
+            else:
+                q = '{0} {1} {2} {3}'.format(predicate[0], _ci(predicate[1]), predicate[2], _cv(str(predicate[3])))
+                where_queries.append(q)
+        query = query_select + ' '.join(where_queries) + ');'
+
+        try:
+            result = db.engine.execute(query)
+
+            to_delete = [r['id'] for r in result]
+
+            # Pass ids to 'traditional' delete_row
+            self.delete_row(schema_id, table_name, to_delete)
+
+        except Exception as e:
+            app.logger.error('[ERROR] Unable to fetch rows to delete from ' + table_name)
+            app.logger.exception(e)
 
     def delete_column(self, schema_id, table_name, column_name):
         schema_name = 'schema-' + str(schema_id)

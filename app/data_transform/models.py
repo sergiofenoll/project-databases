@@ -2,7 +2,6 @@ from datetime import datetime
 from statistics import median
 
 import pandas as pd
-from psycopg2 import sql
 
 from app import app, database as db
 from app.data_service.models import DataLoader
@@ -76,20 +75,21 @@ class DataTransformer:
         else:
             app.logger.error("[ERROR] Unable to impute missing data for column {}".format(column))
 
-    def find_and_replace(self, schema_id, table, column, to_be_replaced, replacement,replacement_function):
+    def find_and_replace(self, schema_id, table, column, to_be_replaced, replacement, replacement_function):
         """" find and replace """
         try:
             schema_name = 'schema-' + str(schema_id)
+            query = ""
             if replacement_function == "substring":
-                db.engine.execute('UPDATE {0}.{1} SET {2}=replace({2}, {3}, {4})'.format(
-                    *_ci(schema_name, table, column), *_cv(to_be_replaced, replacement)))
-
+                query = 'UPDATE {0}.{1} SET {2} = REPLACE({2}, {3}, {4})'.format(*_ci(schema_name, table, column),
+                                                                                 *_cv(to_be_replaced, replacement))
             elif replacement_function == "full replace":
-                db.engine.execute('UPDATE {0}.{1} SET {2} = {3} WHERE {2}={4}'.format(
-                    *_ci(schema_name, table, column), *_cv(replacement, to_be_replaced)))
+                query = 'UPDATE {0}.{1} SET {2} = {3} WHERE {2} = {4}'.format(*_ci(schema_name, table, column),
+                                                                              *_cv(replacement, to_be_replaced))
             else:
                 app.logger.error("[ERROR] Unable to perform find and replace")
 
+            db.engine.execute(query)
         except Exception as e:
             app.logger.error("[ERROR] Unable to perform find and replace")
             app.logger.exception(e)
@@ -99,13 +99,13 @@ class DataTransformer:
         """" find and replace """
         try:
             schema_name = 'schema-' + str(schema_id)
-            db.engine.execute('UPDATE {0}.{1} SET {2}=regexp_replace({2}, {3}, {4})'.format(
-                *_ci(schema_name, table, column), *_ci(regex, replacement)))
-
+            query = 'UPDATE {0}.{1} SET {2} = regexp_replace({2}, {3}, {4})'.format(*_ci(schema_name, table, column),
+                                                                                    *_cv(regex, replacement))
+            db.engine.execute(query)
         except Exception as e:
             app.logger.error("[ERROR] Unable to perform find and replace by regex")
             app.logger.exception(e)
-            raise e
+        raise e
 
 
 class DateTimeTransformer:
@@ -224,3 +224,31 @@ class NumericalTransformations:
         else:
             db.engine.execute(
                 'DELETE FROM "{}"."{}" WHERE "{}" > {}'.format(schema_name, table_name, column_name, value))
+
+    def chart_data_numerical(self, schema_id, table_name, column_name):
+        schema_name = 'schema-' + str(schema_id)
+        df = pd.read_sql_query('SELECT * FROM "{}"."{}"'.format(schema_name, table_name), db.engine)
+
+        intervals = pd.cut(df[column_name], 10).value_counts()
+
+        data = {
+            'labels': list(intervals.index.astype(str)),
+            'data': list(intervals.astype(int)),
+            'chart': 'bar',
+            'label': '# Items Per Interval'
+        }
+
+        return data
+
+    def chart_data_categorical(self, schema_id, table_name, column_name):
+        schema_name = 'schema-' + str(schema_id)
+        df = pd.read_sql_query('SELECT * FROM "{}"."{}"'.format(schema_name, table_name), db.engine)
+
+        data = {'labels': [], 'data': []}
+        data['labels'] = list(df[column_name].unique())
+        for label in data['labels']:
+            data['data'].append(int(df[df[column_name] == label][column_name].count()))
+        data['chart'] = 'pie'
+        data['label'] = '# Items Per Slice'
+
+        return data

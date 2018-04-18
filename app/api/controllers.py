@@ -65,10 +65,10 @@ def add_row(dataset_id, table_name):
     values = dict()
     columns = list()
     for key in request.args:
-      if key.startswith('value-col'):
-        col_name = key.split('-')[2] # Key is of the form "value-col-[name]"
-        values[col_name] = request.args.get(key)
-        columns.append(col_name)
+        if key.startswith('value-col'):
+            col_name = key.split('-')[2]  # Key is of the form "value-col-[name]"
+            values[col_name] = request.args.get(key)
+            columns.append(col_name)
     data_loader.insert_row(table_name, dataset_id, columns, values)
     return jsonify({'success': True}), 200
 
@@ -186,10 +186,9 @@ def find_and_replace(dataset_id, table_name):
         value_to_be_replaced = request.args.get('value-to-be-replaced')
         data_transformer.find_and_replace(dataset_id, table_name, colomn, value_to_be_replaced, replacement_value,
                                           replacement_function)
-
     return jsonify({'success': True}), 200
 
-  
+
 @api.route('/api/datasets/<int:dataset_id>/tables/<string:table_name>/normalize', methods=['PUT'])
 def normalize(dataset_id, table_name):
     column_name = request.args.get('col-name')
@@ -231,9 +230,21 @@ def outliers(dataset_id, table_name):
                         'message': 'Unable to convert value into a numerical type. Did you send a number?'}), 400
     return jsonify({'success': True}), 200
 
+
 @api.route('/api/datasets/<int:dataset_id>/tables/<string:table_name>/rename-column', methods=['PUT'])
 def rename_column(dataset_id, table_name):
     to_rename = request.args.get('col-name')
     new_name = request.args.get('new-name')
     data_loader.rename_column(dataset_id, table_name, to_rename, new_name)
     return jsonify({'success': True}), 200
+
+
+@api.route('/api/datasets/<int:dataset_id>/tables/<string:table_name>/chart', methods=['GET'])
+def chart(dataset_id, table_name):
+    column_name = request.args.get('col-name')
+    column_type = request.args.get('col-type')
+
+    if column_type not in ['real', 'double', 'integer', 'timestamp']:
+        return jsonify(numerical_transformer.chart_data_categorical(dataset_id, table_name, column_name))
+    else:
+        return jsonify(numerical_transformer.chart_data_numerical(dataset_id, table_name, column_name))

@@ -246,7 +246,7 @@ class DataLoader:
     def delete_column(self, schema_id, table_name, column_name):
         schema_name = 'schema-' + str(schema_id)
         try:
-            db.engine.execute('ALTER TABLE {}.{} DROP COLUMN {};'.format(*_ci(schema_name, table_name), column_name))
+            db.engine.execute('ALTER TABLE {}.{} DROP COLUMN {};'.format(*_ci(schema_name, table_name, column_name)))
         except Exception as e:
             app.logger.error("[ERROR] Unable to delete column from table '" + table_name + "'")
             app.logger.exception(e)
@@ -286,7 +286,7 @@ class DataLoader:
         schema_name = 'schema-' + str(schema_id)
         try:
             db.engine.execute(
-                'ALTER TABLE {}.{} ADD {} {} NULL;'.format(*_ci(schema_name, table_name), column_name, column_type))
+                'ALTER TABLE {}.{} ADD {} {} NULL;'.format(*_ci(schema_name, table_name, column_name), column_type))
         except Exception as e:
             app.logger.error("[ERROR] Unable to insert column into table '{}'".format(table_name))
             app.logger.exception(e)

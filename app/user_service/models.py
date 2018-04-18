@@ -1,6 +1,16 @@
 from app import app
 from app import database as db
 
+def _ci(*args: str):
+    if len(args) == 1:
+        return '"{}"'.format(args[0].replace('"', '""'))
+    return ['"{}"'.format(arg.replace('"', '""')) for arg in args]
+
+
+def _cv(*args: str):
+    if len(args) == 1:
+        return "'{}'".format(args[0].replace("'", "''"))
+    return ["'{}'".format(arg.replace("'", "''")) for arg in args]
 
 class User:
     def __init__(self, username, password, firstname, lastname, email, status, active):
@@ -45,9 +55,9 @@ class UserDataAccess:
 
     def add_user(self, user_obj):
         try:
-            query = 'INSERT INTO Member(Username,Pass,FirstName,LastName,Email,Status,Active) VALUES(%s,%s,%s,%s,%s,%s,%s)', (
+            query = 'INSERT INTO Member(Username,Pass,FirstName,LastName,Email,Status,Active) VALUES({},{},{},{},{},{},{})'.format(*_cv(
                 user_obj.username, user_obj.password, user_obj.firstname, user_obj.lastname, user_obj.email,
-                user_obj.status, user_obj.is_active,)
+            user_obj.status), user_obj.is_active)
             db.engine.execute(query)
             return True
         except Exception as e:
@@ -57,7 +67,7 @@ class UserDataAccess:
 
     def login_user(self, username):
         try:
-            rows = db.engine.execute("SELECT Pass FROM Member WHERE Username=%s;", (username,))
+            rows = db.engine.execute("SELECT Pass FROM Member WHERE Username={};".format(_cv(username)))
             row = rows.first()
 
             if row is None:
@@ -70,7 +80,7 @@ class UserDataAccess:
 
     def get_user(self, user_id):
         rows = db.engine.execute(
-            'SELECT * FROM Member WHERE Username=%s;', (user_id,))
+            'SELECT * FROM Member WHERE Username={};'.format(_cv(user_id)))
         row = rows.first()
 
         if row is not None:
@@ -83,8 +93,8 @@ class UserDataAccess:
 
     def alter_user(self, user):
         try:
-            query = 'UPDATE Member SET Firstname = %s, Lastname = %s, Email = %s, Pass = %s, Status = %s, Active = %s WHERE Username=%s;', (
-                user.firstname, user.lastname, user.email, user.password, user.status, user.is_active, user.username)
+            query = 'UPDATE Member SET Firstname = {}, Lastname = {}}, Email = {}, Pass = {}, Status = {}, Active = {} WHERE Username={};'.format(*_cv(
+                user.firstname, user.lastname, user.email, user.password, user.status, user.is_active, user.username))
 
             db.engine.execute(query)
             return True
@@ -98,11 +108,11 @@ class UserDataAccess:
         # remove user deletes every row that depends on it because of cascade deletion
         try:
             # first drop all schemas owned by the user
-            query = 'SELECT id FROM dataset WHERE owner = %s', (username,)
+            query = 'SELECT id FROM dataset WHERE owner = {}'.format(_cv(username))
             rows = db.engine.execute(query)
             for dataset_id in rows:
                 data_loader.delete_dataset(dataset_id[0])
-            db.engine.execute('DELETE FROM Member WHERE username = %s', (username,))
+            db.engine.execute('DELETE FROM Member WHERE username = {}'.format(_cv(username)))
             return True
         except Exception as e:
             print('Unable to delete user!')

@@ -1,5 +1,15 @@
 from app import app, database as db
 
+def _ci(*args: str):
+    if len(args) == 1:
+        return '"{}"'.format(args[0].replace('"', '""'))
+    return ['"{}"'.format(arg.replace('"', '""')) for arg in args]
+
+
+def _cv(*args: str):
+    if len(args) == 1:
+        return "'{}'".format(args[0].replace("'", "''"))
+    return ["'{}'".format(arg.replace("'", "''")) for arg in args]
 
 class History:
     def __init__(self):

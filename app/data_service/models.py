@@ -208,6 +208,7 @@ class DataLoader:
     def delete_table(self, name, schema_id):
         try:
             db.engine.execute('DROP TABLE {}.{};'.format(*_ci(schema_id, name)))
+            db.engine.execute('DROP TABLE {}.{};'.format(*_ci(schema_id, "_raw_" + name)))
         except Exception as e:
             app.logger.error("[ERROR] Failed to delete table '" + name + "'")
             app.logger.exception(e)
@@ -674,7 +675,7 @@ class DataLoader:
                 elif type == "timestamp without time zone" or type == "timestamp with time zone":
                     type = "timestamp"
                 elif type == "character varying":
-                    type = "string"
+                    type = "text"
                 result.append(Column(row[0], type))
             return result
         except Exception as e:

@@ -8,9 +8,6 @@ from app import app, database as db
 from app.data_service.models import DataLoader
 from app.history.models import History
 
-history = History()
-
-
 def _ci(*args: str):
     if len(args) == 1:
         return '"{}"'.format(args[0].replace('"', '""'))
@@ -21,6 +18,9 @@ def _cv(*args: str):
     if len(args) == 1:
         return "'{}'".format(args[0].replace("'", "''"))
     return ["'{}'".format(arg.replace("'", "''")) for arg in args]
+
+
+history = History()
 
 
 class DataTransformer:
@@ -75,6 +75,37 @@ class DataTransformer:
             return self.impute_missing_data_on_median(schema_id, table, column)
         else:
             app.logger.error("[ERROR] Unable to impute missing data for column {}".format(column))
+
+    def find_and_replace(self, schema_id, table, column, to_be_replaced, replacement,replacement_function):
+        """" find and replace """
+        try:
+            schema_name = 'schema-' + str(schema_id)
+            if replacement_function == "substring":
+                db.engine.execute('UPDATE {0}.{1} SET {2}=replace({2}, {3}, {4})'.format(
+                    *_ci(schema_name, table, column), *_cv(to_be_replaced, replacement)))
+
+            elif replacement_function == "full replace":
+                db.engine.execute('UPDATE {0}.{1} SET {2} = {3} WHERE {2}={4}'.format(
+                    *_ci(schema_name, table, column), *_cv(replacement, to_be_replaced)))
+            else:
+                app.logger.error("[ERROR] Unable to perform find and replace")
+
+        except Exception as e:
+            app.logger.error("[ERROR] Unable to perform find and replace")
+            app.logger.exception(e)
+            raise e
+
+    def find_and_replace_by_regex(self, schema_id, table, column, regex, replacement):
+        """" find and replace """
+        try:
+            schema_name = 'schema-' + str(schema_id)
+            db.engine.execute('UPDATE {0}.{1} SET {2}=regexp_replace({2}, {3}, {4})'.format(
+                *_ci(schema_name, table, column), *_ci(regex, replacement)))
+
+        except Exception as e:
+            app.logger.error("[ERROR] Unable to perform find and replace by regex")
+            app.logger.exception(e)
+            raise e
 
 
 class DateTimeTransformer:

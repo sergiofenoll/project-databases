@@ -55,11 +55,10 @@ class UserDataAccess:
             app.logger.exception(e)
             return False
 
-
     def login_user(self, username):
         try:
             rows = db.engine.execute("SELECT Pass FROM Member WHERE Username=%s;", (username,))
-            row = rows.one()
+            row = rows.first()
 
             if row is None:
                 raise Exception("Wrong username.")
@@ -69,11 +68,10 @@ class UserDataAccess:
             app.logger.exception(e)
             raise e
 
-
     def get_user(self, user_id):
         rows = db.engine.execute(
             'SELECT * FROM Member WHERE Username=%s;', (user_id,))
-        row = rows.fetchone()
+        row = rows.first()
 
         if row is not None:
             user = User(row['username'], row['pass'], row['firstname'], row['lastname'], row['email'],

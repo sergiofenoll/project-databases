@@ -33,7 +33,7 @@ class DataTransformer:
             schema_name = 'schema-' + str(schema_id)
             rows = db.engine.execute('SELECT AVG({}) FROM {}.{}'.format(*_ci(column, schema_name, table)))
 
-            average = rows.one()[0]
+            average = rows.first()[0]
             if not average:
                 average = 0
 

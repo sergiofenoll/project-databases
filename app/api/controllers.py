@@ -1,10 +1,11 @@
 from flask import Blueprint, jsonify, request
 
-from app import connection, data_loader, date_time_transformer, data_transformer, numerical_transformer, history, \
-    ALLOWED_EXTENSIONS, UPLOAD_FOLDER
+from app import data_loader, date_time_transformer, data_transformer, numerical_transformer
+from app.history.models import History
 
 api = Blueprint('api', __name__)
 
+_history = History()
 
 @api.route('/api/datasets/<int:dataset_id>/tables/<string:table_name>', methods=['GET'])
 def get_table(dataset_id, table_name):
@@ -48,8 +49,8 @@ def get_history(dataset_id, table_name):
     order_direction = request.args.get('order[0][dir]')
     ordering = (['date', 'action_desc'][order_column], order_direction)
 
-    rows = history.get_actions(dataset_id, table_name, offset=start, limit=length, ordering=ordering, search=search)
-    _rows = history.get_actions(dataset_id, table_name)
+    rows = _history.get_actions(dataset_id, table_name, offset=start, limit=length, ordering=ordering, search=search)
+    _rows = _history.get_actions(dataset_id, table_name)
     print(len(rows))
     print(len(_rows))
 

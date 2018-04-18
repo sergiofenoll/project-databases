@@ -270,8 +270,8 @@ class DataLoader:
                 value_tuple.append(values[col])
         try:
             query = 'INSERT INTO {}.{}({}) VALUES ({});'.format(*_ci(schemaname, table),
-                                                                ', '.join(_ci(column_name) for column_name in columns),
-                                                                ', '.join(_cv(value) for value in values))
+                                                                ', '.join(_ci(column_name) for column_name in column_tuple),
+                                                                ', '.join(_cv(value) for value in value_tuple))
             db.engine.execute(query)
         except Exception as e:
             app.logger.error("[ERROR] Unable to insert row into table '" + table + "'")

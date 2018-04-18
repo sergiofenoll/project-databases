@@ -72,7 +72,7 @@ class DataLoader:
         else:
             rows = db.engine.execute('SELECT MIN(id) FROM Available_Schema;')
             schemaID = rows.first()[0]  # smallest id of schema gap
-            db.engine.execute('DELETE FROM Available_Schema WHERE id = %s;', (str(schemaID),))
+            db.engine.execute('DELETE FROM Available_Schema WHERE id = {};'.format(str(schemaID)))
 
         if schemaID == -1:
             app.logger.warning("[WARNING] Finding a unique schema-name failed")
@@ -531,7 +531,7 @@ class DataLoader:
             schema_name = 'schema-' + str(schema_id)
             search_query = ''
             if search is not None:
-                search_query = "WHERE id_dataset={0} and (id_user LIKE '%{1}%' or role LIKE '%{1}%')".format(
+                search_query = "WHERE id_dataset={0} and (id_user LIKE '%%{1}%%' or role LIKE '%%{1}%%')".format(
                     _cv(schema_name), search.replace("'", "''"))
             else:
                 search_query = "WHERE id_dataset={}".format(_cv(schema_name))
@@ -663,7 +663,7 @@ class DataLoader:
                 search_query = "WHERE (";
                 # Fill in the search for every column except ID
                 for col in columns[1:]:
-                    search_query += "{}::text LIKE '%{}%' OR ".format(_ci(col), search)
+                    search_query += "{}::text LIKE '%%{}%%' OR ".format(_ci(col), search)
                 search_query = search_query[:-3] + ")"
 
             rows = db.engine.execute(

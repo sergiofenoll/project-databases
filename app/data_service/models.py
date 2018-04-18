@@ -295,6 +295,42 @@ class DataLoader:
             self.dbconnect.rollback()
             raise e
 
+    def delete_row_predicate(self, schema_id, table_name, predicates):
+        """
+         Accepts a list of predicates to delete rows on. 
+         Predicates are of the form:
+         [[AND | OR] [COLUMN] [CONDITION] [VALUE]]
+         (where condition can be a logical operator, contains etc.)
+        """
+        cursor = self.dbconnect.get_cursor()
+        schema_name = 'schema-' + str(schema_id)
+
+        # Gather all ids for rows to be deleted
+        query_select = sql.SQL('SELECT id FROM {0}.{1} WHERE (').format(sql.Identifier(schema_name), sql.Identifier(table_name))
+        where_queries = list()
+        for p_ix in range(len(predicates)):
+            predicate = predicates[p_ix]
+            # TODO: make this safe!
+            if (p_ix == 0):
+                q = sql.SQL('\"{0}\" {1} \'{2}\''.format(predicate[1], predicate[2], predicate[3]))
+                where_queries.append(q)
+            else:
+                q = sql.SQL('{0} \"{1}\" {2} \'{3}\''.format(predicate[0], predicate[1], predicate[2], predicate[3]))
+                where_queries.append(q)
+        query = cursor.mogrify(query_select + sql.SQL(' ').join(where_queries) + sql.SQL(');'))
+
+        try:
+            cursor.execute(query)
+            to_delete = [r[0] for r in cursor]
+
+            # Pass ids to 'traditional' delete_row
+            self.delete_row(schema_id, table_name, to_delete)
+
+        except Exception as e:
+            app.logger.error('[ERROR] Unable to fetch rows to delete from ' + table_name)
+            app.logger.exception(e)
+            self.dbconnect.rollback()
+
     def delete_column(self, schema_id, table_name, column_name):
         cursor = self.dbconnect.get_cursor()
         schema_name = 'schema-' + str(schema_id)

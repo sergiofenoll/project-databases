@@ -208,6 +208,7 @@ class DataLoader:
     def delete_table(self, name, schema_id):
         try:
             db.engine.execute('DROP TABLE {}.{};'.format(*_ci(schema_id, name)))
+            db.engine.execute('DROP TABLE {}.{};'.format(*_ci(schema_id, "_raw_" + name)))
         except Exception as e:
             app.logger.error("[ERROR] Failed to delete table '" + name + "'")
             app.logger.exception(e)

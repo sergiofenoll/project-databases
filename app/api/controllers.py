@@ -213,3 +213,10 @@ def outliers(dataset_id, table_name):
         return jsonify({'success': False,
                         'message': 'Unable to convert value into a numerical type. Did you send a number?'}), 400
     return jsonify({'success': True}), 200
+
+@api.route('/api/datasets/<int:dataset_id>/tables/<string:table_name>/rename-column', methods=['PUT'])
+def rename_column(dataset_id, table_name):
+  to_rename = request.args.get('col-name')
+  new_name = request.args.get('new-name')
+  data_loader.rename_column(dataset_id, table_name, to_rename, new_name)
+  return jsonify({'success': True}), 200

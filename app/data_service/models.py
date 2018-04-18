@@ -295,6 +295,15 @@ class DataLoader:
         # Log action to history
         history.log_action(schema_id, table_name, datetime.now(), 'Added column with name ' + column_name)
 
+    def rename_column(self, schema_id, table_name, column_name, new_column_name):
+        schema_name = 'schema-' + str(schema_id)
+        try:
+            db.engine.execute(
+                'ALTER TABLE {0}.{1} RENAME {2} TO {3}'.format(*_ci(schema_name, table_name, column_name, new_column_name)))
+        except Exception as e:
+            app.logger.error("[ERROR] Unable to rename column '{0}' to '{1}' in table '{2}'".format(column_name, new_column_name, table_name))
+            app.logger.exception(e)
+
     def update_column_type(self, schema_id, table_name, column_name, column_type):
         schema_name = 'schema-' + str(schema_id)
         try:

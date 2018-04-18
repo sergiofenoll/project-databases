@@ -169,12 +169,13 @@ def show_raw_data(dataset_id, table_name):
 def find_and_replace(dataset_id, table_name):
     colomn = request.args.get('col-name')
     replacement_function = request.args.get('replacement-function')
-    value_to_be_replaced = request.args.get('value-to-be-replaced')
+
+    replacement_value = request.args.get('replacement-value')
     if replacement_function == "regex":
-        regex = request.args.get('regex')
-        data_transformer.find_and_replace_by_regex(dataset_id, table_name, colomn, value_to_be_replaced, regex)
+        regex = request.args.get('replacement-regex')
+        data_transformer.find_and_replace_by_regex(dataset_id, table_name, colomn, regex, replacement_value)
     else:
-        replacement_value = request.args.get('replacement-value')
+        value_to_be_replaced = request.args.get('value-to-be-replaced')
         data_transformer.find_and_replace(dataset_id, table_name, colomn, value_to_be_replaced, replacement_value,
                                           replacement_function)
 

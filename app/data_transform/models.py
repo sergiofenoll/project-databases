@@ -8,9 +8,6 @@ from app import app, database as db
 from app.data_service.models import DataLoader
 from app.history.models import History
 
-history = History()
-
-
 def _ci(*args: str):
     if len(args) == 1:
         return '"{}"'.format(args[0].replace('"', '""'))
@@ -22,6 +19,7 @@ def _cv(*args: str):
         return "'{}'".format(args[0].replace("'", "''"))
     return ["'{}'".format(arg.replace("'", "''")) for arg in args]
 
+history = History()
 
 class DataTransformer:
     def __init__(self):

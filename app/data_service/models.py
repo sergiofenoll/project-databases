@@ -259,8 +259,8 @@ class DataLoader:
             predicate = predicates[p_ix]
             # Special conditions first
             if predicate[2] == "CONTAINS":
-                predicate[2] = "LIKE "
-                predicate[3] = "%" + predicate[3] + "%"
+                predicate[2] = "LIKE"
+                predicate[3] = "%%" + predicate[3] + "%%"
             # TODO: make this safe!
             if (p_ix == 0):
                 q = '{0} {1} {2}'.format(_ci(predicate[1]), predicate[2], _cv(str(predicate[3])))
@@ -271,9 +271,9 @@ class DataLoader:
         query = query_select + ' '.join(where_queries) + ');'
 
         try:
-            print ("---> QUERY HERE: \n" + query)
             result = db.engine.execute(query)
-            to_delete = [r[0] for r in result]
+
+            to_delete = [r['id'] for r in result]
 
             # Pass ids to 'traditional' delete_row
             self.delete_row(schema_id, table_name, to_delete)

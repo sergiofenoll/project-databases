@@ -417,8 +417,11 @@ class DataLoader:
                 else:
                     raw_name = "_raw_" + tablename
                     values_list = [x.strip() for x in line.split(",")]
-                    self.insert_row(tablename, schema_id, columns, values_list, True)
-                    self.insert_row(raw_name, schema_id, columns, values_list, True)
+                    values = dict()
+                    for c in range(len(columns)):
+                        values[columns[c]] = values_list[c]
+                    self.insert_row(tablename, schema_id, columns, values, True)
+                    self.insert_row(raw_name, schema_id, columns, values, True)
 
     def process_zip(self, file, schema_id):
         """
@@ -491,7 +494,10 @@ class DataLoader:
                     if not self.table_exists(tablename, schema_id):
                         self.create_table(tablename, schema_id, columns)
                     for values in values_list:
-                        self.insert_row(tablename, schema_id, columns, values, True)
+                        val_dict = dict()
+                        for c_ix in range(len(columns)):
+                            val_dict[columns[c_ix]] = values[c_ix]
+                        self.insert_row(tablename, schema_id, columns, val_dict, True)
 
     # Data access handling
     def get_user_datasets(self, user_id):

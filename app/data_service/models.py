@@ -181,6 +181,7 @@ class DataLoader:
         for column in columns:
             query = query + ', \n\"' + column + '\" varchar(255)'
         query += '\n);'
+
         raw_table_name = "_raw_" + name
         raw_table_query = query.format(*_ci(schema_name, raw_table_name))
 
@@ -208,6 +209,7 @@ class DataLoader:
     def delete_table(self, name, schema_id):
         try:
             db.engine.execute('DROP TABLE {}.{};'.format(*_ci(schema_id, name)))
+            db.engine.execute('DROP TABLE {}.{};'.format(*_ci(schema_id, "_raw_" + name)))
         except Exception as e:
             app.logger.error("[ERROR] Failed to delete table '" + name + "'")
             app.logger.exception(e)
@@ -235,7 +237,7 @@ class DataLoader:
         schema_name = 'schema-' + str(schema_id)
         try:
             for row_id in row_ids:
-                db.engine.execute('DELETE FROM {}.{} WHERE id={}};'.format(*_ci(schema_name, table_name), _cv(row_id)))
+                db.engine.execute('DELETE FROM {}.{} WHERE id={};'.format(*_ci(schema_name, table_name), _cv(row_id)))
                 # Log action to history
                 history.log_action(schema_id, table_name, datetime.now(), 'Deleted row #' + str(row_id))
         except Exception as e:
@@ -306,6 +308,7 @@ class DataLoader:
 
     def update_column_type(self, schema_id, table_name, column_name, column_type):
         schema_name = 'schema-' + str(schema_id)
+        db.engine.execute('ALTER DATABASE userdb SET datestyle TO "ISO, MDY";')
         try:
             db.engine.execute(
                 'ALTER TABLE {0}.{1} ALTER {2} TYPE {3} USING {2}::{3};'.format(
@@ -675,6 +678,8 @@ class DataLoader:
                     type = "timestamp"
                 elif type == "character varying":
                     type = "string"
+                elif type == "bigint":
+                    type = "integer"
                 result.append(Column(row[0], type))
             return result
         except Exception as e:

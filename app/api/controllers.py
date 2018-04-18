@@ -1,6 +1,7 @@
 from flask import Blueprint, jsonify, request
 
-from app import connection, data_loader, date_time_transformer, data_transformer, history, ALLOWED_EXTENSIONS, UPLOAD_FOLDER
+from app import connection, data_loader, date_time_transformer, data_transformer, numerical_transformer, history, \
+    ALLOWED_EXTENSIONS, UPLOAD_FOLDER
 
 api = Blueprint('api', __name__)
 
@@ -104,13 +105,15 @@ def transform_date_or_time(dataset_id, table_name):
     date_time_transformer.transform(dataset_id, table_name, column_name, operation_name)
     return jsonify({'success': True}), 200
 
+
 @api.route('/api/datasets/update-dataset-metadata', methods=['PUT'])
 def update_dataset_metadata():
     dataset_id = request.args.get('ds-id')
     new_name = request.args.get('ds-name')
     new_desc = request.args.get('ds-desc')
-    data_loader.update_dataset_metadata(dataset_id,new_name, new_desc)
+    data_loader.update_dataset_metadata(dataset_id, new_name, new_desc)
     return jsonify({'success': True}), 200
+
 
 @api.route('/api/datasets/<int:dataset_id>/update-metadata', methods=['PUT'])
 def update_table_metadata(dataset_id):
@@ -120,9 +123,53 @@ def update_table_metadata(dataset_id):
     data_loader.update_table_metadata(dataset_id, old_table_name, new_table_name, new_desc)
     return jsonify({'success': True}), 200
 
+
 @api.route('/api/datasets/<int:dataset_id>/tables/<string:table_name>/impute-missing-data', methods=['PUT'])
 def impute_missing_data(dataset_id, table_name):
     column_name = request.args.get('col-name')
     function = request.args.get('function')
     data_transformer.impute_missing_data(dataset_id, table_name, column_name, function)
     return jsonify({'success': True}), 200
+
+
+@api.route('/api/datasets/<int:dataset_id>/tables/<string:table_name>/normalize', methods=['PUT'])
+def normalize(dataset_id, table_name):
+    column_name = request.args.get('col-name')
+    numerical_transformer.normalize(dataset_id, table_name, column_name)
+    return jsonify({'success': True}), 200
+
+
+@api.route('/api/datasets/<int:dataset_id>/tables/<string:table_name>/discretize', methods=['PUT'])
+def discretize(dataset_id, table_name):
+    column_name = request.args.get('col-name')
+    discretization = request.args.get('discretization')
+    try:
+        if discretization == 'eq-width':
+            num_intervals = int(request.args.get('num-intervals'))
+            numerical_transformer.equal_freq_interval(dataset_id, table_name, column_name, num_intervals)
+        elif discretization == 'eq-freq':
+            num_intervals = int(request.args.get('num-intervals'))
+            numerical_transformer.equal_width_interval(dataset_id, table_name, column_name, num_intervals)
+        elif discretization == 'manual':
+            intervals = [int(n) for n in request.args.get('intervals').strip().split(',')]
+            numerical_transformer.manual_interval(dataset_id, table_name, column_name, intervals)
+        else:
+            return jsonify({'success': False, 'message': 'Unknown discretization type.'}), 400
+    except ValueError as e:
+        return jsonify({'success': False,
+                        'message': 'Unable to convert intervals into numerical types. Did you send numbers?'}), 400
+    return jsonify({'success': True}), 200
+
+
+@api.route('/api/datasets/<int:dataset_id>/tables/<string:table_name>/outliers', methods=['PUT'])
+def outliers(dataset_id, table_name):
+    try:
+        column_name = request.args.get('col-name')
+        option = request.args.get('option') == 'less-than'
+        value = float(request.args.get('value'))
+        numerical_transformer.remove_outlier(dataset_id, table_name, column_name, value, option)
+    except ValueError as e:
+        return jsonify({'success': False,
+                        'message': 'Unable to convert value into a numerical type. Did you send a number?'}), 400
+    return jsonify({'success': True}), 200
+

@@ -1,36 +1,86 @@
 html {
-    position: relative;
-    min-height: 100%;
+	position: relative;
+	min-height: 100%;
 }
 
-body {
-    /* Add a margin between to the body for the footer */
-    margin-bottom: 40px;
+.col-sm-2 {
+	padding: 0 !important;
 }
 
-body > .container {
-    padding: 70px 15px 0;
+.col-sm-8 {
+	padding: 0 !important;
 }
 
-.footer {
-    position: absolute;
-    bottom: 0;
-    width: 100%;
-    /* Set the fixed height of the footer here */
-    height: 30px;
-    line-height: 30px; /* Vertically center the text there */
-    background-color: #f5f5f5;
+.col-sm-10 {
+	padding: 0 !important;
 }
 
-.footer > .container {
-    padding-right: 15px;
-    padding-left: 15px;
+body > .container{
+	padding-top: 65px;
 }
 
-/*th {*/
-    /*padding: 5px !important;*/
-/*}*/
+* {
+	/*border-radius: 0 !important; !* Fuck rounded corners lmao *!*/
+}
 
-/*td {*/
-    /*padding: 5px !important;*/
-/*}*/
+.panel-group {
+	border-radius: 0;
+	border-top-left-radius: 3px;
+	border-top-right-radius: 3px;
+	/*margin-left: 10px;*/
+}
+
+.panel-body {
+	/*padding: 0;*/
+}
+
+.panel-body table tr td {
+	padding: 0;
+	line-height: 1.428571429;
+	vertical-align: top;
+	border: 0;
+	/*border-top: 1px solid #ddd;*/
+}
+
+.panel-body .table {
+	margin-bottom: 0;
+	table-layout: fixed;
+	width: 100%;
+}
+
+.panel-body > table > tr > td {
+	/*padding: 8px;*/
+	line-height: 1.428571429;
+	vertical-align: top;
+	/*border-top: 1px solid #ddd;*/
+	box-sizing: border-box;
+	border-collapse: collapse;
+	border-spacing: 0;
+	font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+	font-size: 8px !important;
+	color: #333;
+}
+
+.panel-heading {
+	font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+	font-size: 14px;
+	border-bottom: 0;
+	line-height: 1.428571429;
+	color: #333;
+	background-color: #a9a9a9;
+	box-sizing: border-box;
+	text-align: left !important;
+}
+
+.panel-button {
+	width: 100%;
+	/*font-size: 14px !important;*/
+	white-space: normal;
+	text-align: left !important;
+	border-radius: 0;
+}
+
+.panel-form {
+	padding: 8px;
+	background-color: #e2e6ea;
+}

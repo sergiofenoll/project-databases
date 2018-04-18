@@ -95,7 +95,7 @@ def add_table(dataset_id):
 
         try:
             if filename[-3:] == "zip":
-                data_loader.process_zip(path, current_user.active_schema)
+                data_loader.process_zip(path, dataset_id)
             elif filename[-3:] == "csv":
                 tablename = filename.split('.csv')[0]
                 create_new = not data_loader.table_exists(tablename, dataset_id)

@@ -8,56 +8,50 @@ from app import app, database as db
 from app.data_service.models import DataLoader
 from app.history.models import History
 
+history = History()
+
+
+def _ci(*args: str):
+    if len(args) == 1:
+        return '"{}"'.format(args[0].replace('"', '""'))
+    return ['"{}"'.format(arg.replace('"', '""')) for arg in args]
+
+
+def _cv(*args: str):
+    if len(args) == 1:
+        return "'{}'".format(args[0].replace("'", "''"))
+    return ["'{}'".format(arg.replace("'", "''")) for arg in args]
+
 
 class DataTransformer:
-    def __init__(self, dbconnection):
-        self.dbconnect = dbconnection
+    def __init__(self):
+        pass
 
     def impute_missing_data_on_average(self, schema_id, table, column):
         """" impute missing data based on the average"""
         try:
             schema_name = 'schema-' + str(schema_id)
-            cursor = self.dbconnect.get_cursor()
+            rows = db.engine.execute('SELECT AVG({}) FROM {}.{}'.format(*_ci(column, schema_name, table)))
 
-            query = cursor.mogrify(sql.SQL('SELECT AVG( {} ) FROM {}.{}').format(
-                sql.Identifier(column),
-                sql.Identifier(schema_name),
-                sql.Identifier(table)
-            ))
-            cursor.execute(query)
-
-            average = cursor.fetchone()[0]
+            average = rows.one()[0]
             if not average:
                 average = 0
 
-            query = cursor.mogrify(sql.SQL('UPDATE {}.{} SET {}= %s WHERE {} IS NULL;').format(
-                sql.Identifier(schema_name),
-                sql.Identifier(table),
-                sql.Identifier(column),
-                sql.Identifier(column)
-            ), (average,))
-            cursor.execute(query)
-            self.dbconnect.commit()
+            db.engine.execute('UPDATE {0}.{1} SET {2} = {3} WHERE {2} IS NULL;'.format(*_ci(schema_name, table, column),
+                                                                                       _cv(average)))
         except Exception as e:
             app.logger.error("[ERROR] Unable to impute missing data for column {} by average".format(column))
             app.logger.exception(e)
-            self.dbconnect.rollback()
             raise e
 
     def impute_missing_data_on_median(self, schema_id, table, column):
         """" impute missing data based on the average"""
         try:
             schema_name = 'schema-' + str(schema_id)
-            cursor = self.dbconnect.get_cursor()
 
-            query = cursor.mogrify(sql.SQL('SELECT {} FROM {}.{}').format(
-                sql.Identifier(column),
-                sql.Identifier(schema_name),
-                sql.Identifier(table)
-            ))
-            cursor.execute(query)
+            rows = db.engine.execute('SELECT {} FROM {}.{}'.format(*_ci(column, schema_name, table)))
             values = list()
-            for value in cursor:
+            for value in rows:
                 if value[0] is not None:
                     values.append(value[0])
 
@@ -66,23 +60,15 @@ class DataTransformer:
             else:
                 median_val = median(values)
 
-            query = cursor.mogrify(sql.SQL('UPDATE {}.{} SET {}= %s WHERE {} IS NULL;').format(
-                sql.Identifier(schema_name),
-                sql.Identifier(table),
-                sql.Identifier(column),
-                sql.Identifier(column)
-            ), (median_val,))
-            cursor.execute(query)
-            self.dbconnect.commit()
+            db.engine.execute('UPDATE {0}.{1} SET {2} = {3} WHERE {2} IS NULL;'.format(*_ci(schema_name, table, column),
+                                                                                       _cv(median_val)))
         except Exception as e:
             app.logger.error("[ERROR] Unable to impute missing data for column {} by median".format(column))
             app.logger.exception(e)
-            self.dbconnect.rollback()
             raise e
 
     def impute_missing_data(self, schema_id, table, column, function):
-        """" impute missing data based on the average"""
-
+        """"impute missing data based on the average"""
         if function == "AVG":
             return self.impute_missing_data_on_average(schema_id, table, column)
         elif function == "MEDIAN":
@@ -92,33 +78,25 @@ class DataTransformer:
 
 
 class DateTimeTransformer:
-    def __init__(self, dbconnection):
-        self.dbconnect = dbconnection
+    def __init__(self):
+        pass
 
     def extract_element_from_date(self, schema_id, table, column, element):
         """" Return element of date out of timestamp"""
         try:
             schema_name = 'schema-' + str(schema_id)
             new_column = column + ' (' + element + ')'
-            cursor = self.dbconnect.get_cursor()
-            data_loader = DataLoader(self.dbconnect)
+            data_loader = DataLoader()
             data_loader.insert_column(schema_id, table, new_column, "double precision")
-            query = cursor.mogrify(
-                sql.SQL(' UPDATE {}.{} SET {} = (EXTRACT(' + element + ' FROM {}::TIMESTAMP));').format(
-                    sql.Identifier(schema_name),
-                    sql.Identifier(table),
-                    sql.Identifier(new_column),
-                    sql.Identifier(column)))
-            cursor.execute(query)
-            self.dbconnect.commit()
+            db.engine.execute(
+                ' UPDATE {}.{} SET {} = (EXTRACT({} FROM {}::TIMESTAMP));'.format(*_ci(schema_name, table, new_column),
+                                                                                  element, _ci(column)))
         except Exception as e:
             app.logger.error("[ERROR] Unable to extract " + element + " from column '{}'".format(column))
             app.logger.exception(e)
-            self.dbconnect.rollback()
             raise e
 
         # Log action to history
-        history = History(self.dbconnect)
         history.log_action(schema_id, table, datetime.now(), 'Extracted ' + element + ' from column ' + column)
 
     def extract_time_or_date(self, schema_id, table, column, element):
@@ -126,25 +104,16 @@ class DateTimeTransformer:
         try:
             schema_name = 'schema-' + str(schema_id)
             new_column = column + ' (' + element + ')'
-            cursor = self.dbconnect.get_cursor()
-            data_loader = DataLoader(self.dbconnect)
+            data_loader = DataLoader()
             data_loader.insert_column(schema_id, table, new_column, element)
-            query = cursor.mogrify(
-                sql.SQL('UPDATE {}.{} SET {} = {}::' + element.lower() + ';').format(
-                    sql.Identifier(schema_name),
-                    sql.Identifier(table),
-                    sql.Identifier(new_column),
-                    sql.Identifier(column)))
-            cursor.execute(query)
-            self.dbconnect.commit()
+            db.engine.execute(
+                ' UPDATE {}.{} SET {} = {}::{};'.format(*_ci(schema_name, table, new_column), element))
         except Exception as e:
             app.logger.error("[ERROR] Unable to extract " + element + " from column '{}'".format(column))
             app.logger.exception(e)
-            self.dbconnect.rollback()
             raise e
 
         # Log action to history
-        history = History(self.dbconnect)
         history.log_action(schema_id, table, datetime.now(), 'Extracted ' + element + ' from column ' + column)
 
     def get_transformations(self):
@@ -201,7 +170,7 @@ class NumericalTransformations:
         intervals_list = []
         for i in range(0, data_length, interval_size):
             intervals_list.append(sorted_data[i])
-        df[new_column_name] = pd.cut(df[column_name], intervals_list)
+        df[new_column_name] = pd.cut(df[column_name], intervals_list).apply(str)
 
         db.engine.execute('DROP TABLE "{0}"."{1}"'.format(schema_name, table_name))
         df.to_sql(name=table_name, con=db.engine, schema=schema_name, if_exists='fail', index=False)
@@ -209,7 +178,7 @@ class NumericalTransformations:
     def manual_interval(self, schema_id, table_name, column_name, intervals):
         schema_name = 'schema-' + str(schema_id)
         df = pd.read_sql_query('SELECT * FROM "{}"."{}"'.format(schema_name, table_name), db.engine)
-        new_column_name = column_name + 'intervals_custom'
+        new_column_name = column_name + '_intervals_custom'
 
         df[new_column_name] = pd.cut(df[column_name], intervals).apply(str)
 
@@ -220,7 +189,7 @@ class NumericalTransformations:
         schema_name = 'schema-' + str(schema_id)
         if less_than:
             db.engine.execute(
-                'DELETE FROM "{0}"."{1}" WHERE "{1}" < {2}'.format(schema_name, table_name, column_name, value))
+                'DELETE FROM "{}"."{}" WHERE "{}" < {}'.format(schema_name, table_name, column_name, value))
         else:
             db.engine.execute(
-                'DELETE FROM "{0}"."{1}" WHERE "{1}" > {2}'.format(schema_name, table_name, column_name, value))
+                'DELETE FROM "{}"."{}" WHERE "{}" > {}'.format(schema_name, table_name, column_name, value))

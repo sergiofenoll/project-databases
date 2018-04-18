@@ -62,10 +62,14 @@ def get_history(dataset_id, table_name):
 
 @api.route('/api/datasets/<int:dataset_id>/tables/<string:table_name>/rows', methods=['POST'])
 def add_row(dataset_id, table_name):
-    values = list()
+    values = dict()
+    columns = list()
     for key in request.args:
-        values.append(request.args.get(key))
-    data_loader.insert_row(table_name, dataset_id, data_loader.get_column_names(dataset_id, table_name)[1:], values)
+      if key.startswith('value-col'):
+        col_name = key.split('-')[2] # Key is of the form "value-col-[name]"
+        values[col_name] = request.args.get(key)
+        columns.append(col_name)
+    data_loader.insert_row(table_name, dataset_id, columns, values)
     return jsonify({'success': True}), 200
 
 

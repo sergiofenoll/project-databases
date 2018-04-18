@@ -316,17 +316,24 @@ class DataLoader:
 
     def insert_row(self, table, schema_id, columns, values, file_upload=False):
         """
-         This method takes list of values and adds those to the given table.
+         This method takes dict of values and adds those to the given table.
+         The entries in values look like: {column_name: column_value}
         """
 
         cursor = self.dbconnect.get_cursor()
         schemaname = 'schema-' + str(schema_id)
+        # Create column/value tuples in proper order
+        column_tuple = list()
+        value_tuple = list()
+        for col in values.keys():
+            if values[col] != '':
+                column_tuple.append(col)
+                value_tuple.append(values[col])
         try:
             query = cursor.mogrify(sql.SQL(
                 'INSERT INTO {0}.{1}({2}) VALUES %s;').format(sql.Identifier(schemaname), sql.Identifier(table),
-                                                              sql.SQL(', ').join(
-                                                                  sql.Identifier(column_name) for column_name in
-                                                                  columns)), (tuple(values),))
+                                                              sql.SQL(', ').join(sql.Identifier(col) for col in column_tuple)), 
+                                                              (tuple(value_tuple),))
             cursor.execute(query)
             self.dbconnect.commit()
         except Exception as e:

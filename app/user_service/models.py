@@ -67,7 +67,7 @@ class UserDataAccess:
 
     def login_user(self, username):
         try:
-            rows = db.engine.execute("SELECT Pass FROM Member WHERE Username={};", (username,))
+            rows = db.engine.execute("SELECT Pass FROM Member WHERE Username={};".format(_cv(username)))
             row = rows.first()
 
             if row is None:

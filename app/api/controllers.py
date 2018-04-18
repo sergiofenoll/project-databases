@@ -7,6 +7,7 @@ api = Blueprint('api', __name__)
 
 _history = History()
 
+
 @api.route('/api/datasets/<int:dataset_id>/tables/<string:table_name>', methods=['GET'])
 def get_table(dataset_id, table_name):
     start = request.args.get('start')
@@ -51,8 +52,6 @@ def get_history(dataset_id, table_name):
 
     rows = _history.get_actions(dataset_id, table_name, offset=start, limit=length, ordering=ordering, search=search)
     _rows = _history.get_actions(dataset_id, table_name)
-    print(len(rows))
-    print(len(_rows))
 
     return jsonify(draw=int(request.args.get('draw')),
                    recordsTotal=len(_rows),

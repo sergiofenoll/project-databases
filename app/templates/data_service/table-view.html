@@ -787,6 +787,18 @@
 					});
 				});
 
+				$('#formExportOptions').submit(function (e) {
+					e.preventDefault();
+					$.ajax({
+						type:'PUT',
+						url: '/api' + window.location.pathname + '/export?' + $('#formExportOptions').serialize(),
+                         success: function () {
+                             window.location.reload();
++                            document.getElementById('exportDLBtn').click();
+                         }
+					});
+				});
+
 				$('#history').click(function (e) {
 					e.preventDefault();
 					window.location.href = window.location.pathname + '/history';

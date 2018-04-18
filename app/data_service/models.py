@@ -4,10 +4,25 @@ import csv
 from datetime import datetime
 from zipfile import ZipFile
 
-from psycopg2 import sql, IntegrityError
+import pandas as pd
+from psycopg2 import IntegrityError
 
-from app import app
+from app import app, database as db
 from app.history.models import History
+
+history = History()
+
+
+def _ci(*args: str):
+    if len(args) == 1:
+        return '"{}"'.format(args[0].replace('"', '""'))
+    return ['"{}"'.format(arg.replace('"', '""')) for arg in args]
+
+
+def _cv(*args: str):
+    if len(args) == 1:
+        return "'{}'".format(args[0].replace("'", "''"))
+    return ["'{}'".format(arg.replace("'", "''")) for arg in args]
 
 
 class Dataset:
@@ -34,8 +49,8 @@ class Table:
 
 
 class DataLoader:
-    def __init__(self, dbconnect):
-        self.dbconnect = dbconnect
+    def __init__(self):
+        pass
 
     # Dataset & Data handling (inserting/deleting...)
     def create_dataset(self, name, desc, owner_id):
@@ -45,27 +60,19 @@ class DataLoader:
         """
 
         # Create the schema
-        cursor = self.dbconnect.get_cursor()
-
-        query = cursor.mogrify('SELECT COUNT(*) FROM Available_Schema;')
-        cursor.execute(query)
-        count = cursor.fetchone()[0]  # Amount of schema gaps
+        rows = db.engine.execute('SELECT COUNT(*) FROM Available_Schema;')
+        count = rows.first()[0]  # Amount of schema gaps
 
         schemaID = -1
 
         if count == 0:
-            query = cursor.mogrify('SELECT COUNT(*) FROM Dataset;')
-
-            cursor.execute(query)
-            schemaID = cursor.fetchone()[0]  # Amount of already existing schemas
+            rows = db.engine.execute('SELECT COUNT(*) FROM Dataset;')
+            schemaID = rows.first()[0]  # Amount of already existing schemas
 
         else:
-            query = cursor.mogrify('SELECT MIN(id) FROM Available_Schema;')
-            cursor.execute(query)
-            schemaID = cursor.fetchone()[0]  # smallest id of schema gap
-
-            query = cursor.mogrify('DELETE FROM Available_Schema WHERE id = %s;', (str(schemaID),))
-            cursor.execute(query)
+            rows = db.engine.execute('SELECT MIN(id) FROM Available_Schema;')
+            schemaID = rows.first()[0]  # smallest id of schema gap
+            db.engine.execute('DELETE FROM Available_Schema WHERE id = %s;', (str(schemaID),))
 
         if schemaID == -1:
             app.logger.warning("[WARNING] Finding a unique schema-name failed")
@@ -74,34 +81,25 @@ class DataLoader:
         schemaname = "schema-" + str(schemaID)
 
         try:
-            query = cursor.mogrify(sql.SQL('CREATE SCHEMA {0};').format(sql.Identifier(schemaname)))
-
-            cursor.execute(query)
-            self.dbconnect.commit()
+            db.engine.execute('CREATE SCHEMA {};'.format(_ci(schemaname)))
         except Exception as e:
             app.logger.error("[ERROR] Failed to created schema '" + name + "'")
             app.logger.exception(e)
-            self.dbconnect.rollback()
             raise e
 
         # Add schema to dataset table
         try:
-            query = cursor.mogrify(
-                'INSERT INTO Dataset(id, nickname, metadata, owner) VALUES(%s, %s, %s, %s);', (schemaname,
-                                                                                               name, desc, owner_id,))
-            cursor.execute(query)
+            db.engine.execute(
+                'INSERT INTO Dataset(id, nickname, metadata, owner) VALUES({}, {}, {}, {});'.format(
+                    *_cv(schemaname, name, desc, owner_id)))
 
             # Add user to the access table
-            query = cursor.mogrify(
-                'INSERT INTO Access(id_dataset, id_user, role) VALUES(%s, %s, %s);', (schemaname,
-                                                                                      owner_id,
-                                                                                      'owner',))
-            cursor.execute(query)
-            self.dbconnect.commit()
+            db.engine.execute(
+                'INSERT INTO Access(id_dataset, id_user, role) VALUES({}, {}, {});'.format(
+                    *_cv(schemaname, owner_id, 'owner')))
         except Exception as e:
             app.logger.error("[ERROR] Failed to insert dataset '" + name + "' into the database")
             app.logger.exception(e)
-            self.dbconnect.rollback()
             raise e
 
     def delete_dataset(self, schema_id):
@@ -109,44 +107,32 @@ class DataLoader:
          This method deletes a schema (and therefore all contained tables) from the database
         """
 
-        cursor = self.dbconnect.get_cursor()
-
         # Clean up the access & dataset tables
         try:
             id = schema_id.split('-')[1]
-            query = cursor.mogrify('INSERT INTO Available_Schema (id) VALUES (%s)', (id,))
-            cursor.execute(query)
+            db.engine.execute('INSERT INTO Available_Schema (id) VALUES ({})'.format(_cv(id)))
 
-            query = cursor.mogrify('DELETE FROM Dataset WHERE id = %s;', (str(schema_id),))
-            cursor.execute(query)
+            db.engine.execute('DELETE FROM Dataset WHERE id = {};'.format(_cv(str(schema_id))))
 
-            query = cursor.mogrify(sql.SQL('DROP SCHEMA IF EXISTS {0} CASCADE').format(sql.Identifier(schema_id)))
-            cursor.execute(query)
+            db.engine.execute('DROP SCHEMA IF EXISTS {} CASCADE;'.format(_ci(schema_id)))
 
             # check if there are datasets. If not, clean available_schema
-            query = cursor.mogrify('SELECT COUNT(*) FROM Dataset;')
-            cursor.execute(query)
-            count = cursor.fetchone()[0]  # Amount of already existing schemas
+            rows = db.engine.execute('SELECT COUNT(*) FROM Dataset;')
+            count = rows.first()[0]  # Amount of already existing schemas
             if count == 0:
-                query = cursor.mogrify('TRUNCATE Available_Schema;')
-                cursor.execute(query)
+                db.engine.execute('TRUNCATE Available_Schema;')
 
-            self.dbconnect.commit()
         except Exception as e:
             app.logger.error("[ERROR] Failed to properly remove dataset '" + schema_id + "'")
             app.logger.exception(e)
-            self.dbconnect.rollback()
             raise e
 
         # Delete schema
         try:
-            query = cursor.mogrify(sql.SQL('DROP SCHEMA IF EXISTS {0} CASCADE;').format(sql.Identifier(schema_id)))
-            cursor.execute(query)
-            self.dbconnect.commit()
+            db.engine.execute('DROP SCHEMA IF EXISTS {} CASCADE;'.format(_ci(schema_id)))
         except Exception as e:
             app.logger.error("[ERROR] Failed to delete schema '" + schema_id + "'")
             app.logger.exception(e)
-            self.dbconnect.rollback()
             raise e
 
     def get_dataset_id(self, name):
@@ -156,13 +142,11 @@ class DataLoader:
          Return value is a list
         """
 
-        cursor = self.dbconnect.get_cursor()
-        query = cursor.mogrify('SELECT id FROM Dataset WHERE nickname = %s;', (name,))
-        cursor.execute(query)
+        rows = db.engine.execute('SELECT id FROM Dataset WHERE nickname = {};'.format(_cv(name)))
 
         ids = list()
 
-        for row in cursor:
+        for row in rows:
             ids.append(row["id"])
 
         return ids
@@ -171,15 +155,11 @@ class DataLoader:
         """
          This method returns a bool representing whether the given table exists
         """
-
-        cursor = self.dbconnect.get_cursor()
-
         try:
-            query = cursor.mogrify(
-                "SELECT EXISTS (SELECT 1 FROM information_schema.tables " +
-                "WHERE  table_schema = %s AND table_name = %s);", (str(schema_id), name,))
-            cursor.execute(query)
-            row = cursor.fetchone()
+            rows = db.engine.execute(
+                'SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE  table_schema = {} AND table_name = {});'.format(
+                    *_cv(str(schema_id), name)))
+            row = rows.first()
 
             return row[0]
 
@@ -192,107 +172,75 @@ class DataLoader:
         """
          This method takes a schema, name and a list of columns and creates the corresponding table
         """
-
-        cursor = self.dbconnect.get_cursor()
         schema_name = 'schema-' + str(schema_id)
 
-        query = 'CREATE TABLE {0}.{1} ('
+        query = 'CREATE TABLE {}.{} ('
 
         query += 'id serial primary key'  # Since we don't know what the actual primary key should be, just assign an id
 
         for column in columns:
             query = query + ', \n\"' + column + '\" varchar(255)'
         query += '\n);'
-
         raw_table_name = "_raw_" + name
-        raw_table_query = sql.SQL(query).format(sql.Identifier(schema_name), sql.Identifier(raw_table_name))
+        raw_table_query = query.format(*_ci(schema_name, raw_table_name))
 
-        query = sql.SQL(query).format(sql.Identifier(schema_name), sql.Identifier(name))
+        query = query.format(*_ci(schema_name, name))
 
         try:
-            query = cursor.mogrify(query)
-            cursor.execute(query)
-
-            raw_table_query = cursor.mogrify(raw_table_query)
-            cursor.execute(raw_table_query)
-
-            self.dbconnect.commit()
+            db.engine.execute(query)
+            db.engine.execute(raw_table_query)
         except Exception as e:
             app.logger.error("[ERROR] Failed to create table '" + name + "'")
             app.logger.exception(e)
-            self.dbconnect.rollback()
             raise e
 
         # Log action to history
-        history = History(self.dbconnect)
         history.log_action(schema_id, name, datetime.now(), 'Created table')
 
         # Add metadata for this table
         try:
-
-            query = cursor.mogrify('INSERT INTO metadata VALUES(%s, %s, %s);', (schema_name, name, desc,))
-            cursor.execute(query)
-            self.dbconnect.commit()
+            db.engine.execute('INSERT INTO metadata VALUES({}, {}, {});'.format(*_cv(schema_name, name, desc)))
         except Exception as e:
             app.logger.error("[ERROR] Failed to insert metadata for table '" + name + "'")
             app.logger.exception(e)
-            self.dbconnect.rollback()
             raise e
 
     def delete_table(self, name, schema_id):
-        cursor = self.dbconnect.get_cursor()
         try:
-            query = cursor.mogrify(
-                sql.SQL('DROP TABLE {0}.{1};').format(sql.Identifier(schema_id), sql.Identifier(name)))
-            cursor.execute(query)
-            self.dbconnect.commit()
+            db.engine.execute('DROP TABLE {}.{};'.format(*_ci(schema_id, name)))
         except Exception as e:
             app.logger.error("[ERROR] Failed to delete table '" + name + "'")
             app.logger.exception(e)
-            self.dbconnect.rollback()
             raise e
 
         # Delete metadata
         try:
-            query = cursor.mogrify('DELETE FROM metadata WHERE id_table = %s;', (name,))
-            cursor.execute(query)
-            self.dbconnect.commit()
+            db.engine.execute('DELETE FROM metadata WHERE id_table = {};'.format(_cv(name)))
         except Exception as e:
             app.logger.error("[ERROR] Failed to delete metadata for table '" + name + "'")
             app.logger.exception(e)
-            self.dbconnect.rollback()
             raise e
 
         # Delete history
         try:
             schema_name = 'schema-' + str(schema_id)
-            query = cursor.mogrify(
-                sql.SQL('DELETE FROM HISTORY WHERE id_dataset=%s AND id_table=%s;'), (schema_name, name))
-            cursor.execute(query)
-            self.dbconnect.commit()
+            db.engine.execute(
+                'DELETE FROM HISTORY WHERE id_dataset={} AND id_table={};'.format(*_cv(schema_name, name)))
         except Exception as e:
             app.logger.error("[ERROR] Failed to delete metadata for table '" + name + "'")
             app.logger.exception(e)
-            self.dbconnect.rollback()
             raise e
 
     def delete_row(self, schema_id, table_name, row_ids):
-        cursor = self.dbconnect.get_cursor()
         schema_name = 'schema-' + str(schema_id)
-        history = History(self.dbconnect)
         try:
             for row_id in row_ids:
-                query = cursor.mogrify(sql.SQL('DELETE FROM {0}.{1} WHERE id=%s;').format(sql.Identifier(schema_name),
-                                                                                          sql.Identifier(table_name)),
-                                       (row_id,))
-                cursor.execute(query)
+                db.engine.execute('DELETE FROM {}.{} WHERE id={}};'.format(*_ci(schema_name, table_name), _cv(row_id)))
                 # Log action to history
                 history.log_action(schema_id, table_name, datetime.now(), 'Deleted row #' + str(row_id))
-            self.dbconnect.commit()
         except Exception as e:
             app.logger.error("[ERROR] Unable to delete row from table '" + table_name + "'")
             app.logger.exception(e)
-            self.dbconnect.rollback()
             raise e
 
     def delete_row_predicate(self, schema_id, table_name, predicates):
@@ -336,90 +284,69 @@ class DataLoader:
             self.dbconnect.rollback()
 
     def delete_column(self, schema_id, table_name, column_name):
-        cursor = self.dbconnect.get_cursor()
         schema_name = 'schema-' + str(schema_id)
         try:
-            query = cursor.mogrify(sql.SQL('ALTER TABLE {0}.{1} DROP COLUMN {2};').format(sql.Identifier(schema_name),
-                                                                                          sql.Identifier(table_name),
-                                                                                          sql.Identifier(column_name)))
-            cursor.execute(query)
-            self.dbconnect.commit()
+            db.engine.execute('ALTER TABLE {}.{} DROP COLUMN {};'.format(*_ci(schema_name, table_name), column_name))
         except Exception as e:
             app.logger.error("[ERROR] Unable to delete column from table '" + table_name + "'")
             app.logger.exception(e)
-            self.dbconnect.rollback()
             raise e
 
         # Log action to history
-        history = History(self.dbconnect)
         history.log_action(schema_id, table_name, datetime.now(), 'Deleted column ' + column_name)
 
     def insert_row(self, table, schema_id, columns, values, file_upload=False):
         """
-         This method takes list of values and adds those to the given table.
+         This method takes dict of values and adds those to the given table.
+         The entries in values look like: {column_name: column_value}
         """
-
-        cursor = self.dbconnect.get_cursor()
         schemaname = 'schema-' + str(schema_id)
+        # Create column/value tuples in proper order
+        column_tuple = list()
+        value_tuple = list()
+        for col in values.keys():
+            if values[col] != '':
+                column_tuple.append(col)
+                value_tuple.append(values[col])
         try:
-            query = cursor.mogrify(sql.SQL(
-                'INSERT INTO {0}.{1}({2}) VALUES %s;').format(sql.Identifier(schemaname), sql.Identifier(table),
-                                                              sql.SQL(', ').join(
-                                                                  sql.Identifier(column_name) for column_name in
-                                                                  columns)), (tuple(values),))
-            cursor.execute(query)
-            self.dbconnect.commit()
+            query = 'INSERT INTO {}.{}({}) VALUES ({});'.format(*_ci(schemaname, table),
+                                                                ', '.join(_ci(column_name) for column_name in columns),
+                                                                ', '.join(_cv(value) for value in values))
+            db.engine.execute(query)
         except Exception as e:
             app.logger.error("[ERROR] Unable to insert row into table '" + table + "'")
             app.logger.exception(e)
-            self.dbconnect.rollback()
             raise e
 
         # Log action to history
         if not file_upload:
-            history = History(self.dbconnect)
             history.log_action(schema_id, table, datetime.now(), 'Added row with values ' + ' '.join(values))
 
     def insert_column(self, schema_id, table_name, column_name, column_type):
-        cursor = self.dbconnect.get_cursor()
         schema_name = 'schema-' + str(schema_id)
         try:
-            query = cursor.mogrify(
-                sql.SQL('ALTER TABLE {}.{} ADD {} ' + column_type + ' NULL ;').format(sql.Identifier(schema_name),
-                                                                                      sql.Identifier(table_name),
-                                                                                      sql.Identifier(column_name)))
-            cursor.execute(query)
-            self.dbconnect.commit()
+            db.engine.execute(
+                'ALTER TABLE {}.{} ADD {} {} NULL;'.format(*_ci(schema_name, table_name), column_name, column_type))
         except Exception as e:
             app.logger.error("[ERROR] Unable to insert column into table '{}'".format(table_name))
             app.logger.exception(e)
-            self.dbconnect.rollback()
             raise e
 
         # Log action to history
-        history = History(self.dbconnect)
         history.log_action(schema_id, table_name, datetime.now(), 'Added column with name ' + column_name)
 
     def update_column_type(self, schema_id, table_name, column_name, column_type):
-        cursor = self.dbconnect.get_cursor()
         schema_name = 'schema-' + str(schema_id)
         try:
-            query = cursor.mogrify(
-                sql.SQL('ALTER TABLE {}.{} ALTER {}  TYPE ' + column_type + ' USING {}::' + column_type + ' ;').format(
-                    sql.Identifier(schema_name),
-                    sql.Identifier(table_name),
-                    sql.Identifier(column_name),
-                    sql.Identifier(column_name)))
-            cursor.execute(query)
-            self.dbconnect.commit()
+            db.engine.execute(
+                'ALTER TABLE {0}.{1} ALTER {2} TYPE {3} USING {2}::{3};'.format(
+                    *_ci(schema_name, table_name, column_name), column_type))
         except Exception as e:
             app.logger.error("[ERROR] Unable to update column type in table '{}'".format(table_name))
             app.logger.exception(e)
-            self.dbconnect.rollback()
             raise e
 
         # Log action to history
-        history = History(self.dbconnect)
         history.log_action(schema_id, table_name, datetime.now(),
                            'Updated column ' + column_name + ' to have type ' + column_type)
 
@@ -439,6 +366,9 @@ class DataLoader:
             app.logger.error("[ERROR] Cannot overwrite existing table.")
             return
 
+        # TODO: Test if this works
+        # df = pd.process_csv(file)
+
         with open(file, "r") as csv:
             first = True
             columns = list()
@@ -450,8 +380,11 @@ class DataLoader:
                 else:
                     raw_name = "_raw_" + tablename
                     values_list = [x.strip() for x in line.split(",")]
-                    self.insert_row(tablename, schema_id, columns, values_list, True)
-                    self.insert_row(raw_name, schema_id, columns, values_list, True)
+                    values = dict()
+                    for c in range(len(columns)):
+                        values[columns[c]] = values_list[c]
+                    self.insert_row(tablename, schema_id, columns, values, True)
+                    self.insert_row(raw_name, schema_id, columns, values, True)
 
     def process_zip(self, file, schema_id):
         """
@@ -524,40 +457,37 @@ class DataLoader:
                     if not self.table_exists(tablename, schema_id):
                         self.create_table(tablename, schema_id, columns)
                     for values in values_list:
-                        self.insert_row(tablename, schema_id, columns, values, True)
+                        val_dict = dict()
+                        for c_ix in range(len(columns)):
+                            val_dict[columns[c_ix]] = values[c_ix]
+                        self.insert_row(tablename, schema_id, columns, val_dict, True)
 
     # Data access handling
     def get_user_datasets(self, user_id):
         """
          This method takes a user id (username) and returns a list with the datasets available to this user
         """
-
-        cursor = self.dbconnect.get_cursor()
-
         try:
-            query = cursor.mogrify(
-                'SELECT id, nickname, metadata FROM Dataset ds, Access a WHERE (ds.id = a.id_dataset AND a.id_user = %s);',
-                (user_id,))
-            cursor.execute(query)
+            rows = db.engine.execute(
+                'SELECT id, nickname, metadata FROM Dataset ds, Access a WHERE (ds.id = a.id_dataset AND a.id_user = {});'.format(
+                    _cv(user_id)))
 
             result = list()
-            datasets = [x for x in cursor]
+            datasets = [x for x in rows]
             for row in datasets:
                 try:
                     ds_id = row['id']
                     # Find owner for this dataset
-                    query = cursor.mogrify(
-                        'SELECT a.id_user FROM Dataset ds, Access a WHERE (ds.id = %s AND a.id_dataset = ds.id AND a.role = \'owner\');',
-                        (row['id'],))
-                    cursor.execute(query)
-                    owner = cursor.fetchone()[0]
+                    rows = db.engine.execute(
+                        "SELECT a.id_user FROM Dataset ds, Access a WHERE (ds.id = {} AND a.id_dataset = ds.id AND a.role = 'owner');".format(
+                            _cv(row['id'])))
+                    owner = rows.first()[0]
 
                     # Find moderators for this dataset
-                    query = cursor.mogrify(
-                        'SELECT a.id_user FROM Dataset ds, Access a WHERE (ds.id = \'{0}\' AND a.id_dataset = ds.id AND a.role = \'moderator\');'.format(
-                            ds_id))
-                    cursor.execute(query)
-                    moderators = [x for x in cursor]
+                    rows = db.engine.execute(
+                        "SELECT a.id_user FROM Dataset ds, Access a WHERE (ds.id = {} AND a.id_dataset = ds.id AND a.role = 'moderator');".format(
+                            _cv(ds_id)))
+                    moderators = [x for x in rows]
 
                     schema_id = ds_id.split('-')[1]
                     result.append(Dataset(schema_id, row['nickname'], row['metadata'], owner, moderators))
@@ -581,30 +511,27 @@ class DataLoader:
         """
 
         try:
-            cursor = self.dbconnect.get_cursor()
-
             # TODO: Stole this cheeky bit from another method so if we decide to fix it there, don't forget to fix this too
             ordering_query = ''
             if ordering is not None:
                 # ordering tuple is of the form (columns, asc|desc)
-                ordering_query = 'ORDER BY "{}" {}'.format(*ordering)
+                ordering_query = 'ORDER BY {} {}'.format(_ci(ordering[0]), ordering[1])
 
             schema_name = 'schema-' + str(schema_id)
             search_query = ''
             if search is not None:
-                search_query = "WHERE id_dataset='{0}' and (id_user LIKE '%{1}%' or role LIKE '%{1}%')".format(
-                    schema_name, search)
+                search_query = "WHERE id_dataset={0} and (id_user LIKE '%{1}%' or role LIKE '%{1}%')".format(
+                    _cv(schema_name), search.replace("'", "''"))
             else:
-                search_query = "WHERE id_dataset='{0}'".format(schema_name)
+                search_query = "WHERE id_dataset={}".format(_cv(schema_name))
 
-            query = cursor.mogrify(
+            rows = db.engine.execute(
                 'SELECT * FROM Access {} {} LIMIT {} OFFSET {};'.format(search_query, ordering_query, limit, offset))
-            cursor.execute(query)
 
             table_name = "schema-" + str(schema_id) + "_access"
 
             table = Table(table_name, '', columns=self.get_column_names(schema_id, table_name)[1:])
-            for row in cursor:
+            for row in rows:
                 table.rows.append(row[1:])
 
             return table
@@ -612,54 +539,40 @@ class DataLoader:
         except Exception as e:
             app.logger.error("[ERROR] Couldn't fetch dataset access")
             app.logger.exception(e)
-            self.dbconnect.rollback()
             raise e
 
     def grant_access(self, user_id, schema_id, role='contributer'):
 
         try:
-            cursor = self.dbconnect.get_cursor()
-
             schema_id = 'schema-' + str(schema_id);
 
-            query = cursor.mogrify(
-                'INSERT INTO Access(id_dataset, id_user, role) VALUES(%s, %s, %s);', (schema_id, user_id, role,))
-            cursor.execute(query)
-            self.dbconnect.commit()
+            db.engine.execute(
+                'INSERT INTO Access(id_dataset, id_user, role) VALUES({}, {}, {});'.format(
+                    *_cv(schema_id, user_id, role)))
         except IntegrityError as e:
             app.logger.warning("[WARNING] User " + str(user_id) + " doesn't exists. No access granted")
             app.logger.exception(e)
-            self.dbconnect.rollback()
         except Exception as e:
             app.logger.error("[ERROR] Couldn't grant '" + str(user_id) + "' access to '" + str(schema_id) + "'")
             app.logger.exception(e)
-            self.dbconnect.rollback()
             raise e
 
     def remove_access(self, user_id, schema_id):
-
         schema_name = 'schema-' + str(schema_id)
         try:
-            cursor = self.dbconnect.get_cursor()
-
-            query = cursor.mogrify(
-                'DELETE FROM Access WHERE (id_user = %s AND id_dataset = %s);', (user_id, schema_name,))
-            cursor.execute(query)
-            self.dbconnect.commit()
+            db.engine.execute(
+                'DELETE FROM Access WHERE (id_user = {} AND id_dataset = {});'.format(*_cv(user_id, schema_name)))
         except Exception as e:
             app.logger.error("[ERROR] Couldn't remove access rights for '" + user_id + "' from '" + schema_id + "'")
             app.logger.exception(e)
-            self.dbconnect.rollback()
             raise e
 
     def has_access(self, user_id, id):
-
+        schema_id = "schema-" + str(id)
         try:
-            cursor = self.dbconnect.get_cursor()
-            schema_id = "schema-" + str(id)
-            query = cursor.mogrify("SELECT * FROM access WHERE id_user=%s AND id_dataset=%s;", (user_id, schema_id,))
-            cursor.execute(query)
-            for _ in cursor:
+            rows = db.engine.execute(
+                "SELECT * FROM access WHERE id_user={} AND id_dataset={};".format(*_cv(user_id, schema_id)))
+            for _ in rows:
                 return True
             else:
                 return False
@@ -667,36 +580,29 @@ class DataLoader:
         except Exception as e:
             app.logger.error("[ERROR] Couldn't find if '" + user_id + "' has access to '" + schema_id + "'")
             app.logger.exception(e)
-            self.dbconnect.rollback()
             raise e
 
     def get_dataset(self, id):
         """
          This method returns a 'Dataset' object according to the requested id
         """
-
-        cursor = self.dbconnect.get_cursor()
-
         try:
             schema_id = "schema-" + str(id)
-            query = cursor.mogrify(
-                'SELECT id, nickname, metadata FROM Dataset ds WHERE ds.id = %s;', (schema_id,))
-            cursor.execute(query)
-            ds = cursor.fetchone()
+            rows = db.engine.execute(
+                'SELECT id, nickname, metadata FROM Dataset ds WHERE ds.id = {};'.format(_cv(schema_id)))
+            ds = rows.first()
 
             # Find owner for this dataset
-            query = cursor.mogrify(
-                'SELECT a.id_user FROM Dataset ds, Access a WHERE (ds.id = \'{0}\' AND a.id_dataset = ds.id AND a.role = \'owner\');'.format(
-                    schema_id))
-            cursor.execute(query)
-            owner = cursor.fetchone()[0]
+            rows = db.engine.execute(
+                "SELECT a.id_user FROM Dataset ds, Access a WHERE (ds.id = {} AND a.id_dataset = ds.id AND a.role = 'owner');".format(
+                    _cv(schema_id)))
+            owner = rows.first()[0]
 
             # Find moderators for this dataset
-            query = cursor.mogrify(
-                'SELECT a.id_user FROM Dataset ds, Access a WHERE (ds.id = \'{0}\' AND a.id_dataset = ds.id AND a.role = \'moderator\');'.format(
-                    schema_id))
-            cursor.execute(query)
-            moderators = [x[0] for x in cursor]
+            rows = db.engine.execute(
+                "SELECT a.id_user FROM Dataset ds, Access a WHERE (ds.id = {} AND a.id_dataset = ds.id AND a.role = 'moderator');".format(
+                    _cv(schema_id)))
+            moderators = [x[0] for x in rows]
 
             return Dataset(id, ds['nickname'], ds['metadata'], owner, moderators)
         except Exception as e:
@@ -708,18 +614,14 @@ class DataLoader:
         """
          This method returns a list of 'Table' objects associated with the requested dataset
         """
-
-        cursor = self.dbconnect.get_cursor()
-
         try:
-
             # Get all tables from the metadata table in the schema
             schema_name = "schema-" + str(schema_id)
-            query = cursor.mogrify('SELECT id_table,metadata FROM metadata WHERE id_dataset=%s;', (schema_name,))
-            cursor.execute(query)
+            rows = db.engine.execute(
+                'SELECT id_table,metadata FROM metadata WHERE id_dataset={};'.format(_cv(schema_name)))
 
             tables = list()
-            for row in cursor:
+            for row in rows:
                 t = Table(row['id_table'], row['metadata'])
                 tables.append(t)
 
@@ -729,40 +631,36 @@ class DataLoader:
             app.logger.exception(e)
             raise e
 
-    
+
     def get_table(self, schema_id, table_name, offset=0, limit='ALL', ordering=None, search=None):
         """
          This method returns a list of 'Table' objects associated with the requested dataset
         """
-
-        cursor = self.dbconnect.get_cursor()
         try:
 
             columns = self.get_column_names(schema_id, table_name)
 
+            schema_name = 'schema-' + str(schema_id)
             # Get all tables from the metadata table in the schema
             ordering_query = ''
             if ordering is not None:
                 # ordering tuple is of the form (columns, asc|desc)
-                ordering_query = 'ORDER BY "{}" {}'.format(*ordering)
+                ordering_query = 'ORDER BY {} {}'.format(_ci(ordering[0]), ordering[1])
 
-            schema_name = 'schema-' + str(schema_id)
             search_query = ''
             if search is not None and search != '':
                 search_query = "WHERE (";
                 # Fill in the search for every column except ID
                 for col in columns[1:]:
-                    search_query += "\"{0}\"::text LIKE '%{1}%' OR ".format(col, search)
+                    search_query += "{}::text LIKE '%{}%' OR ".format(_ci(col), search)
                 search_query = search_query[:-3] + ")"
 
-            query = cursor.mogrify(
-                'SELECT * FROM "{}"."{}" {} {} LIMIT {} OFFSET {};'.format('schema-' + str(schema_id), table_name, search_query,
-                                                                        ordering_query, limit, offset))
-            cursor.execute(query)
-
+            rows = db.engine.execute(
+                'SELECT * FROM {}.{} {} {} LIMIT {} OFFSET {};'.format(*_ci(schema_name, table_name), search_query,
+                                                                       ordering_query, limit, offset))
             table = Table(table_name, '', columns=self.get_column_names_and_types(schema_id, table_name))  # Hack-n-slash
-            for row in cursor:
-                table.rows.append(row)  # skip the system id TODO: find a better solution, this feels like a hack
+            for row in rows:
+                table.rows.append(list(row))
             return table
 
         except Exception as e:
@@ -774,18 +672,13 @@ class DataLoader:
         """
          This method returns a list of column names associated with the given table
         """
-        cursor = self.dbconnect.get_cursor()
-
         try:
-
             schema = "schema-" + str(schema_id)
-
-            query = cursor.mogrify(
-                'SELECT column_name FROM information_schema.columns WHERE table_schema=%s AND table_name=%s;', (
-                    schema, table_name,))
-            cursor.execute(query)
+            rows = db.engine.execute(
+                'SELECT column_name FROM information_schema.columns WHERE table_schema={} AND table_name={};'.format(
+                    *_cv(schema, table_name)))
             result = list()
-            for row in cursor:
+            for row in rows:
                 result.append(row[0])
 
             return result
@@ -799,31 +692,22 @@ class DataLoader:
         """
          This method returns a list of column names associated with the given table
         """
-        cursor = self.dbconnect.get_cursor()
-
         try:
-
             schema = "schema-" + str(schema_id)
-
-            query = cursor.mogrify(
-                'SELECT column_name, data_type FROM information_schema.columns WHERE table_schema=%s AND table_name=%s;',
-                (
-                    schema, table_name,))
-            cursor.execute(query)
+            rows = db.engine.execute(
+                'SELECT column_name, data_type FROM information_schema.columns WHERE table_schema={} AND table_name={};'.format(
+                    *_cv(schema, table_name)))
             result = list()
-            for row in cursor:
+            for row in rows:
                 type = row[1]
                 if type == "double precision":
                     type = "double"
-                elif (type == "timestamp without time zone" or type == "timestamp with time zone"):
+                elif type == "timestamp without time zone" or type == "timestamp with time zone":
                     type = "timestamp"
                 elif type == "character varying":
                     type = "string"
-
                 result.append(Column(row[0], type))
-
             return result
-
         except Exception as e:
             app.logger.error("[ERROR] Couldn't fetch column names/types for table '" + table_name + "'.")
             app.logger.exception(e)
@@ -831,13 +715,9 @@ class DataLoader:
 
     def update_dataset_metadata(self, schema_id, new_name, new_desc):
         schema_name = "schema-" + str(schema_id)
-
         try:
-            cursor = self.dbconnect.get_cursor()
-            query = cursor.mogrify('UPDATE dataset SET (metadata, nickname) = (%s,%s) WHERE id=%s',
-                                   (new_desc, new_name, schema_name,))
-            cursor.execute(query)
-            self.dbconnect.commit()
+            db.engine.execute('UPDATE dataset SET (metadata, nickname) = ({} , {}) WHERE id={}'.format(
+                *_cv(new_desc, new_name, schema_name, )))
 
         except Exception as e:
             app.logger.error("[ERROR] Couldn't update dataset metadata.")
@@ -847,30 +727,17 @@ class DataLoader:
 
     def update_table_metadata(self, schema_id, old_table_name, new_table_name, new_desc):
         schema_name = "schema-" + str(schema_id)
-
         try:
-            cursor = self.dbconnect.get_cursor()
-            query = cursor.mogrify('UPDATE metadata SET (id_table, metadata) = (%s,%s)'
-                                   ' WHERE id_dataset=%s AND id_table=%s',
-                                   (new_table_name, new_desc, schema_name, old_table_name))
-            cursor.execute(query)
-
+            db.engine.execute(
+                'UPDATE metadata SET (id_table, metadata) = ({}, {}) WHERE id_dataset={} AND id_table={}'.format(
+                    *_cv(new_table_name, new_desc, schema_name, old_table_name)))
             if new_table_name != old_table_name:
-                query = cursor.mogrify(sql.SQL('ALTER TABLE {}.{} RENAME TO {};').format(sql.Identifier(schema_name),
-                                                                                         sql.Identifier(old_table_name),
-                                                                                         sql.Identifier(
-                                                                                             new_table_name)))
-                cursor.execute(query)
-
+                db.engine.execute(
+                    'ALTER TABLE {}.{} RENAME TO {};'.format(*_ci(schema_name, old_table_name, new_table_name)))
                 raw_table_old_name = "_raw_" + old_table_name
                 raw_table_new_name = "_raw_" + new_table_name
-                query = cursor.mogrify(sql.SQL('ALTER TABLE {}.{} RENAME TO {};').format(sql.Identifier(schema_name),
-                                                                                         sql.Identifier(raw_table_old_name),
-                                                                                         sql.Identifier(
-                                                                                             raw_table_new_name)))
-                cursor.execute(query)
-
-            self.dbconnect.commit()
+                db.engine.execute(
+                    'ALTER TABLE {}.{} RENAME TO {};'.format(*_ci(schema_name, raw_table_old_name, raw_table_new_name)))
         except Exception as e:
             app.logger.error("[ERROR] Couldn't update table metadata for table " + old_table_name + ".")
             app.logger.exception(e)
@@ -917,16 +784,9 @@ class DataLoader:
         """" calculate average of column """
         try:
             schema_name = 'schema-' + str(schema_id)
-            cursor = self.dbconnect.get_cursor()
-
-            query = cursor.mogrify(sql.SQL('SELECT ' + function + '( {} ) FROM {}.{}').format(
-                sql.Identifier(column),
-                sql.Identifier(schema_name),
-                sql.Identifier(table_name)
-            ))
-            cursor.execute(query)
-
-            stat = cursor.fetchone()[0]
+            rows = db.engine.execute(
+                'SELECT ' + function + '( "{}" ) FROM "{}"."{}"'.format(column, schema_name, table_name))
+            stat = rows.first()[0]
             if not stat:
                 stat = 0
             return stat
@@ -934,63 +794,43 @@ class DataLoader:
         except Exception as e:
             app.logger.error("[ERROR] Unable to calculate {} for column {}".format(function.lower(), column))
             app.logger.exception(e)
-            self.dbconnect.rollback()
             raise e
 
     def calculate_most_common_value(self, schema_id, table_name, column):
         """" calculate most common value of a  column """
         try:
             schema_name = 'schema-' + str(schema_id)
-            cursor = self.dbconnect.get_cursor()
-
-            query = cursor.mogrify(sql.SQL('SELECT {}, COUNT(*) AS counted '
-                                           'FROM {}.{} '
-                                           'WHERE {} IS NOT NULL '
-                                           'GROUP BY {} '
-                                           'ORDER BY counted DESC, {} '
-                                           'LIMIT 1').format(
-                sql.Identifier(column),
-                sql.Identifier(schema_name),
-                sql.Identifier(table_name),
-                sql.Identifier(column),
-                sql.Identifier(column),
-                sql.Identifier(column),
-            ))
-            cursor.execute(query)
+            rows = db.engine.execute('SELECT "{}", COUNT(*) AS counted '
+                                     'FROM "{}"."{}" '
+                                     'WHERE "{}" IS NOT NULL '
+                                     'GROUP BY "{}" '
+                                     'ORDER BY counted DESC, "{}" '
+                                     'LIMIT 1'.format(column, schema_name, table_name, column, column, column))
             value = None
-            for x in cursor:
+            for x in rows:
                 value = x[0]
             return value
 
         except Exception as e:
             app.logger.error("[ERROR] Unable to calculate most commen value for column {}".format(column))
             app.logger.exception(e)
-            self.dbconnect.rollback()
             raise e
 
     def calculate_amount_of_empty_elements(self, schema_id, table_name, column):
         """" calculate most common value of a  column """
         try:
             schema_name = 'schema-' + str(schema_id)
-            cursor = self.dbconnect.get_cursor()
-
-            query = cursor.mogrify(sql.SQL('SELECT COUNT(*) AS counted '
-                                           'FROM {}.{} '
-                                           'WHERE {} IS NULL ').format(
-                sql.Identifier(schema_name),
-                sql.Identifier(table_name),
-                sql.Identifier(column)
-            ))
-            cursor.execute(query)
+            rows = db.engine.execute('SELECT COUNT(*) AS counted '
+                                     'FROM "{}"."{}" '
+                                     'WHERE "{}" IS NULL;'.format(schema_name, table_name, column))
             value = None
-            for x in cursor:
+            for x in rows:
                 value = x[0]
             return value
 
         except Exception as e:
             app.logger.error("[ERROR] Unable to calculate most commen value for column {}".format(column))
             app.logger.exception(e)
-            self.dbconnect.rollback()
             raise e
 
     def get_statistics_for_column(self, schema_id, table_name, column, numerical):
@@ -1010,7 +850,6 @@ class DataLoader:
 
     def get_statistics_for_all_columns(self, schema_id, table_name, columns):
         """calculate statistics of a column"""
-
         stats = list()
         for column in columns:
             type = column.type
@@ -1022,35 +861,24 @@ class DataLoader:
         return stats
 
     def revert_back_to_raw_data(self, schema_id, table_name):
-
-        cursor = self.dbconnect.get_cursor()
         schema_name = "schema-" + str(schema_id)
         try:
-            query = cursor.mogrify(
-                sql.SQL('DROP TABLE {0}.{1};').format(sql.Identifier(schema_name), sql.Identifier(table_name)))
-
-            cursor.execute(query)
-            self.dbconnect.commit()
+            db.engine.execute('DROP TABLE {}.{};'.format(*_ci(schema_name, table_name)))
         except Exception as e:
             app.logger.error("[ERROR] Couldn't convert back to raw data")
             app.logger.exception(e)
-            self.dbconnect.rollback()
             raise e
 
         try:
             raw_table_name = "_raw_" + table_name
 
-            query = cursor.mogrify(
-                sql.SQL('CREATE TABLE {}.{} AS TABLE {}.{}').format(sql.Identifier(schema_name),
-                    sql.Identifier(table_name),sql.Identifier(schema_name), sql.Identifier(raw_table_name)))
-            cursor.execute(query)
-            self.dbconnect.commit()
+            db.engine.execute(
+                'CREATE TABLE {}.{} AS TABLE {}.{}'.format(*_ci(schema_name, table_name, schema_name, raw_table_name)))
+
             # Log action to history
-            history = History(self.dbconnect)
             history.log_action(schema_id, table_name, datetime.now(), 'Reverted to raw data')
 
         except Exception as e:
             app.logger.error("[ERROR] Couldn't convert back to raw data")
             app.logger.exception(e)
-            self.dbconnect.rollback()
             raise e

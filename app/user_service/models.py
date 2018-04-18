@@ -1,4 +1,6 @@
 from app import app
+from app import database as db
+
 
 class User:
     def __init__(self, username, password, firstname, lastname, email, status, active):
@@ -29,46 +31,34 @@ class User:
 
 
 class UserDataAccess:
-    def __init__(self, dbconnect):
-        self.dbconnect = dbconnect
+    def __init__(self):
+        pass
 
     def get_users(self):
-        cursor = self.dbconnect.get_cursor()
-        cursor.execute('SELECT Username, Pass, FirstName, LastName, Email, Status, Active FROM Member;')
+        rows = db.engine.execute('SELECT Username, Pass, FirstName, LastName, Email, Status, Active FROM Member;')
         quote_objects = list()
-        for row in cursor:
+        for row in rows:
             quote_obj = User(row['username'], row['pass'], row['firstname'], row['lastname'], row['email'],
                              row['status'], row['active'])
             quote_objects.append(quote_obj)
         return quote_objects
 
     def add_user(self, user_obj):
-        cursor = self.dbconnect.get_cursor()
-
         try:
-            query = cursor.mogrify('INSERT INTO Member(Username,Pass,FirstName,LastName,Email,Status,Active) '
-                                   'VALUES(%s,%s,%s,%s,%s,%s,%s)',
-                                   (user_obj.username, user_obj.password, user_obj.firstname, user_obj.lastname,
-                                    user_obj.email,
-                                    user_obj.status, user_obj.is_active,))
-
-            cursor.execute(query)
-
-            self.dbconnect.commit()
-
+            query = 'INSERT INTO Member(Username,Pass,FirstName,LastName,Email,Status,Active) VALUES(%s,%s,%s,%s,%s,%s,%s)', (
+                user_obj.username, user_obj.password, user_obj.firstname, user_obj.lastname, user_obj.email,
+                user_obj.status, user_obj.is_active,)
+            db.engine.execute(query)
             return True
         except Exception as e:
             app.logger.error('[ERROR] Unable to add user!')
             app.logger.exception(e)
-            self.dbconnect.rollback()
             return False
 
     def login_user(self, username):
-        cursor = self.dbconnect.get_cursor()
-
         try:
-            cursor.execute("SELECT Pass FROM Member WHERE Username=%s;", (username,))
-            row = cursor.fetchone()
+            rows = db.engine.execute("SELECT Pass FROM Member WHERE Username=%s;", (username,))
+            row = rows.first()
 
             if row is None:
                 raise Exception("Wrong username.")
@@ -76,15 +66,12 @@ class UserDataAccess:
             return row[0]
         except Exception as e:
             app.logger.exception(e)
-            self.dbconnect.rollback()
             raise e
 
     def get_user(self, user_id):
-        cursor = self.dbconnect.get_cursor()
-
-        cursor.execute(
+        rows = db.engine.execute(
             'SELECT * FROM Member WHERE Username=%s;', (user_id,))
-        row = cursor.fetchone()
+        row = rows.first()
 
         if row is not None:
             user = User(row['username'], row['pass'], row['firstname'], row['lastname'], row['email'],
@@ -93,51 +80,31 @@ class UserDataAccess:
         else:
             return None
 
+
     def alter_user(self, user):
-        cursor = self.dbconnect.get_cursor()
         try:
-            query = cursor.mogrify(
-                'UPDATE Member SET Firstname = %s, Lastname = %s, Email = %s, Pass = %s, Status = %s, Active = %s WHERE Username=%s;',
-                (user.firstname, user.lastname, user.email, user.password, user.status, user.is_active, user.username))
+            query = 'UPDATE Member SET Firstname = %s, Lastname = %s, Email = %s, Pass = %s, Status = %s, Active = %s WHERE Username=%s;', (
+                user.firstname, user.lastname, user.email, user.password, user.status, user.is_active, user.username)
 
-            cursor.execute(query)
-
-            self.dbconnect.commit()
-
+            db.engine.execute(query)
             return True
         except Exception as e:
             app.logger.exception(e)
-            self.dbconnect.rollback()
             raise e
+
 
     def delete_user(self, data_loader, username):
         """remove user and all of its datasets"""
-
         # remove user deletes every row that depends on it because of cascade deletion
-
-        cursor = self.dbconnect.get_cursor()
-
         try:
             # first drop all schemas owned by the user
-            query = cursor.mogrify('SELECT id FROM dataset WHERE owner = %s',
-                                   (username,))
-
-            cursor.execute(query)
-
-            for dataset_id in cursor:
+            query = 'SELECT id FROM dataset WHERE owner = %s', (username,)
+            rows = db.engine.execute(query)
+            for dataset_id in rows:
                 data_loader.delete_dataset(dataset_id[0])
-
-            query = cursor.mogrify('DELETE FROM Member WHERE username = %s',
-                                   (username,))
-
-            cursor.execute(query)
-
-            self.dbconnect.commit()
-
+            db.engine.execute('DELETE FROM Member WHERE username = %s', (username,))
             return True
         except Exception as e:
             print('Unable to delete user!')
             print(e)
-            self.dbconnect.rollback()
             return False
-

@@ -1,9 +1,11 @@
-from flask import Blueprint, jsonify, request, render_template, redirect, url_for, send_from_directory
-from flask_login import login_required, current_user
+from flask import Blueprint, jsonify, request, send_from_directory
 
-from app import connection, data_loader, date_time_transformer, data_transformer, history, ALLOWED_EXTENSIONS, UPLOAD_FOLDER
+from app import data_loader, date_time_transformer, data_transformer, numerical_transformer, UPLOAD_FOLDER
+from app.history.models import History
 
 api = Blueprint('api', __name__)
+
+_history = History()
 
 
 @api.route('/api/datasets/<int:dataset_id>/tables/<string:table_name>', methods=['GET'])
@@ -49,10 +51,8 @@ def get_history(dataset_id, table_name):
     order_direction = request.args.get('order[0][dir]')
     ordering = (['date', 'action_desc'][order_column], order_direction)
 
-    rows = history.get_actions(dataset_id, table_name, offset=start, limit=length, ordering=ordering, search=search)
-    _rows = history.get_actions(dataset_id, table_name)
-    print(len(rows))
-    print(len(_rows))
+    rows = _history.get_actions(dataset_id, table_name, offset=start, limit=length, ordering=ordering, search=search)
+    _rows = _history.get_actions(dataset_id, table_name)
 
     return jsonify(draw=int(request.args.get('draw')),
                    recordsTotal=len(_rows),
@@ -62,10 +62,14 @@ def get_history(dataset_id, table_name):
 
 @api.route('/api/datasets/<int:dataset_id>/tables/<string:table_name>/rows', methods=['POST'])
 def add_row(dataset_id, table_name):
-    values = list()
+    values = dict()
+    columns = list()
     for key in request.args:
-        values.append(request.args.get(key))
-    data_loader.insert_row(table_name, dataset_id, data_loader.get_column_names(dataset_id, table_name)[1:], values)
+      if key.startswith('value-col'):
+        col_name = key.split('-')[2] # Key is of the form "value-col-[name]"
+        values[col_name] = request.args.get(key)
+        columns.append(col_name)
+    data_loader.insert_row(table_name, dataset_id, columns, values)
     return jsonify({'success': True}), 200
 
 
@@ -106,13 +110,15 @@ def transform_date_or_time(dataset_id, table_name):
     date_time_transformer.transform(dataset_id, table_name, column_name, operation_name)
     return jsonify({'success': True}), 200
 
+
 @api.route('/api/datasets/update-dataset-metadata', methods=['PUT'])
 def update_dataset_metadata():
     dataset_id = request.args.get('ds-id')
     new_name = request.args.get('ds-name')
     new_desc = request.args.get('ds-desc')
-    data_loader.update_dataset_metadata(dataset_id,new_name, new_desc)
+    data_loader.update_dataset_metadata(dataset_id, new_name, new_desc)
     return jsonify({'success': True}), 200
+
 
 @api.route('/api/datasets/<int:dataset_id>/update-metadata', methods=['PUT'])
 def update_table_metadata(dataset_id):
@@ -121,6 +127,7 @@ def update_table_metadata(dataset_id):
     new_desc = request.args.get('t-desc')
     data_loader.update_table_metadata(dataset_id, old_table_name, new_table_name, new_desc)
     return jsonify({'success': True}), 200
+
 
 @api.route('/api/datasets/<int:dataset_id>/tables/<string:table_name>/impute-missing-data', methods=['PUT'])
 def impute_missing_data(dataset_id, table_name):
@@ -140,13 +147,14 @@ def export_table(dataset_id, table_name):
     quote_char = request.args.get('quote_char')
     empty_char = request.args.get('empty_char')
 
-    data_loader.export_table(path, dataset_id, table_name, separator=separator, quote_char=quote_char, empty_char=empty_char)
+    data_loader.export_table(path, dataset_id, table_name, separator=separator, quote_char=quote_char,
+                             empty_char=empty_char)
     return send_from_directory(UPLOAD_FOLDER, filename, as_attachment=True)
 
-  
+
 @api.route('/api/download/<string:filename>', methods=['GET'])
 def download_file(filename):
-  return send_from_directory(UPLOAD_FOLDER, filename, as_attachment=True)
+    return send_from_directory(UPLOAD_FOLDER, filename, as_attachment=True)
 
 
 @api.route('/api/datasets/<int:dataset_id>/tables/<string:table_name>/show-raw-data', methods=['GET'])
@@ -163,3 +171,45 @@ def show_raw_data(dataset_id, table_name):
                    recordsTotal=len(_table.rows),
                    recordsFiltered=len(_table.rows),
                    data=table.rows)
+
+
+@api.route('/api/datasets/<int:dataset_id>/tables/<string:table_name>/normalize', methods=['PUT'])
+def normalize(dataset_id, table_name):
+    column_name = request.args.get('col-name')
+    numerical_transformer.normalize(dataset_id, table_name, column_name)
+    return jsonify({'success': True}), 200
+
+
+@api.route('/api/datasets/<int:dataset_id>/tables/<string:table_name>/discretize', methods=['PUT'])
+def discretize(dataset_id, table_name):
+    column_name = request.args.get('col-name')
+    discretization = request.args.get('discretization')
+    try:
+        if discretization == 'eq-width':
+            num_intervals = int(request.args.get('num-intervals'))
+            numerical_transformer.equal_freq_interval(dataset_id, table_name, column_name, num_intervals)
+        elif discretization == 'eq-freq':
+            num_intervals = int(request.args.get('num-intervals'))
+            numerical_transformer.equal_width_interval(dataset_id, table_name, column_name, num_intervals)
+        elif discretization == 'manual':
+            intervals = [int(n) for n in request.args.get('intervals').strip().split(',')]
+            numerical_transformer.manual_interval(dataset_id, table_name, column_name, intervals)
+        else:
+            return jsonify({'success': False, 'message': 'Unknown discretization type.'}), 400
+    except ValueError as e:
+        return jsonify({'success': False,
+                        'message': 'Unable to convert intervals into numerical types. Did you send numbers?'}), 400
+    return jsonify({'success': True}), 200
+
+
+@api.route('/api/datasets/<int:dataset_id>/tables/<string:table_name>/outliers', methods=['PUT'])
+def outliers(dataset_id, table_name):
+    try:
+        column_name = request.args.get('col-name')
+        option = request.args.get('option') == 'less-than'
+        value = float(request.args.get('value'))
+        numerical_transformer.remove_outlier(dataset_id, table_name, column_name, value, option)
+    except ValueError as e:
+        return jsonify({'success': False,
+                        'message': 'Unable to convert value into a numerical type. Did you send a number?'}), 400
+    return jsonify({'success': True}), 200

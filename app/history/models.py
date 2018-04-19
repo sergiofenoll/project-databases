@@ -21,7 +21,7 @@ class History:
         dataset_name = 'schema-' + str(dataset_id)
         try:
             db.engine.execute(
-                'INSERT INTO HISTORY VALUES ({}, {}, {}, {})'.format(*_cv(dataset_name, table_name, date, desc)))
+                'INSERT INTO HISTORY VALUES ({0}, {1}, \'{3}\', {2})'.format(*_cv(dataset_name, table_name, desc), date))
         except Exception as e:
             app.logger.error(
                 "[ERROR] Failed to save action with description {} to history of {}.{}".format(desc, dataset_name,

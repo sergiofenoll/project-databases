@@ -1,6 +1,6 @@
 from flask import Blueprint, jsonify, request, send_from_directory
 
-from app import data_loader, date_time_transformer, data_transformer, numerical_transformer, UPLOAD_FOLDER
+from app import data_loader, date_time_transformer, data_transformer, numerical_transformer, one_hot_encoder, UPLOAD_FOLDER
 from app.history.models import History
 
 api = Blueprint('api', __name__)

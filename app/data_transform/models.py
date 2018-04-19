@@ -256,8 +256,7 @@ class NumericalTransformations:
         return data
 
 class OneHotEncode:
-    def __init__(self, dbconnection, dataloader):
-        self.dbconnect = dbconnection
+    def __init__(self, dataloader):
         self.dataloader = dataloader
 
     def one_hot_encode(self, integer_encoded):
@@ -274,8 +273,11 @@ class OneHotEncode:
 
     def encode(self, schema_id, table_name, column_name):
         schema_name = 'schema-' + str(schema_id)
-        OHE_table_name = 'OHE_' + table_name + '_' + column_name
+        ohe_table_name = 'ohe_' + table_name + '_' + column_name
 
+        # If table already exists, remove it
+        if self.dataloader.table_exists(ohe_table_name, schema_name):
+            self.dataloader.delete_table(ohe_table_name, schema_name)
 
         #TODO Check column 'categorical' (string or integer)
         is_categorical = False
@@ -289,7 +291,7 @@ class OneHotEncode:
             return
 
         # SELECT id, 'column' FROM "schema_name"."table";
-        data_query = 'SELECT id, {} FROM {}.{}'.format(*_cv(column_name, schema_name, table_name))
+        data_query = 'SELECT id, {} FROM {}.{}'.format(*_ci(column_name, schema_name, table_name))
 
         try:
             result = db.engine.execute(data_query)
@@ -324,23 +326,18 @@ class OneHotEncode:
         labels = label_encoder.classes_
 
         # Drop encoded table if already existed
-        if self.dataloader.table_exists(OHE_table_name, schema_id):
-            self.dataloader.delete_table(OHE_table_name, schema_id)
+        if self.dataloader.table_exists(ohe_table_name, schema_id):
+            self.dataloader.delete_table(ohe_table_name, schema_id)
 
         # Create OHE_table
-        self.dataloader.create_table(OHE_table_name, schema_id, labels)
+        self.dataloader.create_table(ohe_table_name, schema_id, labels)
 
+        # For each id, insert encoded row into table
+        for _row in range(len(id_s)):
+            ohe_row_values = dict()
+            ohe_row_values['id'] = str(id_s[_row])
 
-        ohe_table_columns = list()
-        ohe_table_columns.append('id')
-        for label in labels:
-            ohe_table_columns.append(str(label))
+            for _label in range(len(labels)):
+                ohe_row_values[labels[_label]] = str(int(one_hot_encoded[_row][_label]))
 
-        for i in range(len(id_s)):
-            ohe_table_values = list()
-            ohe_table_values.append(str(id_s[i]))
-
-            for OHE_value in one_hot_encoded[i]:
-                ohe_table_values.append(str(int(OHE_value)))
-
-            self.dataloader.insert_row(OHE_table_name, schema_id, ohe_table_columns, ohe_table_values)
+            self.dataloader.insert_row(ohe_table_name, schema_id, ohe_row_values, ohe_row_values)

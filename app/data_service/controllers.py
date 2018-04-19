@@ -110,7 +110,6 @@ def add_table(dataset_id):
         except Exception as e:
             app.logger.error("[ERROR] Failed to process file '" + filename + "'")
             app.logger.exception(e)
-            connection.rollback()
             return get_dataset(dataset_id)
 
         connection.commit()

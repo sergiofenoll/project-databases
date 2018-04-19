@@ -1,4 +1,4 @@
-from flask import Blueprint, request, render_template, url_for, redirect, abort
+from flask import Blueprint, request, render_template, url_for, redirect, abort, flash
 from flask_login import login_required, current_user, login_user, logout_user
 from passlib.hash import sha256_crypt
 
@@ -23,7 +23,8 @@ def login():
                 # Check if user is inactive
                 user = user_data_access.get_user(username)
                 if not user.is_active:
-                    return render_template('user_service/login-form.html', user_inactive=True)
+                    flash(u"This user is inactive and can't log in.", 'warning')
+                    return render_template('user_service/login-form.html')
 
                 # Login and validate the user.
                 # user should be an instance of your `User` class
@@ -31,16 +32,18 @@ def login():
 
                 return redirect(url_for('main.index'))
             else:
-                return render_template('user_service/login-form.html', wrong_password=True)
+                flash(u"Wrong password.", 'danger')
+                return render_template('user_service/login-form.html')
         except Exception as e:
+            flash(u"Username doesn't exist.", 'danger')
             app.logger.exception(e)
-            return render_template('user_service/login-form.html', wrong_password=True)
+            return render_template('user_service/login-form.html')
 
 
 @user_service.route('/register', methods=['GET', 'POST'])
 def register():
     if request.method == 'GET':
-        return render_template('user_service/register-form.html', wrong_password=False)
+        return render_template('user_service/register-form.html')
     else:
         username = request.form.get('lg-username')
         password = sha256_crypt.encrypt(request.form.get('lg-password'))
@@ -57,13 +60,15 @@ def register():
             # user should be an instance of your `User` class
             login_user(user_data_access.get_user(username))
             return redirect(url_for('main.index'))
-        return render_template('user_service/register-form.html', wrong_password=True)
+        flash(u'That username is already in use.', 'danger')
+        return render_template('user_service/register-form.html')
 
 
 @user_service.route('/logout')
 @login_required
 def logout():
     logout_user()
+    flash(u"Successfully logged out!", 'success')
     return redirect(url_for('main.index'))
 
 

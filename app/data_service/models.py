@@ -4,7 +4,7 @@ import csv
 from datetime import datetime
 from zipfile import ZipFile
 
-import pandas as pd
+from flask import flash
 from psycopg2 import IntegrityError
 
 from app import app, database as db
@@ -75,6 +75,7 @@ class DataLoader:
             db.engine.execute('DELETE FROM Available_Schema WHERE id = {};'.format(str(schemaID)))
 
         if schemaID == -1:
+            flash(u"Something went wrong while creating your dataset.", 'danger')
             app.logger.warning("[WARNING] Finding a unique schema-name failed")
             return False
 
@@ -83,6 +84,7 @@ class DataLoader:
         try:
             db.engine.execute('CREATE SCHEMA {};'.format(_ci(schemaname)))
         except Exception as e:
+            flash(u"Something went wrong while creating your dataset.", 'danger')
             app.logger.error("[ERROR] Failed to created schema '" + name + "'")
             app.logger.exception(e)
             raise e
@@ -98,6 +100,7 @@ class DataLoader:
                 'INSERT INTO Access(id_dataset, id_user, role) VALUES({}, {}, {});'.format(
                     *_cv(schemaname, owner_id, 'owner')))
         except Exception as e:
+            flash(u"Something went wrong while creating your dataset.", 'danger')
             app.logger.error("[ERROR] Failed to insert dataset '" + name + "' into the database")
             app.logger.exception(e)
             raise e
@@ -123,6 +126,7 @@ class DataLoader:
                 db.engine.execute('TRUNCATE Available_Schema;')
 
         except Exception as e:
+            flash(u"Something went wrong while deleting your dataset.", 'danger')
             app.logger.error("[ERROR] Failed to properly remove dataset '" + schema_id + "'")
             app.logger.exception(e)
             raise e
@@ -191,6 +195,7 @@ class DataLoader:
             db.engine.execute(query)
             db.engine.execute(raw_table_query)
         except Exception as e:
+            flash(u"Something went wrong while creating your table.", 'danger')
             app.logger.error("[ERROR] Failed to create table '" + name + "'")
             app.logger.exception(e)
             raise e
@@ -202,6 +207,7 @@ class DataLoader:
         try:
             db.engine.execute('INSERT INTO metadata VALUES({}, {}, {});'.format(*_cv(schema_name, name, desc)))
         except Exception as e:
+            flash(u"Something went wrong while creating your table.", 'danger')
             app.logger.error("[ERROR] Failed to insert metadata for table '" + name + "'")
             app.logger.exception(e)
             raise e
@@ -211,6 +217,7 @@ class DataLoader:
             db.engine.execute('DROP TABLE {}.{};'.format(*_ci(schema_id, name)))
             db.engine.execute('DROP TABLE {}.{};'.format(*_ci(schema_id, "_raw_" + name)))
         except Exception as e:
+            flash(u"Something went wrong while deleting your table.", 'danger')
             app.logger.error("[ERROR] Failed to delete table '" + name + "'")
             app.logger.exception(e)
             raise e
@@ -219,6 +226,7 @@ class DataLoader:
         try:
             db.engine.execute('DELETE FROM metadata WHERE id_table = {};'.format(_cv(name)))
         except Exception as e:
+            flash(u"Something went wrong while deleting your table.", 'danger')
             app.logger.error("[ERROR] Failed to delete metadata for table '" + name + "'")
             app.logger.exception(e)
             raise e
@@ -229,7 +237,8 @@ class DataLoader:
             db.engine.execute(
                 'DELETE FROM HISTORY WHERE id_dataset={} AND id_table={};'.format(*_cv(schema_name, name)))
         except Exception as e:
-            app.logger.error("[ERROR] Failed to delete metadata for table '" + name + "'")
+            flash(u"Something went wrong while deleting your table.", 'danger')
+            app.logger.error("[ERROR] Failed to delete history for table '" + name + "'")
             app.logger.exception(e)
             raise e
 
@@ -241,6 +250,7 @@ class DataLoader:
                 # Log action to history
                 history.log_action(schema_id, table_name, datetime.now(), 'Deleted row #' + str(row_id))
         except Exception as e:
+            flash(u"Something went wrong while deleting a row from your table.", 'danger')
             app.logger.error("[ERROR] Unable to delete row from table '" + table_name + "'")
             app.logger.exception(e)
             raise e
@@ -281,6 +291,7 @@ class DataLoader:
             self.delete_row(schema_id, table_name, to_delete)
 
         except Exception as e:
+            flash(u"Something went wrong while deleting a row from your table.", 'danger')
             app.logger.error('[ERROR] Unable to fetch rows to delete from ' + table_name)
             app.logger.exception(e)
 
@@ -289,6 +300,7 @@ class DataLoader:
         try:
             db.engine.execute('ALTER TABLE {}.{} DROP COLUMN {};'.format(*_ci(schema_name, table_name, column_name)))
         except Exception as e:
+            flash(u"Something went wrong while deleting a column from your table.", 'danger')
             app.logger.error("[ERROR] Unable to delete column from table '" + table_name + "'")
             app.logger.exception(e)
             raise e
@@ -311,10 +323,12 @@ class DataLoader:
                 value_tuple.append(values[col])
         try:
             query = 'INSERT INTO {}.{}({}) VALUES ({});'.format(*_ci(schemaname, table),
-                                                                ', '.join(_ci(column_name) for column_name in column_tuple),
+                                                                ', '.join(
+                                                                    _ci(column_name) for column_name in column_tuple),
                                                                 ', '.join(_cv(value) for value in value_tuple))
             db.engine.execute(query)
         except Exception as e:
+            flash(u"Something went wrong while inserting a row into your table.", 'danger')
             app.logger.error("[ERROR] Unable to insert row into table '" + table + "'")
             app.logger.exception(e)
             raise e
@@ -329,6 +343,7 @@ class DataLoader:
             db.engine.execute(
                 'ALTER TABLE {}.{} ADD {} {} NULL;'.format(*_ci(schema_name, table_name, column_name), column_type))
         except Exception as e:
+            flash(u"Something went wrong while inserting a column into your table.", 'danger')
             app.logger.error("[ERROR] Unable to insert column into table '{}'".format(table_name))
             app.logger.exception(e)
             raise e
@@ -340,9 +355,13 @@ class DataLoader:
         schema_name = 'schema-' + str(schema_id)
         try:
             db.engine.execute(
-                'ALTER TABLE {0}.{1} RENAME {2} TO {3}'.format(*_ci(schema_name, table_name, column_name, new_column_name)))
+                'ALTER TABLE {0}.{1} RENAME {2} TO {3}'.format(
+                    *_ci(schema_name, table_name, column_name, new_column_name)))
         except Exception as e:
-            app.logger.error("[ERROR] Unable to rename column '{0}' to '{1}' in table '{2}'".format(column_name, new_column_name, table_name))
+            flash(u"Something went wrong while renaming a column from your table.", 'danger')
+            app.logger.error(
+                "[ERROR] Unable to rename column '{0}' to '{1}' in table '{2}'".format(column_name, new_column_name,
+                                                                                       table_name))
             app.logger.exception(e)
 
     def update_column_type(self, schema_id, table_name, column_name, column_type):
@@ -353,6 +372,7 @@ class DataLoader:
                 'ALTER TABLE {0}.{1} ALTER {2} TYPE {3} USING {2}::{3};'.format(
                     *_ci(schema_name, table_name, column_name), column_type))
         except Exception as e:
+            flash(u"Something went wrong while updating a column type from your table.", 'danger')
             app.logger.error("[ERROR] Unable to update column type in table '{}'".format(table_name))
             app.logger.exception(e)
             raise e
@@ -374,6 +394,7 @@ class DataLoader:
             app.logger.error("[ERROR] Appending to non-existent table.")
             return
         elif not append and table_exists:
+            flash(u"A table with that name already exists, please choose a different name.", 'warning')
             app.logger.error("[ERROR] Cannot overwrite existing table.")
             return
 
@@ -429,6 +450,7 @@ class DataLoader:
                 shutil.rmtree("../output/temp")
 
         except Exception as e:
+            flash(u"Something went wrong while uploading a zip file.", 'danger')
             app.logger.error("[ERROR] Failed to load from .zip archive '" + file + "'")
             app.logger.exception(e)
 
@@ -512,6 +534,7 @@ class DataLoader:
             return result
 
         except Exception as e:
+            flash(u"Something went wrong while getting your datasets.", 'danger')
             app.logger.error("[ERROR] Failed to fetch available datasets for user '" + user_id + "'.")
             app.logger.exception(e)
             raise e
@@ -561,9 +584,11 @@ class DataLoader:
                 'INSERT INTO Access(id_dataset, id_user, role) VALUES({}, {}, {});'.format(
                     *_cv(schema_id, user_id, role)))
         except IntegrityError as e:
+            flash(u"That user doesn't exist. Please check the username", 'warning')
             app.logger.warning("[WARNING] User " + str(user_id) + " doesn't exists. No access granted")
             app.logger.exception(e)
         except Exception as e:
+            flash(u"Something went wrong while granting access to your table.", 'danger')
             app.logger.error("[ERROR] Couldn't grant '" + str(user_id) + "' access to '" + str(schema_id) + "'")
             app.logger.exception(e)
             raise e
@@ -574,6 +599,7 @@ class DataLoader:
             db.engine.execute(
                 'DELETE FROM Access WHERE (id_user = {} AND id_dataset = {});'.format(*_cv(user_id, schema_name)))
         except Exception as e:
+            flash(u"Something went wrong while removing access from your table.", 'danger')
             app.logger.error("[ERROR] Couldn't remove access rights for '" + user_id + "' from '" + schema_id + "'")
             app.logger.exception(e)
             raise e
@@ -617,6 +643,7 @@ class DataLoader:
 
             return Dataset(id, ds['nickname'], ds['metadata'], owner, moderators)
         except Exception as e:
+            flash(u"Something went wrong while getting your dataset.", 'danger')
             app.logger.error("[ERROR] Couldn't fetch data for dataset.")
             app.logger.exception(e)
             raise e
@@ -638,10 +665,10 @@ class DataLoader:
 
             return tables
         except Exception as e:
+            flash(u"Something went wrong while getting your tables.", 'danger')
             app.logger.error("[ERROR] Couldn't fetch tables for dataset.")
             app.logger.exception(e)
             raise e
-
 
     def get_table(self, schema_id, table_name, offset=0, limit='ALL', ordering=None, search=None):
         """
@@ -669,12 +696,14 @@ class DataLoader:
             rows = db.engine.execute(
                 'SELECT * FROM {}.{} {} {} LIMIT {} OFFSET {};'.format(*_ci(schema_name, table_name), search_query,
                                                                        ordering_query, limit, offset))
-            table = Table(table_name, '', columns=self.get_column_names_and_types(schema_id, table_name))  # Hack-n-slash
+            table = Table(table_name, '',
+                          columns=self.get_column_names_and_types(schema_id, table_name))  # Hack-n-slash
             for row in rows:
                 table.rows.append(list(row))
             return table
 
         except Exception as e:
+            flash(u"Something went wrong while getting your table.", 'danger')
             app.logger.error("[ERROR] Couldn't fetch table for dataset.")
             app.logger.exception(e)
             raise e
@@ -733,9 +762,9 @@ class DataLoader:
                 *_cv(new_desc, new_name, schema_name, )))
 
         except Exception as e:
+            flash(u"Something went wrong while updating the description of your dataset.", 'danger')
             app.logger.error("[ERROR] Couldn't update dataset metadata.")
             app.logger.exception(e)
-            self.dbconnect.rollback()
             raise e
 
     def update_table_metadata(self, schema_id, old_table_name, new_table_name, new_desc):
@@ -752,6 +781,7 @@ class DataLoader:
                 db.engine.execute(
                     'ALTER TABLE {}.{} RENAME TO {};'.format(*_ci(schema_name, raw_table_old_name, raw_table_new_name)))
         except Exception as e:
+            flash(u"Something went wrong while updating the description of your table.", 'danger')
             app.logger.error("[ERROR] Couldn't update table metadata for table " + old_table_name + ".")
             app.logger.exception(e)
             raise e
@@ -805,6 +835,8 @@ class DataLoader:
             return stat
 
         except Exception as e:
+            flash(u"Something went wrong while calculating {} for column {} of your table.".format(function.lower(),
+                                                                                                   column), 'danger')
             app.logger.error("[ERROR] Unable to calculate {} for column {}".format(function.lower(), column))
             app.logger.exception(e)
             raise e
@@ -825,7 +857,9 @@ class DataLoader:
             return value
 
         except Exception as e:
-            app.logger.error("[ERROR] Unable to calculate most commen value for column {}".format(column))
+            flash(u"Something went wrong while calculating most common value for column {} of your table.".format(
+                column), 'danger')
+            app.logger.error("[ERROR] Unable to calculate most common value for column {}".format(column))
             app.logger.exception(e)
             raise e
 
@@ -842,7 +876,10 @@ class DataLoader:
             return value
 
         except Exception as e:
-            app.logger.error("[ERROR] Unable to calculate most commen value for column {}".format(column))
+            flash(
+                u"Something went wrong while calculating amount of empty elements for column {} of your table.".format(
+                    column), 'danger')
+            app.logger.error("[ERROR] Unable to calculate most amount of empty elements for column {}".format(column))
             app.logger.exception(e)
             raise e
 
@@ -878,6 +915,7 @@ class DataLoader:
         try:
             db.engine.execute('DROP TABLE {}.{};'.format(*_ci(schema_name, table_name)))
         except Exception as e:
+            flash(u"Something went wrong while reverting to raw data of your table.", 'danger')
             app.logger.error("[ERROR] Couldn't convert back to raw data")
             app.logger.exception(e)
             raise e
@@ -892,6 +930,7 @@ class DataLoader:
             history.log_action(schema_id, table_name, datetime.now(), 'Reverted to raw data')
 
         except Exception as e:
+            flash(u"Something went wrong while reverting to raw data of your table.", 'danger')
             app.logger.error("[ERROR] Couldn't convert back to raw data")
             app.logger.exception(e)
             raise e

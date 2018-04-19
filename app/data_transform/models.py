@@ -1,11 +1,12 @@
 from datetime import datetime
 from statistics import median
-
+from flask import flash
 import pandas as pd
 
 from app import app, database as db
 from app.data_service.models import DataLoader
 from app.history.models import History
+
 
 def _ci(*args: str):
     if len(args) == 1:
@@ -39,6 +40,8 @@ class DataTransformer:
             db.engine.execute('UPDATE {0}.{1} SET {2} = {3} WHERE {2} IS NULL;'.format(*_ci(schema_name, table, column),
                                                                                        _cv(average)))
         except Exception as e:
+            flash(u"Something went wrong while imputing missing data for column {} by average of your table.".format(
+                column), 'danger')
             app.logger.error("[ERROR] Unable to impute missing data for column {} by average".format(column))
             app.logger.exception(e)
             raise e
@@ -62,6 +65,8 @@ class DataTransformer:
             db.engine.execute('UPDATE {0}.{1} SET {2} = {3} WHERE {2} IS NULL;'.format(*_ci(schema_name, table, column),
                                                                                        _cv(median_val)))
         except Exception as e:
+            flash(u"Something went wrong while imputing missing data for column {} by median of your table.".format(
+                column), 'danger')
             app.logger.error("[ERROR] Unable to impute missing data for column {} by median".format(column))
             app.logger.exception(e)
             raise e
@@ -91,6 +96,7 @@ class DataTransformer:
 
             db.engine.execute(query)
         except Exception as e:
+            flash(u"Something went wrong while performing find and replace on your table.", 'danger')
             app.logger.error("[ERROR] Unable to perform find and replace")
             app.logger.exception(e)
             raise e
@@ -103,6 +109,7 @@ class DataTransformer:
                                                                                     *_cv(regex, replacement))
             db.engine.execute(query)
         except Exception as e:
+            flash(u"Something went wrong while performing find and replace by regex on your table.", 'danger')
             app.logger.error("[ERROR] Unable to perform find and replace by regex")
             app.logger.exception(e)
         raise e
@@ -123,6 +130,8 @@ class DateTimeTransformer:
                 ' UPDATE {}.{} SET {} = (EXTRACT({} FROM {}::TIMESTAMP));'.format(*_ci(schema_name, table, new_column),
                                                                                   element, _ci(column)))
         except Exception as e:
+            flash(u"Something went wrong while extracting {} from column {} of your table.".format(element, column),
+                  'danger')
             app.logger.error("[ERROR] Unable to extract " + element + " from column '{}'".format(column))
             app.logger.exception(e)
             raise e
@@ -140,6 +149,8 @@ class DateTimeTransformer:
             db.engine.execute(
                 ' UPDATE {}.{} SET {} = {}::{};'.format(*_ci(schema_name, table, new_column), element))
         except Exception as e:
+            flash(u"Something went wrong while extracting {} from column {} of your table.".format(element, column),
+                  'danger')
             app.logger.error("[ERROR] Unable to extract " + element + " from column '{}'".format(column))
             app.logger.exception(e)
             raise e

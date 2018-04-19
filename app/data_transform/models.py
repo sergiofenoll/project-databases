@@ -130,7 +130,7 @@ class DateTimeTransformer:
         # Log action to history
         history.log_action(schema_id, table, datetime.now(), 'Extracted ' + element + ' from column ' + column)
 
-    def extract_time_or_date(self, schema_id, table, column, element):
+    def extract_date(self, schema_id, table, column, element):
         """extract date or time from datetime type"""
         try:
             schema_name = 'schema-' + str(schema_id)
@@ -148,7 +148,7 @@ class DateTimeTransformer:
         history.log_action(schema_id, table, datetime.now(), 'Extracted ' + element + ' from column ' + column)
 
     def get_transformations(self):
-        trans = ["extract day of week", "extract month", "extract year", "parse date", "extract time", "extract date"]
+        trans = ["extract day of week", "extract month", "extract year", "extract date"]
         return trans
 
     def transform(self, schema_id, table, column, operation):
@@ -159,9 +159,7 @@ class DateTimeTransformer:
         elif operation == "extract year":
             return self.extract_element_from_date(schema_id, table, column, "YEAR")
         elif operation == "extract date":
-            return self.extract_time_or_date(schema_id, table, column, "DATE")
-        elif operation == "extract time":
-            return self.extract_time_or_date(schema_id, table, column, "TIME")
+            return self.extract_date(schema_id, table, column, "DATE")
 
 
 class NumericalTransformations:

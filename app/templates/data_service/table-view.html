@@ -161,7 +161,6 @@
 				</thead>
 			</table>
 		</div>
-		{% include 'data_service/modals/modals.html' %}
 		<script type="text/javascript" charset="utf-8">
 			$(document).ready(function () {
 						var table = $('#dataTable').DataTable({
@@ -171,7 +170,7 @@
 							processing: true,
 							serverSide: true,
 							ajax: '/api' + window.location.pathname,
-							order: [[1, 'desc']],
+							order: [[1, 'asc']],
 							rowsDefs: [{}],
 							columnDefs: [{
 								targets: 0,
@@ -200,5 +199,6 @@
 					}
 			);
 		</script>
+		{% include 'data_service/modals/modals.html' %}
 	</div>
 {% endblock %}

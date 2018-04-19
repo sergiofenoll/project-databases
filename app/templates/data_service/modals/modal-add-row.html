@@ -31,7 +31,7 @@
 			type: 'POST',
 			url: '/api' + window.location.pathname + '/rows?' + $('#formAddRow').serialize(),
 			success: function () {
-				table.ajax.reload();
+				window.location.reload();
 			}
 		});
 		$('#addRow').modal('hide');

@@ -21,7 +21,6 @@ from app.database_connection.models import DBConnection
 from app.user_service.models import UserDataAccess
 from app.data_transform.models import DateTimeTransformer, DataTransformer, NumericalTransformations
 
-
 try:
     connection = DBConnection(dbname=config_data['dbname'], dbuser=config_data['dbuser'], dbpass=config_data['dbpass'],
                               dbhost=config_data['dbhost'])

@@ -1,5 +1,6 @@
 from app import app, database as db
 
+
 def _ci(*args: str):
     if len(args) == 1:
         return '"{}"'.format(args[0].replace('"', '""'))
@@ -11,6 +12,7 @@ def _cv(*args: str):
         return "'{}'".format(args[0].replace("'", "''"))
     return ["'{}'".format(arg.replace("'", "''")) for arg in args]
 
+
 class History:
     def __init__(self):
         pass
@@ -18,8 +20,8 @@ class History:
     def log_action(self, dataset_id, table_name, date, desc):
         dataset_name = 'schema-' + str(dataset_id)
         try:
-            db.engine.execute('INSERT INTO HISTORY VALUES (%s, %s, %s, %s)',
-                                   (dataset_name, table_name, date, desc))
+            db.engine.execute(
+                'INSERT INTO HISTORY VALUES ({}, {}, {}, {})'.format(*_cv(dataset_name, table_name, date, desc)))
         except Exception as e:
             app.logger.error(
                 "[ERROR] Failed to save action with description {} to history of {}.{}".format(desc, dataset_name,
@@ -37,7 +39,7 @@ class History:
 
             search_query = ''
             if search is not None:
-                search_query = "WHERE (id_dataset='{0}' AND id_table='{1}' ) AND (action_desc LIKE '%{2}%')".format(
+                search_query = "WHERE (id_dataset='{0}' AND id_table='{1}' ) AND (action_desc LIKE '%%{2}%%')".format(
                     dataset_name, table_name, search)
             else:
                 search_query = "WHERE id_dataset='{0}' AND id_table='{1}'".format(dataset_name, table_name)

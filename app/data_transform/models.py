@@ -275,10 +275,6 @@ class OneHotEncode:
         schema_name = 'schema-' + str(schema_id)
         ohe_table_name = 'ohe_' + table_name + '_' + column_name
 
-        # If table already exists, remove it
-        if self.dataloader.table_exists(ohe_table_name, schema_name):
-            self.dataloader.delete_table(ohe_table_name, schema_name)
-
         #TODO Check column 'categorical' (string or integer)
         is_categorical = False
         column_types = self.dataloader.get_column_names_and_types(schema_id, table_name)
@@ -324,10 +320,10 @@ class OneHotEncode:
 
         # Get labels from LabelEncoder
         labels = label_encoder.classes_
-
-        # Drop encoded table if already existed
-        if self.dataloader.table_exists(ohe_table_name, schema_id):
-            self.dataloader.delete_table(ohe_table_name, schema_id)
+        
+        # If table already exists, remove it
+        if self.dataloader.table_exists(ohe_table_name, schema_name):
+            self.dataloader.delete_table(ohe_table_name, schema_name)
 
         # Create OHE_table
         self.dataloader.create_table(ohe_table_name, schema_id, labels)

@@ -1,5 +1,7 @@
 from datetime import datetime
 from statistics import median
+from numpy import array, argmax
+from sklearn.preprocessing import LabelEncoder, OneHotEncoder
 
 import pandas as pd
 
@@ -252,3 +254,93 @@ class NumericalTransformations:
         data['label'] = '# Items Per Slice'
 
         return data
+
+class OneHotEncode:
+    def __init__(self, dbconnection, dataloader):
+        self.dbconnect = dbconnection
+        self.dataloader = dataloader
+
+    def one_hot_encode(self, integer_encoded):
+        one_hot_encoder = OneHotEncoder(sparse=False)
+
+        # Reshape 1D array into 2D suitable for one_hot_encoder
+        integer_encoded = integer_encoded.reshape(len(integer_encoded), 1)
+
+        one_hot_encoded = one_hot_encoder.fit_transform(integer_encoded)
+
+        return one_hot_encoded
+
+
+
+    def encode(self, schema_id, table_name, column_name):
+        schema_name = 'schema-' + str(schema_id)
+        OHE_table_name = 'OHE_' + table_name + '_' + column_name
+
+
+        #TODO Check column 'categorical' (string or integer)
+        is_categorical = False
+        column_types = self.dataloader.get_column_names_and_types(schema_id, table_name)
+        for column in column_types:
+            if column.name == column_name and column.type == 'string':
+                is_categorical = True
+                break
+        # Exception
+        if not is_categorical:
+            return
+
+        # SELECT id, 'column' FROM "schema_name"."table";
+        data_query = 'SELECT id, {} FROM {}.{}'.format(*_cv(column_name, schema_name, table_name))
+
+        try:
+            result = db.engine.execute(data_query)
+
+            id_s = list()
+            data = list()
+            for row in result:
+                id = row[0]
+                value = row[1]
+
+                id_s.append(id)
+                data.append(value)
+            print('fetched data: ')
+            print(data)
+        except Exception as e:
+            app.logger.error("[ERROR] Couldn't one_hot_encode  '" + column_name + "' in '." + table_name + "',")
+            app.logger.exception(e)
+            raise e
+
+        # Extract 'column' values into array
+        values = array(data)
+
+        # Pass trough LabelEncoder
+        # integer encode
+        label_encoder = LabelEncoder()
+        integer_encoded = label_encoder.fit_transform(values)
+
+        # Pass through OneHotEncoder
+        one_hot_encoded = self.one_hot_encode(integer_encoded)
+
+        # Get labels from LabelEncoder
+        labels = label_encoder.classes_
+
+        # Drop encoded table if already existed
+        if self.dataloader.table_exists(OHE_table_name, schema_id):
+            self.dataloader.delete_table(OHE_table_name, schema_id)
+
+        # Create OHE_table
+        self.dataloader.create_table(OHE_table_name, schema_id, labels)
+
+
+        ohe_table_columns = list()
+        ohe_table_columns.append('id')
+        for label in labels:
+            ohe_table_columns.append(str(label))
+
+        for i in range(len(id_s)):
+            ohe_table_values = list()
+            ohe_table_values.append(str(id_s[i]))
+
+            for OHE_value in one_hot_encoded[i]:
+                ohe_table_values.append(str(int(OHE_value)))
+
+            self.dataloader.insert_row(OHE_table_name, schema_id, ohe_table_columns, ohe_table_values)

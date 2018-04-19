@@ -248,3 +248,9 @@ def chart(dataset_id, table_name):
         return jsonify(numerical_transformer.chart_data_categorical(dataset_id, table_name, column_name))
     else:
         return jsonify(numerical_transformer.chart_data_numerical(dataset_id, table_name, column_name))
+
+@api.route('/api/datasets/<int:dataset_id>/tables/<string:table_name>/one-hot-encode-column', methods=['PUT'])
+def one_hot_encode(dataset_id, table_name):
+    column_name = request.args.get('col-name')
+    one_hot_encoder.encode(dataset_id, table_name, column_name)
+    return jsonify({'success': True}), 200

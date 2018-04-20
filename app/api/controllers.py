@@ -183,6 +183,7 @@ def find_and_replace(dataset_id, table_name):
         regex = request.args.get('replacement-regex')
         data_transformer.find_and_replace_by_regex(dataset_id, table_name, colomn, regex, replacement_value)
     else:
+
         value_to_be_replaced = request.args.get('value-to-be-replaced')
         data_transformer.find_and_replace(dataset_id, table_name, colomn, value_to_be_replaced, replacement_value,
                                           replacement_function)

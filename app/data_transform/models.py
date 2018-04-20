@@ -98,6 +98,8 @@ class DataTransformer:
     def find_and_replace_by_regex(self, schema_id, table, column, regex, replacement):
         """" find and replace """
         try:
+            regex = regex.replace('%', '%%')
+
             schema_name = 'schema-' + str(schema_id)
             query = 'UPDATE {0}.{1} SET {2} = regexp_replace({2}, {3}, {4})'.format(*_ci(schema_name, table, column),
                                                                                     *_cv(regex, replacement))
@@ -105,7 +107,7 @@ class DataTransformer:
         except Exception as e:
             app.logger.error("[ERROR] Unable to perform find and replace by regex")
             app.logger.exception(e)
-        raise e
+            raise e
 
 
 class DateTimeTransformer:

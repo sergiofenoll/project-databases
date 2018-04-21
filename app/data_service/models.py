@@ -233,13 +233,14 @@ class DataLoader:
             app.logger.exception(e)
             raise e
 
-    def delete_row(self, schema_id, table_name, row_ids):
+    def delete_row(self, schema_id, table_name, row_ids, add_history=True):
         schema_name = 'schema-' + str(schema_id)
         try:
             for row_id in row_ids:
                 db.engine.execute('DELETE FROM {}.{} WHERE id={};'.format(*_ci(schema_name, table_name), _cv(row_id)))
                 # Log action to history
-                history.log_action(schema_id, table_name, datetime.now(), 'Deleted row #' + str(row_id))
+                if add_history:
+                    history.log_action(schema_id, table_name, datetime.now(), 'Deleted row #' + str(row_id))
         except Exception as e:
             app.logger.error("[ERROR] Unable to delete row from table '" + table_name + "'")
             app.logger.exception(e)
@@ -278,7 +279,10 @@ class DataLoader:
             to_delete = [r['id'] for r in result]
 
             # Pass ids to 'traditional' delete_row
-            self.delete_row(schema_id, table_name, to_delete)
+            self.delete_row(schema_id, table_name, to_delete, False)
+
+            history.log_action(schema_id, table_name, datetime.now(), 'Deleted rows on predicate')
+
 
         except Exception as e:
             app.logger.error('[ERROR] Unable to fetch rows to delete from ' + table_name)
@@ -296,7 +300,7 @@ class DataLoader:
         # Log action to history
         history.log_action(schema_id, table_name, datetime.now(), 'Deleted column ' + column_name)
 
-    def insert_row(self, table, schema_id, columns, values, file_upload=False):
+    def insert_row(self, table, schema_id, columns, values, add_history=True):
         """
          This method takes dict of values and adds those to the given table.
          The entries in values look like: {column_name: column_value}
@@ -320,7 +324,7 @@ class DataLoader:
             raise e
 
         # Log action to history
-        if not file_upload:
+        if add_history:
             history.log_action(schema_id, table, datetime.now(), 'Added row with values ' + ' '.join(values))
 
     def insert_column(self, schema_id, table_name, column_name, column_type):
@@ -394,8 +398,8 @@ class DataLoader:
                     values = dict()
                     for c in range(len(columns)):
                         values[columns[c]] = values_list[c]
-                    self.insert_row(tablename, schema_id, columns, values, True)
-                    self.insert_row(raw_name, schema_id, columns, values, True)
+                    self.insert_row(tablename, schema_id, columns, values, False)
+                    self.insert_row(raw_name, schema_id, columns, values, False)
 
     def process_zip(self, file, schema_id):
         """
@@ -471,7 +475,7 @@ class DataLoader:
                         val_dict = dict()
                         for c_ix in range(len(columns)):
                             val_dict[columns[c_ix]] = values[c_ix]
-                        self.insert_row(tablename, schema_id, columns, val_dict, True)
+                        self.insert_row(tablename, schema_id, columns, val_dict, False)
 
     # Data access handling
     def get_user_datasets(self, user_id):

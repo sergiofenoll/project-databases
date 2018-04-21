@@ -110,14 +110,14 @@ def admin_page():
         return render_template('user_service/admin-page.html', users=user_data_access.get_users(), data_updated=True)
 
 
-@user_service.route('/admin-page/<string:username>/delete', methods=['POST'])
+@user_service.route('/admin-page/<string:username>/delete', methods=['DELETE'])
 @login_required
 def delete_user_as_admin(username):
     if current_user.status != 'admin':
         return abort(403)
 
     user_data_access.delete_user(data_loader, username)
-
+    
     if current_user.username == username:
         return logout()
 

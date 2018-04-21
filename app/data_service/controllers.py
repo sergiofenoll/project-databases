@@ -28,7 +28,7 @@ def add_dataset():
     name = request.form.get('ds-name')
     meta = request.form.get('ds-meta')
     owner_id = current_user.username
-    data_loader.create_dataset(name, meta, owner_id)
+    data_loader.create_dataset(name, owner_id, meta)
     return render_template('data_service/datasets.html',
                            datasets=data_loader.get_user_datasets(current_user.username))
 
@@ -158,7 +158,7 @@ def grant_dataset_access(dataset_id):
     return redirect(url_for('data_service.get_dataset', dataset_id=dataset_id))
 
 
-@data_service.route('/datasets/<int:dataset_id>/share/delete', methods=['GET'])
+@data_service.route('/datasets/<int:dataset_id>/share/delete', methods=['POST'])
 def delete_dataset_access(dataset_id):
     username = request.form.get('ds-delete-user-select')
     data_loader.remove_access(username, dataset_id)

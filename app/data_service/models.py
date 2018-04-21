@@ -53,7 +53,7 @@ class DataLoader:
         pass
 
     # Dataset & Data handling (inserting/deleting...)
-    def create_dataset(self, name, desc, owner_id):
+    def create_dataset(self, name, owner_id, desc="Default description",):
         """
          This method takes a name ('nickname') and description and creates a new schema in the database.
          This new schema is by default available to the given owner.

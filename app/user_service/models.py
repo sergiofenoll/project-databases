@@ -93,8 +93,8 @@ class UserDataAccess:
 
     def alter_user(self, user):
         try:
-            query = 'UPDATE Member SET Firstname = {}, Lastname = {}}, Email = {}, Pass = {}, Status = {}, Active = {} WHERE Username={};'.format(*_cv(
-                user.firstname, user.lastname, user.email, user.password, user.status, user.is_active, user.username))
+            query = 'UPDATE Member SET Firstname = {}, Lastname = {}, Email = {}, Pass = {}, Status = {}, Active = {} WHERE Username={};'.format(*_cv(
+                user.firstname, user.lastname, user.email, user.password, str(user.status), str(user.is_active), user.username))
 
             db.engine.execute(query)
             return True

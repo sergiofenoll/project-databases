@@ -15,14 +15,14 @@ history = History()
 
 def _ci(*args: str):
     if len(args) == 1:
-        return '"{}"'.format(args[0].replace('"', '""'))
-    return ['"{}"'.format(arg.replace('"', '""')) for arg in args]
+        return '"{}"'.format(str(args[0]).replace('"', '""'))
+    return ['"{}"'.format(str(arg).replace('"', '""')) for arg in args]
 
 
 def _cv(*args: str):
     if len(args) == 1:
-        return "'{}'".format(args[0].replace("'", "''"))
-    return ["'{}'".format(arg.replace("'", "''")) for arg in args]
+        return "'{}'".format(str(args[0]).replace("'", "''"))
+    return ["'{}'".format(str(arg).replace("'", "''")) for arg in args]
 
 
 class Dataset:
@@ -63,25 +63,25 @@ class DataLoader:
         rows = db.engine.execute('SELECT COUNT(*) FROM Available_Schema;')
         count = rows.first()[0]  # Amount of schema gaps
 
-        schemaID = -1
+        schema_id = -1
 
         if count == 0:
             rows = db.engine.execute('SELECT COUNT(*) FROM Dataset;')
-            schemaID = rows.first()[0]  # Amount of already existing schemas
+            schema_id = rows.first()[0]  # Amount of already existing schemas
 
         else:
             rows = db.engine.execute('SELECT MIN(id) FROM Available_Schema;')
-            schemaID = rows.first()[0]  # smallest id of schema gap
-            db.engine.execute('DELETE FROM Available_Schema WHERE id = {};'.format(str(schemaID)))
+            schema_id = rows.first()[0]  # smallest id of schema gap
+            db.engine.execute('DELETE FROM Available_Schema WHERE id = {};'.format(str(schema_id)))
 
-        if schemaID == -1:
+        if schema_id == -1:
             app.logger.warning("[WARNING] Finding a unique schema-name failed")
             return False
 
-        schemaname = "schema-" + str(schemaID)
+        schema_name = "schema-" + str(schema_id)
 
         try:
-            db.engine.execute('CREATE SCHEMA {};'.format(_ci(schemaname)))
+            db.engine.execute('CREATE SCHEMA {};'.format(_ci(schema_name)))
         except Exception as e:
             app.logger.error("[ERROR] Failed to created schema '" + name + "'")
             app.logger.exception(e)

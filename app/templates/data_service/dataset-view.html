@@ -23,10 +23,18 @@
 												 href="#uploadFileModal"><i class="fas fa-upload"></i>
 										Upload file</a></td>
 								</tr>
+								{% if access_permission or (current_user.username == ds.owner) %}
+								<tr>
+									<td><a class="btn btn-light panel-button" data-toggle="modal" data-target="#joinTablesModal"
+												 href="#joinTablesModal"><i class="fas fa-upload"></i>
+										Join tables</a></td>
+								</tr>
+								{% endif %}
 							</table>
 						</div>
 					</div>
 				</div>
+
 				{% if access_permission or (current_user.username == ds.owner) %}
 					<div class="panel panel-default">
 						<div class="panel-heading">
@@ -222,10 +230,86 @@
 					</div>
 				</div>
 			</div>
+			<div class="modal fade" id="joinTablesModal" tabindex="-1" role="dialog">
+			<div class="modal-dialog modal-lg" role="document">
+				<div class="modal-content">
+					<form action="/datasets/{{ ds.id }}/join-tables" method="post" id="join-tables">
+						<div class="modal-header">
+							<h5 class="modal-title">Join tables</h5>
+							<button type="button" class="close" data-dismiss="modal" aria-label="Close">
+									<span aria-hidden="true">&times;</span>
+							</button>
+						</div>
+						<div class="modal-body">
+							<label for="ds-files">Raw data stored will come from the selected tables, not from the 'raw' data of these tables</label>
+							<label for="ds-files">Select table1, table2, table1.column, relation and table2.column</label>
+							<div data-dynamic-form>
+								<div data-dynamic-form-template="multi">
+									<label>
+										<!--Table 1-->
+										<select class="join_table" onchange="update_selection(this.id, this.value)" form="join-tables" name="join[ID]" data-dynamic-form-input-id-template="ID" id="join[ID]-table1">
+											<{% for t in tables %}
+											<option value="{{t.name}}">{{t.name}}</option>
+											{% endfor %}
+										</select>
+										<!--Table 2-->
+										<select class="join_table" onchange="update_selection(this.id, this.value)" form="join-tables" name="join[ID]" data-dynamic-form-input-id-template="ID" id="join[ID]-table2">
+											<{% for t in tables %}
+											<option value="{{t.name}}">{{t.name}}</option>
+											{% endfor %}
+										</select>
+										<!--Column 1-->
+										 <select form="join-tables" name="join[ID]" data-dynamic-form-input-id-template="ID" id="join[ID]-table1-columns">
+											<{% for c in columns %}
+											<option value="{{c}}">{{c}}</option>
+											{% endfor %}
+										 </select>
+										<!--Relation-->
+										<select form="join-tables" name="join[ID]" data-dynamic-form-input-id-template="ID" id="join[ID]-relation">
+											<option value="<">less than</option>
+											<option value="<=">less or equals</option>
+											<option value=">">more than</option>
+											<option value=">=">more or equals </option>
+											<option value="=">equals</option>
+											<option value="<>">not equals</option>
+										</select>
+										<!--Column 2-->
+										<select form="join-tables" name="join[ID]" data-dynamic-form-input-id-template="ID" id="join[ID]-table2-columns">
+											<{% for c in columns %}
+											<option value="{{c}}">{{c}}</option>
+											{% endfor %}
+										</select>
+										<button type="button" data-dynamic-form-remove>Remove</button>
+										<button type="button" data-dynamic-form-add>Add</button>
+									</label>
+								</div>
+							</div>
+							<div class="form-group">
+									<span>Name</span>
+									<input type="text" class="form-control" id="table-name" name="table-name" placeholder="Table name"
+										   required>
+							</div>
+							<div class="form-group">
+									<span>Description</span>
+									<input type="text" class="form-control" id="table-meta" name="table-meta"
+										   placeholder="Table description" required>
+							</div>
+						</div>
+						<div class="modal-footer">
+							<button type="submit" class="btn btn-primary">Upload</button>
+							<button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+						</div>
+					</form>
+				</div>
+			</div>
+		</div>
 		{% endif %}
 	</div>
 	<script type="text/javascript" charset="utf-8">
 		$(document).ready(function () {
+		    var dynamicForms = new DynamicForms();
+			dynamicForms.automaticallySetupForm();
+
 			$('.metadataEditButton').click(function (e) { // .stuff wijst op een klasse
 				e.preventDefault();
 				$('#t-name').val($(this).attr('data-old-name'));
@@ -248,5 +332,25 @@
 				$('#metadata').modal('hide');
 			});
 		});
+
+		function update_selection(changed_name, changed_value) {
+			var dropdown_box_to_change = changed_name + "-columns";
+
+			$.ajax({
+				type: 'GET',
+				url: window.location.pathname + '/' + changed_value,
+				async: false,
+				dataType: 'json',
+				success: function (data) {
+					var new_select_options = "";
+
+					for (var column in data)
+					{
+						new_select_options += "<option value=" + data[column] + ">" + data[column] + "</option>";
+					}
+					document.getElementById(dropdown_box_to_change).innerHTML = new_select_options;
+				}
+			});
+		}
 	</script>
 {% endblock %}

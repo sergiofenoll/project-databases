@@ -39,6 +39,8 @@ class DataTransformer:
 
             db.engine.execute('UPDATE {0}.{1} SET {2} = {3} WHERE {2} IS NULL;'.format(*_ci(schema_name, table, column),
                                                                                        _cv(average)))
+            history.log_action(schema_id, table, datetime.now(), 'Imputed missing data on average')
+
         except Exception as e:
             app.logger.error("[ERROR] Unable to impute missing data for column {} by average".format(column))
             app.logger.exception(e)
@@ -62,6 +64,8 @@ class DataTransformer:
 
             db.engine.execute('UPDATE {0}.{1} SET {2} = {3} WHERE {2} IS NULL;'.format(*_ci(schema_name, table, column),
                                                                                        _cv(median_val)))
+            history.log_action(schema_id, table, datetime.now(), 'Imputed missing data on median')
+
         except Exception as e:
             app.logger.error("[ERROR] Unable to impute missing data for column {} by median".format(column))
             app.logger.exception(e)
@@ -91,6 +95,7 @@ class DataTransformer:
                 app.logger.error("[ERROR] Unable to perform find and replace")
 
             db.engine.execute(query)
+            history.log_action(schema_id, table, datetime.now(), 'Used find and replace')
         except Exception as e:
             app.logger.error("[ERROR] Unable to perform find and replace")
             app.logger.exception(e)
@@ -105,6 +110,7 @@ class DataTransformer:
             query = 'UPDATE {0}.{1} SET {2} = regexp_replace({2}, {3}, {4})'.format(*_ci(schema_name, table, column),
                                                                                     *_cv(regex, replacement))
             db.engine.execute(query)
+            history.log_action(schema_id, table, datetime.now(), 'Used find and replace')
         except Exception as e:
             app.logger.error("[ERROR] Unable to perform find and replace by regex")
             app.logger.exception(e)

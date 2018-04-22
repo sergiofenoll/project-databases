@@ -186,7 +186,7 @@ class NumericalTransformations:
         df = pd.read_sql_query('SELECT * FROM "{}"."{}"'.format(schema_name, table_name), db.engine)
         new_column_name = column_name + '_intervals_eq_w_' + str(num_intervals)
 
-        df[new_column_name] = pd.cut(df[column_name], num_intervals).apply(str)
+        df[new_column_name] = pd.cut(df[column_name], num_intervals, precision=9).apply(str)
 
         db.engine.execute('DROP TABLE "{0}"."{1}"'.format(schema_name, table_name))
         df.to_sql(name=table_name, con=db.engine, schema=schema_name, if_exists='fail', index=False)
@@ -201,8 +201,10 @@ class NumericalTransformations:
         interval_size = data_length // num_intervals
         intervals_list = []
         for i in range(0, data_length, interval_size):
-            intervals_list.append(sorted_data[i])
-        df[new_column_name] = pd.cut(df[column_name], intervals_list).apply(str)
+            intervals_list.append(sorted_data[i] - (sorted_data[i] / 1000))  #
+        df[new_column_name] = pd.cut(df[column_name], intervals_list, precision=9).apply(str)
+
+        print(df[new_column_name])
 
         db.engine.execute('DROP TABLE "{0}"."{1}"'.format(schema_name, table_name))
         df.to_sql(name=table_name, con=db.engine, schema=schema_name, if_exists='fail', index=False)
@@ -231,25 +233,24 @@ class NumericalTransformations:
         df = pd.read_sql_query('SELECT * FROM "{}"."{}"'.format(schema_name, table_name), db.engine)
 
         intervals = pd.cut(df[column_name], 10).value_counts()
-
         data = {
             'labels': list(intervals.index.astype(str)),
             'data': list(intervals.astype(int)),
-            'chart': 'bar',
-            'label': '# Items Per Interval'
+            'label': '# Items Per Interval',
+            'chart': 'bar'
         }
-
         return data
 
     def chart_data_categorical(self, schema_id, table_name, column_name):
         schema_name = 'schema-' + str(schema_id)
         df = pd.read_sql_query('SELECT * FROM "{}"."{}"'.format(schema_name, table_name), db.engine)
 
-        data = {'labels': [], 'data': []}
-        data['labels'] = list(df[column_name].unique())
-        for label in data['labels']:
-            data['data'].append(int(df[df[column_name] == label][column_name].count()))
-        data['chart'] = 'pie'
-        data['label'] = '# Items Per Slice'
-
+        intervals = df[column_name].value_counts()
+        data = {
+            'labels': list(intervals.index.astype(str)),
+            'data': list(intervals.astype(str)),
+            'label': '# Items Per Slice',
+            'chart': 'pie'
+        }
         return data
+

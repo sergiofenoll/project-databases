@@ -1,10 +1,9 @@
+import csv
 import re
 import shutil
-import csv
 from datetime import datetime
 from zipfile import ZipFile
 
-import pandas as pd
 from psycopg2 import IntegrityError
 
 from app import app, database as db
@@ -311,7 +310,8 @@ class DataLoader:
                 value_tuple.append(values[col])
         try:
             query = 'INSERT INTO {}.{}({}) VALUES ({});'.format(*_ci(schemaname, table),
-                                                                ', '.join(_ci(column_name) for column_name in column_tuple),
+                                                                ', '.join(
+                                                                    _ci(column_name) for column_name in column_tuple),
                                                                 ', '.join(_cv(value) for value in value_tuple))
             db.engine.execute(query)
         except Exception as e:
@@ -340,9 +340,12 @@ class DataLoader:
         schema_name = 'schema-' + str(schema_id)
         try:
             db.engine.execute(
-                'ALTER TABLE {0}.{1} RENAME {2} TO {3}'.format(*_ci(schema_name, table_name, column_name, new_column_name)))
+                'ALTER TABLE {0}.{1} RENAME {2} TO {3}'.format(
+                    *_ci(schema_name, table_name, column_name, new_column_name)))
         except Exception as e:
-            app.logger.error("[ERROR] Unable to rename column '{0}' to '{1}' in table '{2}'".format(column_name, new_column_name, table_name))
+            app.logger.error(
+                "[ERROR] Unable to rename column '{0}' to '{1}' in table '{2}'".format(column_name, new_column_name,
+                                                                                       table_name))
             app.logger.exception(e)
 
     def update_column_type(self, schema_id, table_name, column_name, column_type):
@@ -377,25 +380,39 @@ class DataLoader:
             app.logger.error("[ERROR] Cannot overwrite existing table.")
             return
 
+        import pandas as pd
+
         # TODO: Test if this works
-        # df = pd.process_csv(file)
+        raw_tablename = '_raw_' + tablename
+        schema_name = 'schema-' + str(schema_id)
 
         with open(file, "r") as csv:
-            first = True
-            columns = list()
             for line in csv:
-                if first and not append:
-                    first = False
+                if not append:
                     columns = line.strip().split(',')
                     self.create_table(tablename, schema_id, columns)
-                else:
-                    raw_name = "_raw_" + tablename
-                    values_list = [x.strip() for x in line.split(",")]
-                    values = dict()
-                    for c in range(len(columns)):
-                        values[columns[c]] = values_list[c]
-                    self.insert_row(tablename, schema_id, columns, values, True)
-                    self.insert_row(raw_name, schema_id, columns, values, True)
+                break
+
+        df = pd.read_csv(file)
+        df.to_sql(name=tablename, con=db.engine, schema=schema_name, index=False, if_exists='append')
+        df.to_sql(name=raw_tablename, con=db.engine, schema=schema_name, index=False, if_exists='append')
+
+        # with open(file, "r") as csv:
+        #     first = True
+        #     columns = list()
+        #     for line in csv:
+        #         if first and not append:
+        #             first = False
+        #             columns = line.strip().split(',')
+        #             self.create_table(tablename, schema_id, columns)
+        #         else:
+        #             raw_name = "_raw_" + tablename
+        #             values_list = [x.strip() for x in line.split(",")]
+        #             values = dict()
+        #             for c in range(len(columns)):
+        #                 values[columns[c]] = values_list[c]
+        #             self.insert_row(tablename, schema_id, columns, values, True)
+        #             self.insert_row(raw_name, schema_id, columns, values, True)
 
     def process_zip(self, file, schema_id):
         """
@@ -642,7 +659,6 @@ class DataLoader:
             app.logger.exception(e)
             raise e
 
-
     def get_table(self, schema_id, table_name, offset=0, limit='ALL', ordering=None, search=None):
         """
          This method returns a list of 'Table' objects associated with the requested dataset
@@ -669,7 +685,8 @@ class DataLoader:
             rows = db.engine.execute(
                 'SELECT * FROM {}.{} {} {} LIMIT {} OFFSET {};'.format(*_ci(schema_name, table_name), search_query,
                                                                        ordering_query, limit, offset))
-            table = Table(table_name, '', columns=self.get_column_names_and_types(schema_id, table_name))  # Hack-n-slash
+            table = Table(table_name, '',
+                          columns=self.get_column_names_and_types(schema_id, table_name))  # Hack-n-slash
             for row in rows:
                 table.rows.append(list(row))
             return table

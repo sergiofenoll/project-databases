@@ -1,6 +1,7 @@
 from app import app
 from app import database as db
 
+
 def _ci(*args: str):
     if len(args) == 1:
         return '"{}"'.format(str(args[0]).replace('"', '""'))

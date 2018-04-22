@@ -4,7 +4,7 @@ from flask import Blueprint, request, render_template, redirect, url_for, abort
 from flask_login import login_required, current_user
 from werkzeug.utils import secure_filename
 
-from app import app, connection, data_loader, date_time_transformer, ALLOWED_EXTENSIONS, UPLOAD_FOLDER
+from app import app, data_loader, date_time_transformer, ALLOWED_EXTENSIONS, UPLOAD_FOLDER
 
 data_service = Blueprint('data_service', __name__)
 
@@ -105,10 +105,8 @@ def add_table(dataset_id):
         except Exception as e:
             app.logger.error("[ERROR] Failed to process file '" + filename + "'")
             app.logger.exception(e)
-            connection.rollback()
             return get_dataset(dataset_id)
 
-        connection.commit()
         file.close()
         os.remove(path)
     return get_dataset(dataset_id)

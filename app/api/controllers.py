@@ -204,10 +204,10 @@ def discretize(dataset_id, table_name):
     try:
         if discretization == 'eq-width':
             num_intervals = int(request.args.get('num-intervals'))
-            numerical_transformer.equal_freq_interval(dataset_id, table_name, column_name, num_intervals)
+            numerical_transformer.equal_width_interval(dataset_id, table_name, column_name, num_intervals)
         elif discretization == 'eq-freq':
             num_intervals = int(request.args.get('num-intervals'))
-            numerical_transformer.equal_width_interval(dataset_id, table_name, column_name, num_intervals)
+            numerical_transformer.equal_freq_interval(dataset_id, table_name, column_name, num_intervals)
         elif discretization == 'manual':
             intervals = [int(n) for n in request.args.get('intervals').strip().split(',')]
             numerical_transformer.manual_interval(dataset_id, table_name, column_name, intervals)
@@ -245,7 +245,12 @@ def chart(dataset_id, table_name):
     column_name = request.args.get('col-name')
     column_type = request.args.get('col-type')
 
+    # data = numerical_transformer.chart_data_numerical(dataset_id, table_name, column_name)
+
     if column_type not in ['real', 'double', 'integer', 'timestamp']:
         return jsonify(numerical_transformer.chart_data_categorical(dataset_id, table_name, column_name))
+        # data['chart'] = 'bar'
     else:
         return jsonify(numerical_transformer.chart_data_numerical(dataset_id, table_name, column_name))
+        # data['chart'] = 'pie'
+    # return jsonify(data)

@@ -17,16 +17,8 @@ login = LoginManager(app)
 login.init_app(app)
 
 from app.data_service.models import DataLoader
-from app.database_connection.models import DBConnection
 from app.user_service.models import UserDataAccess
 from app.data_transform.models import DateTimeTransformer, DataTransformer, NumericalTransformations
-
-try:
-    connection = DBConnection(dbname=config_data['dbname'], dbuser=config_data['dbuser'], dbpass=config_data['dbpass'],
-                              dbhost=config_data['dbhost'])
-except Exception as e:
-    app.logger.error("[ERROR] Failed to establish user connection.")
-    app.logger.exception(e)
 
 user_data_access = UserDataAccess()
 data_loader = DataLoader()

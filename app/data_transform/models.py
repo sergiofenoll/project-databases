@@ -279,7 +279,7 @@ class OneHotEncode:
         is_categorical = False
         column_types = self.dataloader.get_column_names_and_types(schema_id, table_name)
         for column in column_types:
-            if column.name == column_name and column.type == 'string':
+            if column.name == column_name and column.type == 'text':
                 is_categorical = True
                 break
         # Exception
@@ -300,8 +300,6 @@ class OneHotEncode:
 
                 id_s.append(id)
                 data.append(value)
-            print('fetched data: ')
-            print(data)
         except Exception as e:
             app.logger.error("[ERROR] Couldn't one_hot_encode  '" + column_name + "' in '." + table_name + "',")
             app.logger.exception(e)
@@ -327,7 +325,6 @@ class OneHotEncode:
 
         # Create OHE_table
         self.dataloader.create_table(ohe_table_name, schema_id, labels)
-
         # For each id, insert encoded row into table
         for _row in range(len(id_s)):
             ohe_row_values = dict()

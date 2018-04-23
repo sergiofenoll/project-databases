@@ -12,7 +12,9 @@
                     <label for="col-name">Column</label>
                     <select class="form-control" name="col-name" id="col-name">
                         {% for column in table.columns[1:] %}
+                            {% if (column.type == "text") %}
                             <option value="{{ column.name }}">{{ column.name|capitalize }}</option>
+                            {%  endif %}
                         {% endfor %}
                     </select>
                 </div>

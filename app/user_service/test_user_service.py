@@ -1,6 +1,5 @@
 import unittest
 
-from app.database_connection.models import DBConnection
 from app.user_service.models import UserDataAccess, User
 from config import *
 

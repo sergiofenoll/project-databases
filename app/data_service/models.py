@@ -1,10 +1,9 @@
+import csv
 import re
 import shutil
-import csv
 from datetime import datetime
 from zipfile import ZipFile
 
-import pandas as pd
 from psycopg2 import IntegrityError
 
 from app import app, database as db
@@ -15,14 +14,14 @@ history = History()
 
 def _ci(*args: str):
     if len(args) == 1:
-        return '"{}"'.format(args[0].replace('"', '""'))
-    return ['"{}"'.format(arg.replace('"', '""')) for arg in args]
+        return '"{}"'.format(str(args[0]).replace('"', '""'))
+    return ['"{}"'.format(str(arg).replace('"', '""')) for arg in args]
 
 
 def _cv(*args: str):
     if len(args) == 1:
-        return "'{}'".format(args[0].replace("'", "''"))
-    return ["'{}'".format(arg.replace("'", "''")) for arg in args]
+        return "'{}'".format(str(args[0]).replace("'", "''"))
+    return ["'{}'".format(str(arg).replace("'", "''")) for arg in args]
 
 
 class Dataset:
@@ -63,25 +62,25 @@ class DataLoader:
         rows = db.engine.execute('SELECT COUNT(*) FROM Available_Schema;')
         count = rows.first()[0]  # Amount of schema gaps
 
-        schemaID = -1
+        schema_id = -1
 
         if count == 0:
             rows = db.engine.execute('SELECT COUNT(*) FROM Dataset;')
-            schemaID = rows.first()[0]  # Amount of already existing schemas
+            schema_id = rows.first()[0]  # Amount of already existing schemas
 
         else:
             rows = db.engine.execute('SELECT MIN(id) FROM Available_Schema;')
-            schemaID = rows.first()[0]  # smallest id of schema gap
-            db.engine.execute('DELETE FROM Available_Schema WHERE id = {};'.format(str(schemaID)))
+            schema_id = rows.first()[0]  # smallest id of schema gap
+            db.engine.execute('DELETE FROM Available_Schema WHERE id = {};'.format(str(schema_id)))
 
-        if schemaID == -1:
+        if schema_id == -1:
             app.logger.warning("[WARNING] Finding a unique schema-name failed")
             return False
 
-        schemaname = "schema-" + str(schemaID)
+        schema_name = "schema-" + str(schema_id)
 
         try:
-            db.engine.execute('CREATE SCHEMA {};'.format(_ci(schemaname)))
+            db.engine.execute('CREATE SCHEMA {};'.format(_ci(schema_name)))
         except Exception as e:
             app.logger.error("[ERROR] Failed to created schema '" + name + "'")
             app.logger.exception(e)
@@ -91,12 +90,12 @@ class DataLoader:
         try:
             db.engine.execute(
                 'INSERT INTO Dataset(id, nickname, metadata, owner) VALUES({}, {}, {}, {});'.format(
-                    *_cv(schemaname, name, desc, owner_id)))
+                    *_cv(schema_name, name, desc, owner_id)))
 
             # Add user to the access table
             db.engine.execute(
                 'INSERT INTO Access(id_dataset, id_user, role) VALUES({}, {}, {});'.format(
-                    *_cv(schemaname, owner_id, 'owner')))
+                    *_cv(schema_name, owner_id, 'owner')))
         except Exception as e:
             app.logger.error("[ERROR] Failed to insert dataset '" + name + "' into the database")
             app.logger.exception(e)
@@ -168,7 +167,7 @@ class DataLoader:
             app.logger.exception(e)
             raise e
 
-    def create_table(self, name, schema_id, columns, desc="Default description"):
+    def create_table(self, name, schema_id, columns, desc="Default description", raw=False):
         """
          This method takes a schema, name and a list of columns and creates the corresponding table
         """
@@ -189,7 +188,8 @@ class DataLoader:
 
         try:
             db.engine.execute(query)
-            db.engine.execute(raw_table_query)
+            if raw:
+                db.engine.execute(raw_table_query)
         except Exception as e:
             app.logger.error("[ERROR] Failed to create table '" + name + "'")
             app.logger.exception(e)
@@ -233,13 +233,14 @@ class DataLoader:
             app.logger.exception(e)
             raise e
 
-    def delete_row(self, schema_id, table_name, row_ids):
+    def delete_row(self, schema_id, table_name, row_ids, add_history=True):
         schema_name = 'schema-' + str(schema_id)
         try:
             for row_id in row_ids:
                 db.engine.execute('DELETE FROM {}.{} WHERE id={};'.format(*_ci(schema_name, table_name), _cv(row_id)))
                 # Log action to history
-                history.log_action(schema_id, table_name, datetime.now(), 'Deleted row #' + str(row_id))
+                if add_history:
+                    history.log_action(schema_id, table_name, datetime.now(), 'Deleted row #' + str(row_id))
         except Exception as e:
             app.logger.error("[ERROR] Unable to delete row from table '" + table_name + "'")
             app.logger.exception(e)
@@ -278,7 +279,10 @@ class DataLoader:
             to_delete = [r['id'] for r in result]
 
             # Pass ids to 'traditional' delete_row
-            self.delete_row(schema_id, table_name, to_delete)
+            self.delete_row(schema_id, table_name, to_delete, False)
+
+            history.log_action(schema_id, table_name, datetime.now(), 'Deleted rows on predicate')
+
 
         except Exception as e:
             app.logger.error('[ERROR] Unable to fetch rows to delete from ' + table_name)
@@ -296,7 +300,7 @@ class DataLoader:
         # Log action to history
         history.log_action(schema_id, table_name, datetime.now(), 'Deleted column ' + column_name)
 
-    def insert_row(self, table, schema_id, columns, values, file_upload=False):
+    def insert_row(self, table, schema_id, columns, values, add_history=True):
         """
          This method takes dict of values and adds those to the given table.
          The entries in values look like: {column_name: column_value}
@@ -321,7 +325,7 @@ class DataLoader:
             raise e
 
         # Log action to history
-        if not file_upload:
+        if add_history:
             history.log_action(schema_id, table, datetime.now(), 'Added row with values ' + ' '.join(values))
 
     def insert_column(self, schema_id, table_name, column_name, column_type):
@@ -381,25 +385,22 @@ class DataLoader:
             app.logger.error("[ERROR] Cannot overwrite existing table.")
             return
 
+        import pandas as pd
+
         # TODO: Test if this works
-        # df = pd.process_csv(file)
+        raw_tablename = '_raw_' + tablename
+        schema_name = 'schema-' + str(schema_id)
 
         with open(file, "r") as csv:
-            first = True
-            columns = list()
             for line in csv:
-                if first and not append:
-                    first = False
+                if not append:
                     columns = line.strip().split(',')
-                    self.create_table(tablename, schema_id, columns)
-                else:
-                    raw_name = "_raw_" + tablename
-                    values_list = [x.strip() for x in line.split(",")]
-                    values = dict()
-                    for c in range(len(columns)):
-                        values[columns[c]] = values_list[c]
-                    self.insert_row(tablename, schema_id, columns, values, True)
-                    self.insert_row(raw_name, schema_id, columns, values, True)
+                    self.create_table(tablename, schema_id, columns, True)
+                break
+
+        df = pd.read_csv(file)
+        df.to_sql(name=tablename, con=db.engine, schema=schema_name, index=False, if_exists='append')
+        df.to_sql(name=raw_tablename, con=db.engine, schema=schema_name, index=False, if_exists='append')
 
     def process_zip(self, file, schema_id):
         """
@@ -470,12 +471,12 @@ class DataLoader:
                         columns = ['col' + str(i) for i in range(1, len(values_list[0]) + 1)]
 
                     if not self.table_exists(tablename, schema_id):
-                        self.create_table(tablename, schema_id, columns)
+                        self.create_table(tablename, schema_id, columns, True)
                     for values in values_list:
                         val_dict = dict()
                         for c_ix in range(len(columns)):
                             val_dict[columns[c_ix]] = values[c_ix]
-                        self.insert_row(tablename, schema_id, columns, val_dict, True)
+                        self.insert_row(tablename, schema_id, columns, val_dict, False)
 
     # Data access handling
     def get_user_datasets(self, user_id):

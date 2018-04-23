@@ -1,5 +1,7 @@
 from datetime import datetime
 from statistics import median
+from numpy import array, argmax
+from sklearn.preprocessing import LabelEncoder, OneHotEncoder
 
 import pandas as pd
 
@@ -7,16 +9,17 @@ from app import app, database as db
 from app.data_service.models import DataLoader
 from app.history.models import History
 
+
 def _ci(*args: str):
     if len(args) == 1:
-        return '"{}"'.format(args[0].replace('"', '""'))
-    return ['"{}"'.format(arg.replace('"', '""')) for arg in args]
+        return '"{}"'.format(str(args[0]).replace('"', '""'))
+    return ['"{}"'.format(str(arg).replace('"', '""')) for arg in args]
 
 
 def _cv(*args: str):
     if len(args) == 1:
-        return "'{}'".format(args[0].replace("'", "''"))
-    return ["'{}'".format(arg.replace("'", "''")) for arg in args]
+        return "'{}'".format(str(args[0]).replace("'", "''"))
+    return ["'{}'".format(str(arg).replace("'", "''")) for arg in args]
 
 
 history = History()
@@ -38,6 +41,8 @@ class DataTransformer:
 
             db.engine.execute('UPDATE {0}.{1} SET {2} = {3} WHERE {2} IS NULL;'.format(*_ci(schema_name, table, column),
                                                                                        _cv(average)))
+            history.log_action(schema_id, table, datetime.now(), 'Imputed missing data on average')
+
         except Exception as e:
             app.logger.error("[ERROR] Unable to impute missing data for column {} by average".format(column))
             app.logger.exception(e)
@@ -61,6 +66,8 @@ class DataTransformer:
 
             db.engine.execute('UPDATE {0}.{1} SET {2} = {3} WHERE {2} IS NULL;'.format(*_ci(schema_name, table, column),
                                                                                        _cv(median_val)))
+            history.log_action(schema_id, table, datetime.now(), 'Imputed missing data on median')
+
         except Exception as e:
             app.logger.error("[ERROR] Unable to impute missing data for column {} by median".format(column))
             app.logger.exception(e)
@@ -90,6 +97,7 @@ class DataTransformer:
                 app.logger.error("[ERROR] Unable to perform find and replace")
 
             db.engine.execute(query)
+            history.log_action(schema_id, table, datetime.now(), 'Used find and replace')
         except Exception as e:
             app.logger.error("[ERROR] Unable to perform find and replace")
             app.logger.exception(e)
@@ -104,6 +112,7 @@ class DataTransformer:
             query = 'UPDATE {0}.{1} SET {2} = regexp_replace({2}, {3}, {4})'.format(*_ci(schema_name, table, column),
                                                                                     *_cv(regex, replacement))
             db.engine.execute(query)
+            history.log_action(schema_id, table, datetime.now(), 'Used find and replace')
         except Exception as e:
             app.logger.error("[ERROR] Unable to perform find and replace by regex")
             app.logger.exception(e)
@@ -184,9 +193,7 @@ class NumericalTransformations:
         schema_name = 'schema-' + str(schema_id)
         df = pd.read_sql_query('SELECT * FROM "{}"."{}"'.format(schema_name, table_name), db.engine)
         new_column_name = column_name + '_intervals_eq_w_' + str(num_intervals)
-
-        df[new_column_name] = pd.cut(df[column_name], num_intervals).apply(str)
-
+        df[new_column_name] = pd.cut(df[column_name], num_intervals, precision=9).apply(str)
         db.engine.execute('DROP TABLE "{0}"."{1}"'.format(schema_name, table_name))
         df.to_sql(name=table_name, con=db.engine, schema=schema_name, if_exists='fail', index=False)
 
@@ -200,8 +207,8 @@ class NumericalTransformations:
         interval_size = data_length // num_intervals
         intervals_list = []
         for i in range(0, data_length, interval_size):
-            intervals_list.append(sorted_data[i])
-        df[new_column_name] = pd.cut(df[column_name], intervals_list).apply(str)
+            intervals_list.append(sorted_data[i] - (sorted_data[i] / 1000))  #
+        df[new_column_name] = pd.cut(df[column_name], intervals_list, precision=9).apply(str)
 
         db.engine.execute('DROP TABLE "{0}"."{1}"'.format(schema_name, table_name))
         df.to_sql(name=table_name, con=db.engine, schema=schema_name, if_exists='fail', index=False)
@@ -230,25 +237,102 @@ class NumericalTransformations:
         df = pd.read_sql_query('SELECT * FROM "{}"."{}"'.format(schema_name, table_name), db.engine)
 
         intervals = pd.cut(df[column_name], 10).value_counts()
-
         data = {
             'labels': list(intervals.index.astype(str)),
             'data': list(intervals.astype(int)),
-            'chart': 'bar',
-            'label': '# Items Per Interval'
+            'label': '# Items Per Interval',
+            'chart': 'bar'
         }
-
         return data
 
     def chart_data_categorical(self, schema_id, table_name, column_name):
         schema_name = 'schema-' + str(schema_id)
         df = pd.read_sql_query('SELECT * FROM "{}"."{}"'.format(schema_name, table_name), db.engine)
 
-        data = {'labels': [], 'data': []}
-        data['labels'] = list(df[column_name].unique())
-        for label in data['labels']:
-            data['data'].append(int(df[df[column_name] == label][column_name].count()))
-        data['chart'] = 'pie'
-        data['label'] = '# Items Per Slice'
-
+        intervals = df[column_name].value_counts()
+        data = {
+            'labels': list(intervals.index.astype(str)),
+            'data': list(intervals.astype(str)),
+            'label': '# Items Per Slice',
+            'chart': 'pie'
+        }
         return data
+
+      
+class OneHotEncode:
+    def __init__(self, dataloader):
+        self.dataloader = dataloader
+
+    def one_hot_encode(self, integer_encoded):
+        one_hot_encoder = OneHotEncoder(sparse=False)
+
+        # Reshape 1D array into 2D suitable for one_hot_encoder
+        integer_encoded = integer_encoded.reshape(len(integer_encoded), 1)
+
+        one_hot_encoded = one_hot_encoder.fit_transform(integer_encoded)
+
+        return one_hot_encoded
+
+    def encode(self, schema_id, table_name, column_name):
+        schema_name = 'schema-' + str(schema_id)
+        ohe_table_name = 'ohe_' + table_name + '_' + column_name
+
+        #TODO Check column 'categorical' (string or integer)
+        is_categorical = False
+        column_types = self.dataloader.get_column_names_and_types(schema_id, table_name)
+        for column in column_types:
+            if column.name == column_name and column.type == 'text':
+                is_categorical = True
+                break
+        # Exception
+        if not is_categorical:
+            return
+
+        # SELECT id, 'column' FROM "schema_name"."table";
+        data_query = 'SELECT id, {} FROM {}.{}'.format(*_ci(column_name, schema_name, table_name))
+
+        try:
+            result = db.engine.execute(data_query)
+
+            id_s = list()
+            data = list()
+            for row in result:
+                id = row[0]
+                value = row[1]
+
+                id_s.append(id)
+                data.append(value)
+        except Exception as e:
+            app.logger.error("[ERROR] Couldn't one_hot_encode  '" + column_name + "' in '." + table_name + "',")
+            app.logger.exception(e)
+            raise e
+
+        # Extract 'column' values into array
+        values = array(data)
+
+        # Pass trough LabelEncoder
+        # integer encode
+        label_encoder = LabelEncoder()
+        integer_encoded = label_encoder.fit_transform(values)
+
+        # Pass through OneHotEncoder
+        one_hot_encoded = self.one_hot_encode(integer_encoded)
+
+        # Get labels from LabelEncoder
+        labels = label_encoder.classes_
+        
+        # If table already exists, remove it
+        if self.dataloader.table_exists(ohe_table_name, schema_name):
+            self.dataloader.delete_table(ohe_table_name, schema_name)
+
+        # Create OHE_table
+        self.dataloader.create_table(ohe_table_name, schema_id, labels)
+        # For each id, insert encoded row into table
+        for _row in range(len(id_s)):
+            ohe_row_values = dict()
+            ohe_row_values['id'] = str(id_s[_row])
+
+            for _label in range(len(labels)):
+                ohe_row_values[labels[_label]] = str(int(one_hot_encoded[_row][_label]))
+
+            self.dataloader.insert_row(ohe_table_name, schema_id, ohe_row_values, ohe_row_values, False)

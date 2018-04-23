@@ -117,7 +117,7 @@ def delete_user_as_admin(username):
         return abort(403)
 
     user_data_access.delete_user(data_loader, username)
-    
+
     if current_user.username == username:
         return logout()
 

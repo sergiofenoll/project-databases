@@ -1,6 +1,6 @@
 from flask import Blueprint, jsonify, request, send_from_directory
 
-from app import data_loader, date_time_transformer, data_transformer, numerical_transformer, UPLOAD_FOLDER
+from app import data_loader, date_time_transformer, data_transformer, numerical_transformer, one_hot_encoder, UPLOAD_FOLDER
 from app.history.models import History
 
 api = Blueprint('api', __name__)
@@ -204,10 +204,10 @@ def discretize(dataset_id, table_name):
     try:
         if discretization == 'eq-width':
             num_intervals = int(request.args.get('num-intervals'))
-            numerical_transformer.equal_freq_interval(dataset_id, table_name, column_name, num_intervals)
+            numerical_transformer.equal_width_interval(dataset_id, table_name, column_name, num_intervals)
         elif discretization == 'eq-freq':
             num_intervals = int(request.args.get('num-intervals'))
-            numerical_transformer.equal_width_interval(dataset_id, table_name, column_name, num_intervals)
+            numerical_transformer.equal_freq_interval(dataset_id, table_name, column_name, num_intervals)
         elif discretization == 'manual':
             intervals = [int(n) for n in request.args.get('intervals').strip().split(',')]
             numerical_transformer.manual_interval(dataset_id, table_name, column_name, intervals)
@@ -245,7 +245,16 @@ def chart(dataset_id, table_name):
     column_name = request.args.get('col-name')
     column_type = request.args.get('col-type')
 
+    # data = numerical_transformer.chart_data_numerical(dataset_id, table_name, column_name)
+
     if column_type not in ['real', 'double', 'integer', 'timestamp']:
         return jsonify(numerical_transformer.chart_data_categorical(dataset_id, table_name, column_name))
     else:
         return jsonify(numerical_transformer.chart_data_numerical(dataset_id, table_name, column_name))
+
+      
+@api.route('/api/datasets/<int:dataset_id>/tables/<string:table_name>/one-hot-encode-column', methods=['PUT'])
+def one_hot_encode(dataset_id, table_name):
+    column_name = request.args.get('col-name')
+    one_hot_encoder.encode(dataset_id, table_name, column_name)
+    return jsonify({'success': True}), 200

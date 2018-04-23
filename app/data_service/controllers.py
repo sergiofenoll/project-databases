@@ -56,11 +56,6 @@ def get_dataset(dataset_id):
                            access_permission=access_permission, users_with_access=users_with_access)
 
 
-@data_service.route('/datasets/<int:dataset_id>/update', methods=['POST'])
-def update_dataset(dataset_id):
-    pass  # TODO: Edit name/descriptions of dataset
-
-
 @data_service.route('/datasets/<int:dataset_id>/delete', methods=['POST'])
 def delete_dataset(dataset_id):
     if (data_loader.has_access(current_user.username, dataset_id)) is False:
@@ -116,10 +111,8 @@ def add_table(dataset_id):
         except Exception as e:
             app.logger.error("[ERROR] Failed to process file '" + filename + "'")
             app.logger.exception(e)
-            connection.rollback()
             return get_dataset(dataset_id)
 
-        connection.commit()
         file.close()
         os.remove(path)
     return get_dataset(dataset_id)
@@ -138,7 +131,7 @@ def get_table(dataset_id, table_name):
 
     raw_table_name = "_raw_" + table_name
     raw_table_exists = data_loader.table_exists(raw_table_name, "schema-" + str(dataset_id))
-
+    current_user.active_schema = dataset_id
     return render_template('data_service/table-view.html', table=table,
                            time_date_transformations=time_date_transformations,
                            statistics=statistics, raw_table_exists=raw_table_exists)
@@ -198,7 +191,7 @@ def remove_rows_predicate(dataset_id, table_name):
 
     predicates = list()
     for entry in request.form.keys():
-        if (entry.startswith('join')):
+        if entry.startswith('join'):
             p = request.form.getlist(entry)
             predicates.append(p)
 

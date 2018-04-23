@@ -26,15 +26,17 @@
                             <td>{{ user.lastname }}</td>
                             <td>{{ user.email }}</td>
                             <td>{{ user.status }}</td>
-                            <td style="text-align: center;"><input id="{{ user.username }}"
-                                                                   name="{{ user.username }}"
-                                                                   {% if user.is_active %}checked{% endif %}
-                                                                   type="checkbox" class="form-check-input"></td>
                             <td style="text-align: center;">
-                                <button class="btn btn-xs btn-danger" id="button-delete-user"
-                                        data-user="{{ user.username }}"
+                                <input id="{{ user.username }}"
+                                       name="{{ user.username }}"
+                                       {% if user.is_active %}checked{% endif %}
+                                       type="checkbox" class="form-check-input">
+                            </td>
+                            <td style="text-align: center;">
+                                <button type="button" class="btn btn-xs btn-danger" id="button-delete-user"
+                                        data-user="{{ user.username }}" onclick="deleteUser(this);"
                                         {% if user.status == 'admin' %}disabled{% endif %}>
-                                    ❌
+                                    &times;
                                 </button>
                             </td>
                         </tr>
@@ -53,11 +55,9 @@
         </div>
         <div class="col-sm-2"></div>
     </div>
-    <script type="text/javascript" charset="utf-8">
-
-        $('#button-delete-user').click(function () {
-            //var data='hello inside';
-            var user = $(this).data('user');
+    <script>
+        function deleteUser(button) {
+            var user = $(button).data('user');
             $.ajax({
                 type: 'DELETE',
                 url: window.location.pathname + '/' + user + '/delete',
@@ -65,8 +65,7 @@
                     window.location.reload();
                 }
             })
-        });
-
+        }
     </script>
 {% endblock %}
 

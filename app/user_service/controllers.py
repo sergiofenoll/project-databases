@@ -119,9 +119,9 @@ def delete_user_as_admin(username):
     user_data_access.delete_user(data_loader, username)
 
     if current_user.username == username:
-        return logout()
+        return redirect(url_for('user_service.logout'), code=303)
 
-    return admin_page()
+    return redirect(url_for('user_service.admin_page'), code=303)
 
 
 @user_service.route('/user_data/<string:username>/delete', methods=['POST'])

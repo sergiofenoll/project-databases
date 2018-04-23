@@ -210,8 +210,6 @@ class NumericalTransformations:
             intervals_list.append(sorted_data[i] - (sorted_data[i] / 1000))  #
         df[new_column_name] = pd.cut(df[column_name], intervals_list, precision=9).apply(str)
 
-        print(df[new_column_name])
-
         db.engine.execute('DROP TABLE "{0}"."{1}"'.format(schema_name, table_name))
         df.to_sql(name=table_name, con=db.engine, schema=schema_name, if_exists='fail', index=False)
 

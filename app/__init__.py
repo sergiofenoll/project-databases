@@ -25,14 +25,14 @@ login.init_app(app)
 
 from app.data_service.models import DataLoader
 from app.user_service.models import UserDataAccess
-from app.data_transform.models import DateTimeTransformer, DataTransformer, NumericalTransformations
+from app.data_transform.models import DateTimeTransformer, DataTransformer, NumericalTransformations, OneHotEncode
 
 user_data_access = UserDataAccess()
 data_loader = DataLoader()
 date_time_transformer = DateTimeTransformer()
 data_transformer = DataTransformer()
 numerical_transformer = NumericalTransformations()
-
+one_hot_encoder = OneHotEncode(data_loader)
 
 @login.user_loader
 def load_user(user_id):

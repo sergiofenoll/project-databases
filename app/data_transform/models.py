@@ -1,5 +1,7 @@
 from datetime import datetime
 from statistics import median
+from numpy import array, argmax
+from sklearn.preprocessing import LabelEncoder, OneHotEncoder
 
 import pandas as pd
 
@@ -191,9 +193,7 @@ class NumericalTransformations:
         schema_name = 'schema-' + str(schema_id)
         df = pd.read_sql_query('SELECT * FROM "{}"."{}"'.format(schema_name, table_name), db.engine)
         new_column_name = column_name + '_intervals_eq_w_' + str(num_intervals)
-
         df[new_column_name] = pd.cut(df[column_name], num_intervals, precision=9).apply(str)
-
         db.engine.execute('DROP TABLE "{0}"."{1}"'.format(schema_name, table_name))
         df.to_sql(name=table_name, con=db.engine, schema=schema_name, if_exists='fail', index=False)
 
@@ -209,8 +209,6 @@ class NumericalTransformations:
         for i in range(0, data_length, interval_size):
             intervals_list.append(sorted_data[i] - (sorted_data[i] / 1000))  #
         df[new_column_name] = pd.cut(df[column_name], intervals_list, precision=9).apply(str)
-
-        print(df[new_column_name])
 
         db.engine.execute('DROP TABLE "{0}"."{1}"'.format(schema_name, table_name))
         df.to_sql(name=table_name, con=db.engine, schema=schema_name, if_exists='fail', index=False)
@@ -260,3 +258,81 @@ class NumericalTransformations:
         }
         return data
 
+      
+class OneHotEncode:
+    def __init__(self, dataloader):
+        self.dataloader = dataloader
+
+    def one_hot_encode(self, integer_encoded):
+        one_hot_encoder = OneHotEncoder(sparse=False)
+
+        # Reshape 1D array into 2D suitable for one_hot_encoder
+        integer_encoded = integer_encoded.reshape(len(integer_encoded), 1)
+
+        one_hot_encoded = one_hot_encoder.fit_transform(integer_encoded)
+
+        return one_hot_encoded
+
+    def encode(self, schema_id, table_name, column_name):
+        schema_name = 'schema-' + str(schema_id)
+        ohe_table_name = 'ohe_' + table_name + '_' + column_name
+
+        #TODO Check column 'categorical' (string or integer)
+        is_categorical = False
+        column_types = self.dataloader.get_column_names_and_types(schema_id, table_name)
+        for column in column_types:
+            if column.name == column_name and column.type == 'text':
+                is_categorical = True
+                break
+        # Exception
+        if not is_categorical:
+            return
+
+        # SELECT id, 'column' FROM "schema_name"."table";
+        data_query = 'SELECT id, {} FROM {}.{}'.format(*_ci(column_name, schema_name, table_name))
+
+        try:
+            result = db.engine.execute(data_query)
+
+            id_s = list()
+            data = list()
+            for row in result:
+                id = row[0]
+                value = row[1]
+
+                id_s.append(id)
+                data.append(value)
+        except Exception as e:
+            app.logger.error("[ERROR] Couldn't one_hot_encode  '" + column_name + "' in '." + table_name + "',")
+            app.logger.exception(e)
+            raise e
+
+        # Extract 'column' values into array
+        values = array(data)
+
+        # Pass trough LabelEncoder
+        # integer encode
+        label_encoder = LabelEncoder()
+        integer_encoded = label_encoder.fit_transform(values)
+
+        # Pass through OneHotEncoder
+        one_hot_encoded = self.one_hot_encode(integer_encoded)
+
+        # Get labels from LabelEncoder
+        labels = label_encoder.classes_
+        
+        # If table already exists, remove it
+        if self.dataloader.table_exists(ohe_table_name, schema_name):
+            self.dataloader.delete_table(ohe_table_name, schema_name)
+
+        # Create OHE_table
+        self.dataloader.create_table(ohe_table_name, schema_id, labels)
+        # For each id, insert encoded row into table
+        for _row in range(len(id_s)):
+            ohe_row_values = dict()
+            ohe_row_values['id'] = str(id_s[_row])
+
+            for _label in range(len(labels)):
+                ohe_row_values[labels[_label]] = str(int(one_hot_encoded[_row][_label]))
+
+            self.dataloader.insert_row(ohe_table_name, schema_id, ohe_row_values, ohe_row_values)

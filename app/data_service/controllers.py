@@ -134,9 +134,6 @@ def add_table(dataset_id):
 
 @data_service.route('/datasets/<int:dataset_id>/tables/<string:table_name>', methods=['GET'])
 def get_table(dataset_id, table_name):
-    # TODO: Why is the method called get_table() if it returns a list of rows (a list of pseudo dictionaries/lists)?
-    # TODO: In fact, why does get_table() return a list of rows instead of a Table object containing the data?
-    # TODO: Why *doesn't* a Table object contain any data?
     if (data_loader.has_access(current_user.username, dataset_id)) is False:
         return abort(403)
     try:

@@ -19,7 +19,7 @@ def get_table(dataset_id, table_name):
     search = request.args.get('search[value]')
 
     table = data_loader.get_table(dataset_id, table_name, offset=start, limit=length, ordering=ordering, search=search)
-    _table = data_loader.get_table(dataset_id, table_name)  # TODO: This shit is dirty
+    _table = data_loader.get_table(dataset_id, table_name)
     return jsonify(draw=int(request.args.get('draw')),
                    recordsTotal=len(_table.rows),
                    recordsFiltered=len(_table.rows),
@@ -311,8 +311,6 @@ def chart(dataset_id, table_name):
     try:
         column_name = request.args.get('col-name')
         column_type = request.args.get('col-type')
-
-        # data = numerical_transformer.chart_data_numerical(dataset_id, table_name, column_name)
 
         if column_type not in ['real', 'double', 'integer', 'timestamp']:
             return jsonify(numerical_transformer.chart_data_categorical(dataset_id, table_name, column_name))

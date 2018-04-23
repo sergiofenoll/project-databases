@@ -279,14 +279,13 @@ class OneHotEncode:
         schema_name = 'schema-' + str(schema_id)
         ohe_table_name = 'ohe_' + table_name + '_' + column_name
 
-        #TODO Check column 'categorical' (string or integer)
         is_categorical = False
         column_types = self.dataloader.get_column_names_and_types(schema_id, table_name)
         for column in column_types:
             if column.name == column_name and column.type == 'text':
                 is_categorical = True
                 break
-        # Exception
+
         if not is_categorical:
             return
 

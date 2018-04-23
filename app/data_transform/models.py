@@ -191,9 +191,7 @@ class NumericalTransformations:
         schema_name = 'schema-' + str(schema_id)
         df = pd.read_sql_query('SELECT * FROM "{}"."{}"'.format(schema_name, table_name), db.engine)
         new_column_name = column_name + '_intervals_eq_w_' + str(num_intervals)
-
         df[new_column_name] = pd.cut(df[column_name], num_intervals, precision=9).apply(str)
-
         db.engine.execute('DROP TABLE "{0}"."{1}"'.format(schema_name, table_name))
         df.to_sql(name=table_name, con=db.engine, schema=schema_name, if_exists='fail', index=False)
 

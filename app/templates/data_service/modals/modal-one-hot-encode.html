@@ -13,8 +13,8 @@
                     <select class="form-control" name="col-name" id="col-name">
                         {% for column in table.columns[1:] %}
                             {% if (column.type == "text") %}
-                            <option value="{{ column.name }}">{{ column.name|capitalize }}</option>
-                            {%  endif %}
+                                <option value="{{ column.name }}">{{ column.name|capitalize }}</option>
+                            {% endif %}
                         {% endfor %}
                     </select>
                 </div>
@@ -34,6 +34,9 @@
             type: 'PUT',
             url: '/api' + window.location.pathname + '/one-hot-encode-column?' + $('#formOneHotEncode').serialize(),
             success: function () {
+                window.location.reload();
+            },
+            error: function () {
                 window.location.reload();
             }
         });

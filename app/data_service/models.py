@@ -315,7 +315,7 @@ class DataLoader:
         except Exception as e:
             app.logger.error("[ERROR] Unable to insert row into table '" + table + "'")
             app.logger.exception(e)
-            raise Exception("Unable to insert row into table '" + table + "'")
+            raise e
 
         # Log action to history
         if add_history:

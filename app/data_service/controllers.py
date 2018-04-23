@@ -50,9 +50,13 @@ def get_dataset(dataset_id):
     current_user.active_schema = dataset_id
 
     columns = list()
+
     if len(tables) != 0:
         columns = data_loader.get_column_names(dataset_id, tables[0].name)
-        columns.remove('id')
+        try:
+            columns.remove('id')
+        except Exception as e:
+            pass
 
     return render_template('data_service/dataset-view.html', ds=dataset, tables=tables, columns=columns,
                            access_permission=access_permission, users_with_access=users_with_access)
@@ -195,7 +199,6 @@ def delete_dataset_access(dataset_id):
 def revert_to_raw_data(dataset_id, table_name):
     try:
         data_loader.revert_back_to_raw_data(dataset_id, table_name)
-        print("huh")
         flash(u"Your data has been reverted to its raw state.", 'success')
     except Exception:
         flash(u"Your data couldn't be reverted to its raw state.", 'danger')
@@ -279,7 +282,9 @@ def join_tables(dataset_id):
                 continue
 
         table_joiner.join_multiple_tables(dataset_id, name, meta, join_pairs)
-        return redirect(url_for('data_service.get_dataset', dataset_id=dataset_id))
+        flash(u"Join of tables was successful.", 'success')
     except Exception:
         flash(u"Join of tables was unsuccessful.", 'danger')
-        return redirect(url_for('data_service.get_dataset', dataset_id=dataset_id))
+    return redirect(url_for('data_service.get_dataset', dataset_id=dataset_id))
+
+

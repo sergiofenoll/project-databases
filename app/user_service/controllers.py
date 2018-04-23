@@ -140,11 +140,12 @@ def delete_user_as_admin(username):
     return redirect(url_for('user_service.admin_page'), code=303)
 
 
-@user_service.route('/user_data/<string:username>/delete', methods=['POST'])
+@user_service.route('/user-data/<string:username>/delete', methods=['POST'])
 @login_required
 def delete_own_account(username):
     try:
         user_data_access.delete_user(data_loader, username)
+        flash(u"your account has been removed!", 'success')
     except Exception:
         flash(u"your account couldn't be removed!", 'danger')
     if current_user.username == username:

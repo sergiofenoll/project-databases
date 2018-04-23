@@ -84,7 +84,7 @@ class DataLoader:
         except Exception as e:
             app.logger.error("[ERROR] Failed to created schema '" + name + "'")
             app.logger.exception(e)
-            raise e
+            raise Exception
 
         # Add schema to dataset table
         try:
@@ -99,7 +99,7 @@ class DataLoader:
         except Exception as e:
             app.logger.error("[ERROR] Failed to insert dataset '" + name + "' into the database")
             app.logger.exception(e)
-            raise e
+            raise Exception
 
     def delete_dataset(self, schema_id):
         """
@@ -121,18 +121,11 @@ class DataLoader:
             if count == 0:
                 db.engine.execute('TRUNCATE Available_Schema;')
 
+            db.engine.execute('DROP SCHEMA IF EXISTS {} CASCADE;'.format(_ci(schema_id)))
+
         except Exception as e:
             app.logger.error("[ERROR] Failed to properly remove dataset '" + schema_id + "'")
             app.logger.exception(e)
-            raise e
-
-        # Delete schema
-        try:
-            db.engine.execute('DROP SCHEMA IF EXISTS {} CASCADE;'.format(_ci(schema_id)))
-        except Exception as e:
-            app.logger.error("[ERROR] Failed to delete schema '" + schema_id + "'")
-            app.logger.exception(e)
-            raise e
 
     def get_dataset_id(self, name):
         """
@@ -229,7 +222,7 @@ class DataLoader:
             db.engine.execute(
                 'DELETE FROM HISTORY WHERE id_dataset={} AND id_table={};'.format(*_cv(schema_name, name)))
         except Exception as e:
-            app.logger.error("[ERROR] Failed to delete metadata for table '" + name + "'")
+            app.logger.error("[ERROR] Failed to delete history for table '" + name + "'")
             app.logger.exception(e)
             raise e
 
@@ -352,6 +345,7 @@ class DataLoader:
                 "[ERROR] Unable to rename column '{0}' to '{1}' in table '{2}'".format(column_name, new_column_name,
                                                                                        table_name))
             app.logger.exception(e)
+            raise e
 
     def update_column_type(self, schema_id, table_name, column_name, column_type):
         schema_name = 'schema-' + str(schema_id)
@@ -508,9 +502,7 @@ class DataLoader:
                     schema_id = ds_id.split('-')[1]
                     result.append(Dataset(schema_id, row['nickname'], row['metadata'], owner, moderators))
                 except Exception as e:
-                    # TODO: Why is this a warning instead of an error? If we can't find the owner of a dataset,
-                    # TODO: i.e. that user has been deleted but his dataset remains, shouldn't that be an error?
-                    app.logger.warning("[WARNING] Failed to find owner of dataset '" + row['nickname'] + "'")
+                    app.logger.warning("[ERROR] Failed to find owner of dataset '" + row['nickname'] + "'")
                     app.logger.exception(e)
                     continue
 
@@ -519,7 +511,6 @@ class DataLoader:
         except Exception as e:
             app.logger.error("[ERROR] Failed to fetch available datasets for user '" + user_id + "'.")
             app.logger.exception(e)
-            raise e
 
     def get_dataset_access(self, schema_id, offset=0, limit='ALL', ordering=None, search=None):
         """
@@ -740,7 +731,6 @@ class DataLoader:
         except Exception as e:
             app.logger.error("[ERROR] Couldn't update dataset metadata.")
             app.logger.exception(e)
-            self.dbconnect.rollback()
             raise e
 
     def update_table_metadata(self, schema_id, old_table_name, new_table_name, new_desc):
@@ -830,7 +820,7 @@ class DataLoader:
             return value
 
         except Exception as e:
-            app.logger.error("[ERROR] Unable to calculate most commen value for column {}".format(column))
+            app.logger.error("[ERROR] Unable to calculate most common value for column {}".format(column))
             app.logger.exception(e)
             raise e
 
@@ -847,7 +837,7 @@ class DataLoader:
             return value
 
         except Exception as e:
-            app.logger.error("[ERROR] Unable to calculate most commen value for column {}".format(column))
+            app.logger.error("[ERROR] Unable to calculate most amount of empty elements for column {}".format(column))
             app.logger.exception(e)
             raise e
 

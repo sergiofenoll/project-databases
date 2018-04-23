@@ -69,17 +69,13 @@ class UserDataAccess:
             return False
 
     def login_user(self, username):
-        try:
-            rows = db.engine.execute("SELECT Pass FROM Member WHERE Username={};".format(_cv(username)))
-            row = rows.first()
+        rows = db.engine.execute("SELECT Pass FROM Member WHERE Username={};".format(_cv(username)))
+        row = rows.first()
 
-            if row is None:
-                raise Exception("Wrong username.")
-
+        if row is None:
+            raise Exception
+        else:
             return row[0]
-        except Exception as e:
-            app.logger.exception(e)
-            raise e
 
     def get_user(self, user_id):
         rows = db.engine.execute(
@@ -91,6 +87,7 @@ class UserDataAccess:
                         row['status'], row['active'])
             return user
         else:
+            raise Exception
             return None
 
     def alter_user(self, user):
@@ -104,7 +101,7 @@ class UserDataAccess:
             return True
         except Exception as e:
             app.logger.exception(e)
-            raise e
+            raise Exception
 
     def delete_user(self, data_loader, username):
         """remove user and all of its datasets"""
@@ -118,6 +115,5 @@ class UserDataAccess:
             db.engine.execute('DELETE FROM Member WHERE username = {}'.format(_cv(username)))
             return True
         except Exception as e:
-            print('Unable to delete user!')
-            print(e)
-            return False
+            app.logger.execute(e)
+            raise Exception

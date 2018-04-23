@@ -30,7 +30,7 @@
 					<div class="show-when-discretization select-eq-width select-eq-freq" style="display: none;">
 						<label for="num-intervals">Number of intervals</label>
 						<input name="num-intervals" id="num-intervals" class="form-control"
-									 aria-describedby="numIntervalsHelpBlock" required>
+									 aria-describedby="numIntervalsHelpBlock">
 						<small id="numIntervalsHelpBlock" class="form-text text-muted">
 							Choose the amount of intervals you want
 						</small>
@@ -38,7 +38,7 @@
 					<div class="show-when-discretization select-manual" style="display: none;">
 						<label for="intervals">Ranges</label>
 						<input name="intervals" id="intervals" class="form-control"
-									 aria-describedby="intervalsHelpBlock" required>
+									 aria-describedby="intervalsHelpBlock">
 						<small id="intervalsHelpBlock" class="form-text text-muted">
 							Define a range [a, b), [b, c) as follows: a, b, c
 						</small>
@@ -46,7 +46,9 @@
 					<script>
 						function displayOnSelect(select) {
 							$('.show-when-' + select.id).hide();
+							$('.show-when-' + select.id).find('input').removeAttr('required');
 							$('.select-' + select.value).show();
+							$('.select-' + select.value).find('input').attr('required', 'required');
 						}
 					</script>
 				</div>

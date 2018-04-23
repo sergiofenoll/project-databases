@@ -1,6 +1,6 @@
 import os
 
-from flask import Blueprint, request, render_template, redirect, url_for, abort
+from flask import Blueprint, request, render_template, redirect, url_for, abort, jsonify
 from flask_login import login_required, current_user
 from werkzeug.utils import secure_filename
 
@@ -199,17 +199,16 @@ def remove_rows_predicate(dataset_id, table_name):
   
     return redirect(url_for('data_service.get_table', dataset_id=dataset_id, table_name=table_name))
 
-@data_service.route('/datasets/<int:dataset_id>/join-tables', methods=['GET'])
+@data_service.route('/datasets/<int:dataset_id>/join-tables/<string:table_name>', methods=['GET'])
 @login_required
-def get_join_tables(dataset_id):
+def get_join_column_names(dataset_id, table_name):
     if (data_loader.has_access(current_user.username, dataset_id)) is False:
         return abort(403)
-    dataset = data_loader.get_dataset(dataset_id)
-    tables = data_loader.get_tables(dataset_id)
 
-    column_names = data_loader.get_column_names(dataset_id, tables[0].name)
+    column_names = data_loader.get_column_names(dataset_id, table_name)
     column_names.remove('id')
-    return render_template('data_service/dataset-view.html', ds=dataset, tables=tables, columns=column_names)
+
+    return jsonify(column_names)
 
 @data_service.route('/datasets/<int:dataset_id>/join-tables', methods=['POST'])
 @login_required

@@ -338,8 +338,8 @@
 
 			$.ajax({
 				type: 'GET',
-				url: window.location.pathname + '/' + changed_value,
-				async: false,
+				url: window.location.pathname + '/join-tables/' + changed_value,
+				async: true,
 				dataType: 'json',
 				success: function (data) {
 					var new_select_options = "";

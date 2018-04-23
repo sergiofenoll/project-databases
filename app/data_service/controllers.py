@@ -4,7 +4,7 @@ from flask import Blueprint, request, render_template, redirect, url_for, abort
 from flask_login import login_required, current_user
 from werkzeug.utils import secure_filename
 
-from app import app, connection, data_loader, table_joiner, date_time_transformer, ALLOWED_EXTENSIONS, UPLOAD_FOLDER
+from app import app, data_loader, table_joiner, date_time_transformer, ALLOWED_EXTENSIONS, UPLOAD_FOLDER
 from app.data_service.models import TableJoinPair
 
 data_service = Blueprint('data_service', __name__)

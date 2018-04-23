@@ -24,7 +24,7 @@ login = LoginManager(app)
 login.init_app(app)
 
 from app.data_service.models import DataLoader, TableJoiner
-from app.database_connection.models import DBConnection
+
 from app.user_service.models import UserDataAccess
 from app.data_transform.models import DateTimeTransformer, DataTransformer, NumericalTransformations, OneHotEncode
 

@@ -1,4 +1,5 @@
 import os
+import sys
 
 # Define production database
 # SQLAlchemy URI uses following format:
@@ -6,7 +7,12 @@ import os
 # Many of the parts in the string are optional.
 # If no driver is specified the default one is selected
 # (make sure to not include the + in that case)
-SQLALCHEMY_DATABASE_URI = 'postgresql://dbadmin:dbadmin@localhost:5432/userdb'
+
+if len(sys.argv[1:]) > 0:
+    print('testing?')
+    SQLALCHEMY_DATABASE_URI = 'postgresql://dbadmin:dbadmin@localhost:5432/test_userdb'
+else:
+    SQLALCHEMY_DATABASE_URI = 'postgresql://dbadmin:dbadmin@localhost:5432/userdb'
 SQLALCHEMY_TRACK_MODIFICATIONS = False
 SQLALCHEMY_ECHO = False
 

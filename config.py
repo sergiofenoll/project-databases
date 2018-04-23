@@ -9,10 +9,10 @@ import sys
 # (make sure to not include the + in that case)
 
 if len(sys.argv[1:]) > 0:
-    print('testing?')
     SQLALCHEMY_DATABASE_URI = 'postgresql://dbadmin:dbadmin@localhost:5432/test_userdb'
 else:
     SQLALCHEMY_DATABASE_URI = 'postgresql://dbadmin:dbadmin@localhost:5432/userdb'
+
 SQLALCHEMY_TRACK_MODIFICATIONS = False
 SQLALCHEMY_ECHO = False
 

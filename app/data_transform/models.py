@@ -141,15 +141,15 @@ class DateTimeTransformer:
         # Log action to history
         history.log_action(schema_id, table, datetime.now(), 'Extracted ' + element + ' from column ' + column)
 
-    def extract_date(self, schema_id, table, column, element):
+    def extract_date_or_time(self, schema_id, table, column, element):
         """extract date or time from datetime type"""
         try:
             schema_name = 'schema-' + str(schema_id)
             new_column = column + ' (' + element + ')'
             data_loader = DataLoader()
-            data_loader.insert_column(schema_id, table, new_column, element)
+            data_loader.insert_column(schema_id, table, new_column, "varchar(255)")
             db.engine.execute(
-                ' UPDATE {}.{} SET {} = {}::{};'.format(*_ci(schema_name, table, new_column), element))
+                ' UPDATE {0}.{1} SET {2} = {3}::{4};'.format(*_ci(schema_name, table, new_column, column), element))
         except Exception as e:
             app.logger.error("[ERROR] Unable to extract " + element + " from column '{}'".format(column))
             app.logger.exception(e)
@@ -159,7 +159,7 @@ class DateTimeTransformer:
         history.log_action(schema_id, table, datetime.now(), 'Extracted ' + element + ' from column ' + column)
 
     def get_transformations(self):
-        trans = ["extract day of week", "extract month", "extract year", "extract date"]
+        trans = ["extract day of week", "extract month", "extract year", "extract date", "extract time"]
         return trans
 
     def transform(self, schema_id, table, column, operation):
@@ -170,7 +170,9 @@ class DateTimeTransformer:
         elif operation == "extract year":
             return self.extract_element_from_date(schema_id, table, column, "YEAR")
         elif operation == "extract date":
-            return self.extract_date(schema_id, table, column, "DATE")
+            return self.extract_date_or_time(schema_id, table, column, "DATE")
+        elif operation == "extract time":
+            return self.extract_date_or_time(schema_id, table, column, "TIME")
 
 
 class NumericalTransformations:

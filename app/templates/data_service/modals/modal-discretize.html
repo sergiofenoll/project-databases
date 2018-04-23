@@ -10,7 +10,7 @@
 				</div>
 				<div class="modal-body">
 					<label for="col-name">Column</label>
-					<select class="form-control" name="col-name" id="col-name">
+					<select class="custom-select" name="col-name" id="col-name">
 						{% for column in table.columns[1:] %}
 							{% if ((column.type == "real") or (column.type == "double") or (column.type == "integer")) %}
 								<option value="{{ column.name }}">{{ column.name|capitalize }}
@@ -20,16 +20,17 @@
 						{% endfor %}
 					</select>
 					<label for="discretization">Option</label>
-					<select class="form-control" name="discretization" id="discretization"
+					<select class="custom-select" name="discretization" id="discretization"
 									onchange="displayOnSelect(this);">
-						<option value="eq-width" selected>Equal width ranges</option>
+						<option value="" selected hidden>Choose discretization...</option>
+						<option value="eq-width">Equal width ranges</option>
 						<option value="eq-freq">Equal frequency ranges</option>
 						<option value="manual">Manual ranges</option>
 					</select>
 					<div class="show-when-discretization select-eq-width select-eq-freq" style="display: none;">
 						<label for="num-intervals">Number of intervals</label>
 						<input name="num-intervals" id="num-intervals" class="form-control"
-									 aria-describedby="numIntervalsHelpBlock">
+									 aria-describedby="numIntervalsHelpBlock" required>
 						<small id="numIntervalsHelpBlock" class="form-text text-muted">
 							Choose the amount of intervals you want
 						</small>
@@ -37,7 +38,7 @@
 					<div class="show-when-discretization select-manual" style="display: none;">
 						<label for="intervals">Ranges</label>
 						<input name="intervals" id="intervals" class="form-control"
-									 aria-describedby="intervalsHelpBlock">
+									 aria-describedby="intervalsHelpBlock" required>
 						<small id="intervalsHelpBlock" class="form-text text-muted">
 							Define a range [a, b), [b, c) as follows: a, b, c
 						</small>

@@ -72,4 +72,16 @@
 			$('.regexAndNoRegex').hide();
 		}
 	});
+
+	$('#formFindAndReplace').submit(function (e) {
+		e.preventDefault();
+		$.ajax({
+			type: 'PUT',
+			url: '/api' + window.location.pathname + '/find-and-replace?' + $('#formFindAndReplace').serialize(),
+			success: function () {
+				window.location.reload();
+			}
+		});
+		$('#formFindAndReplace').modal('hide');
+	});
 </script>

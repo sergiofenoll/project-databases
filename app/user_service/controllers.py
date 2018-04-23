@@ -71,7 +71,7 @@ def logout():
     return redirect(url_for('main.index'))
 
 
-@user_service.route('/user_data', methods=['GET', 'POST'])
+@user_service.route('/user-data', methods=['GET', 'POST'])
 @login_required
 def user_data():
     if request.method == 'GET':
@@ -87,17 +87,17 @@ def user_data():
         password = request.form.get('lg-new-password')
 
         if password == '':
-            password = login.current_user.password
+            password = current_user.password
         else:
             password = sha256_crypt.encrypt(password)
-        user_obj = User(login.current_user.username, password, fname, lname, email, login.current_user.status,
-                        login.current_user.active)
+        user_obj = User(current_user.username, password, fname, lname, email, current_user.status,
+                        current_user.is_active)
         user_data_access.alter_user(user_obj)
         flash(u"User data has been updated!", 'succes')
         return render_template('user_service/user-data.html')
 
 
-@user_service.route('/admin_page', methods=['GET', 'POST'])
+@user_service.route('/admin-page', methods=['GET', 'POST'])
 @login_required
 def admin_page():
     if current_user.status != 'admin':
@@ -116,15 +116,15 @@ def admin_page():
         return render_template('user_service/admin-page.html', users=user_data_access.get_users(), data_updated=True)
 
 
-@user_service.route('/admin_page/<string:username>/delete', methods=['POST'])
+@user_service.route('/admin-page/<string:username>/delete', methods=['DELETE'])
 @login_required
 def delete_user_as_admin(username):
-    if (current_user.status != 'admin'):
+    if current_user.status != 'admin':
         return abort(403)
 
     user_data_access.delete_user(data_loader, username)
 
-    if(current_user.username == username):
+    if current_user.username == username:
         return logout()
 
     return admin_page()

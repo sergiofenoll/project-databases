@@ -1,6 +1,6 @@
+import csv
 import re
 import shutil
-import csv
 from datetime import datetime
 from zipfile import ZipFile
 
@@ -53,7 +53,7 @@ class DataLoader:
         pass
 
     # Dataset & Data handling (inserting/deleting...)
-    def create_dataset(self, name, desc, owner_id):
+    def create_dataset(self, name, owner_id, desc="Default description", ):
         """
          This method takes a name ('nickname') and description and creates a new schema in the database.
          This new schema is by default available to the given owner.
@@ -63,26 +63,26 @@ class DataLoader:
         rows = db.engine.execute('SELECT COUNT(*) FROM Available_Schema;')
         count = rows.first()[0]  # Amount of schema gaps
 
-        schemaID = -1
+        schema_id = -1
 
         if count == 0:
             rows = db.engine.execute('SELECT COUNT(*) FROM Dataset;')
-            schemaID = rows.first()[0]  # Amount of already existing schemas
+            schema_id = rows.first()[0]  # Amount of already existing schemas
 
         else:
             rows = db.engine.execute('SELECT MIN(id) FROM Available_Schema;')
-            schemaID = rows.first()[0]  # smallest id of schema gap
-            db.engine.execute('DELETE FROM Available_Schema WHERE id = {};'.format(str(schemaID)))
+            schema_id = rows.first()[0]  # smallest id of schema gap
+            db.engine.execute('DELETE FROM Available_Schema WHERE id = {};'.format(str(schema_id)))
 
-        if schemaID == -1:
+        if schema_id == -1:
             flash(u"Something went wrong while creating your dataset.", 'danger')
             app.logger.warning("[WARNING] Finding a unique schema-name failed")
             return False
 
-        schemaname = "schema-" + str(schemaID)
+        schema_name = "schema-" + str(schema_id)
 
         try:
-            db.engine.execute('CREATE SCHEMA {};'.format(_ci(schemaname)))
+            db.engine.execute('CREATE SCHEMA {};'.format(_ci(schema_name)))
         except Exception as e:
             flash(u"Something went wrong while creating your dataset.", 'danger')
             app.logger.error("[ERROR] Failed to created schema '" + name + "'")
@@ -93,12 +93,12 @@ class DataLoader:
         try:
             db.engine.execute(
                 'INSERT INTO Dataset(id, nickname, metadata, owner) VALUES({}, {}, {}, {});'.format(
-                    *_cv(schemaname, name, desc, owner_id)))
+                    *_cv(schema_name, name, desc, owner_id)))
 
             # Add user to the access table
             db.engine.execute(
                 'INSERT INTO Access(id_dataset, id_user, role) VALUES({}, {}, {});'.format(
-                    *_cv(schemaname, owner_id, 'owner')))
+                    *_cv(schema_name, owner_id, 'owner')))
         except Exception as e:
             flash(u"Something went wrong while creating your dataset.", 'danger')
             app.logger.error("[ERROR] Failed to insert dataset '" + name + "' into the database")
@@ -172,7 +172,7 @@ class DataLoader:
             app.logger.exception(e)
             raise e
 
-    def create_table(self, name, schema_id, columns, desc="Default description"):
+    def create_table(self, name, schema_id, columns, desc="Default description", raw=False):
         """
          This method takes a schema, name and a list of columns and creates the corresponding table
         """
@@ -193,7 +193,8 @@ class DataLoader:
 
         try:
             db.engine.execute(query)
-            db.engine.execute(raw_table_query)
+            if raw:
+                db.engine.execute(raw_table_query)
         except Exception as e:
             flash(u"Something went wrong while creating your table.", 'danger')
             app.logger.error("[ERROR] Failed to create table '" + name + "'")
@@ -215,7 +216,7 @@ class DataLoader:
     def delete_table(self, name, schema_id):
         try:
             db.engine.execute('DROP TABLE {}.{};'.format(*_ci(schema_id, name)))
-            db.engine.execute('DROP TABLE {}.{};'.format(*_ci(schema_id, "_raw_" + name)))
+            db.engine.execute('DROP TABLE IF EXISTS {}.{};'.format(*_ci(schema_id, "_raw_" + name)))
         except Exception as e:
             flash(u"Something went wrong while deleting your table.", 'danger')
             app.logger.error("[ERROR] Failed to delete table '" + name + "'")
@@ -242,13 +243,14 @@ class DataLoader:
             app.logger.exception(e)
             raise e
 
-    def delete_row(self, schema_id, table_name, row_ids):
+    def delete_row(self, schema_id, table_name, row_ids, add_history=True):
         schema_name = 'schema-' + str(schema_id)
         try:
             for row_id in row_ids:
                 db.engine.execute('DELETE FROM {}.{} WHERE id={};'.format(*_ci(schema_name, table_name), _cv(row_id)))
                 # Log action to history
-                history.log_action(schema_id, table_name, datetime.now(), 'Deleted row #' + str(row_id))
+                if add_history:
+                    history.log_action(schema_id, table_name, datetime.now(), 'Deleted row #' + str(row_id))
         except Exception as e:
             flash(u"Something went wrong while deleting a row from your table.", 'danger')
             app.logger.error("[ERROR] Unable to delete row from table '" + table_name + "'")
@@ -288,7 +290,10 @@ class DataLoader:
             to_delete = [r['id'] for r in result]
 
             # Pass ids to 'traditional' delete_row
-            self.delete_row(schema_id, table_name, to_delete)
+            self.delete_row(schema_id, table_name, to_delete, False)
+
+            history.log_action(schema_id, table_name, datetime.now(), 'Deleted rows on predicate')
+
 
         except Exception as e:
             flash(u"Something went wrong while deleting a row from your table.", 'danger')
@@ -308,7 +313,7 @@ class DataLoader:
         # Log action to history
         history.log_action(schema_id, table_name, datetime.now(), 'Deleted column ' + column_name)
 
-    def insert_row(self, table, schema_id, columns, values, file_upload=False):
+    def insert_row(self, table, schema_id, columns, values, add_history=True):
         """
          This method takes dict of values and adds those to the given table.
          The entries in values look like: {column_name: column_value}
@@ -334,7 +339,7 @@ class DataLoader:
             raise Exception("Unable to insert row into table '" + table + "'")
 
         # Log action to history
-        if not file_upload:
+        if add_history:
             history.log_action(schema_id, table, datetime.now(), 'Added row with values ' + ' '.join(values))
 
     def insert_column(self, schema_id, table_name, column_name, column_type):
@@ -398,25 +403,22 @@ class DataLoader:
             app.logger.error("[ERROR] Cannot overwrite existing table.")
             return
 
+        import pandas as pd
+
         # TODO: Test if this works
-        # df = pd.process_csv(file)
+        raw_tablename = '_raw_' + tablename
+        schema_name = 'schema-' + str(schema_id)
 
         with open(file, "r") as csv:
-            first = True
-            columns = list()
             for line in csv:
-                if first and not append:
-                    first = False
+                if not append:
                     columns = line.strip().split(',')
-                    self.create_table(tablename, schema_id, columns)
-                else:
-                    raw_name = "_raw_" + tablename
-                    values_list = [x.strip() for x in line.split(",")]
-                    values = dict()
-                    for c in range(len(columns)):
-                        values[columns[c]] = values_list[c]
-                    self.insert_row(tablename, schema_id, columns, values, True)
-                    self.insert_row(raw_name, schema_id, columns, values, True)
+                    self.create_table(tablename, schema_id, columns, True)
+                break
+
+        df = pd.read_csv(file)
+        df.to_sql(name=tablename, con=db.engine, schema=schema_name, index=False, if_exists='append')
+        df.to_sql(name=raw_tablename, con=db.engine, schema=schema_name, index=False, if_exists='append')
 
     def process_zip(self, file, schema_id):
         """
@@ -488,12 +490,12 @@ class DataLoader:
                         columns = ['col' + str(i) for i in range(1, len(values_list[0]) + 1)]
 
                     if not self.table_exists(tablename, schema_id):
-                        self.create_table(tablename, schema_id, columns)
+                        self.create_table(tablename, schema_id, columns, True)
                     for values in values_list:
                         val_dict = dict()
                         for c_ix in range(len(columns)):
                             val_dict[columns[c_ix]] = values[c_ix]
-                        self.insert_row(tablename, schema_id, columns, val_dict, True)
+                        self.insert_row(tablename, schema_id, columns, val_dict, False)
 
     # Data access handling
     def get_user_datasets(self, user_id):
@@ -745,7 +747,7 @@ class DataLoader:
                 elif type == "timestamp without time zone" or type == "timestamp with time zone":
                     type = "timestamp"
                 elif type == "character varying":
-                    type = "string"
+                    type = "text"
                 elif type == "bigint":
                     type = "integer"
                 result.append(Column(row[0], type))
@@ -933,4 +935,284 @@ class DataLoader:
             flash(u"Something went wrong while reverting to raw data of your table.", 'danger')
             app.logger.error("[ERROR] Couldn't convert back to raw data")
             app.logger.exception(e)
+            raise e
+
+
+class TableJoinPair:
+    def __init__(self, table1_name, table2_name, table1_column, table2_column, relation_operator):
+        self.table1_name = table1_name
+        self.table2_name = table2_name
+        self.table1_column = table1_column
+        self.table2_column = table2_column
+        self.relation_operator = relation_operator
+        self.swapped = False
+        self.table1_count = 0
+        self.table2_count = 0
+
+    def set_table1_count(self, table_count):
+        self.table1_count = table_count
+
+    def set_table2_count(self, table_count):
+        self.table2_count = table_count
+
+    def swap(self):
+        self.swapped = not self.swapped
+
+        self.table1_name, self.table2_name = self.table2_name, self.table1_name
+        self.table1_column, self.table2_column = self.table2_column, self.table1_column
+
+    def get_table_column(self, table_num):
+        if table_num == 'table1':
+            return self.table1_column
+        if table_num == 'table2':
+            return self.table2_column
+
+    def get_new_table_name(self, table_num):
+        if table_num == 'table1':
+            table_name = self.table1_name
+            table_count = self.table1_count
+        if table_num == 'table2':
+            table_name = self.table2_name
+            table_count = self.table2_count
+
+        return table_name + str(table_count)
+
+    def get_new_column_name(self, table_num, column_name):
+        return self.get_new_table_name(table_num) + '_' + column_name
+
+
+class TableJoiner:
+    def __init__(self, data_loader):
+        self.data_loader = data_loader
+
+    def safe_relation_operator(self, relation_operator):
+        return relation_operator in ("<", "<=", ">", ">=", "=", "<>")
+
+    def prepare_table_pairs(self, table_pairs):
+        """
+          This method preprocesses the table pairs for easy joining (sorts and counts table occurences)
+        """
+        checked_tables = list()
+        pair_not_inserted = False
+        sorted_pairs = list()
+
+        table_occurence_counter = dict()
+
+        def add_to_table_counter(table_name):
+            if table_name not in table_occurence_counter:
+                table_occurence_counter[table_name] = 0
+            else:
+                table_occurence_counter[table_name] += 1
+
+        # Loop over pairs while
+        #   there are still pairs to process
+        #   1 pair has been processed this loop
+        while len(table_pairs) != 0 and not pair_not_inserted:
+            # Iterate over pairs left to find one that is possible to join
+            for table_pair in table_pairs:
+                if not self.safe_relation_operator(table_pair.relation_operator):
+                    return None
+                elif len(checked_tables) == 0:
+                    checked_tables.append(table_pair.table1_name)
+                    checked_tables.append(table_pair.table2_name)
+                    table_pairs.remove(table_pair)
+                    sorted_pairs.append(table_pair)
+
+                    add_to_table_counter(table_pair.table1_name)
+                    table_pair.set_table1_count(table_occurence_counter[table_pair.table1_name])
+                    add_to_table_counter(table_pair.table2_name)
+                    table_pair.set_table2_count(table_occurence_counter[table_pair.table2_name])
+
+                elif table_pair.table1_name in checked_tables or table_pair.table2_name in checked_tables:
+                    if table_pair.table1_name not in checked_tables:
+                        table_pair.swap()
+
+                    checked_tables.append(table_pair.table1_name)
+                    checked_tables.append(table_pair.table2_name)
+                    table_pairs.remove(table_pair)
+                    sorted_pairs.append(table_pair)
+
+                    add_to_table_counter(table_pair.table2_name)
+                    table_pair.set_table2_count(table_occurence_counter[table_pair.table2_name])
+
+                else:
+                    return None
+
+        return sorted_pairs
+
+    def table_join_create_selection_query(self, dataset_id, table_pairs):
+        # Selection query
+        selection_query = 'SELECT'
+
+        # selection of columns in first table in located in 'FROM {}' part of query
+        add_comma = False
+
+        for column_name in self.data_loader.get_column_names(dataset_id, table_pairs[0].table1_name):
+            if column_name == 'id':
+                continue
+            new_column_name = table_pairs[0].get_new_column_name('table1', column_name)
+            if add_comma:
+                selection_query += ','
+            else:
+                add_comma = True
+
+            selection_query += ' {}.{} AS {}'.format(*_ci(
+                table_pairs[0].get_new_table_name('table1'),
+                column_name,
+                new_column_name))
+
+        # selection of columns joined on the first table
+        for table_pair in table_pairs:
+            table_name = table_pair.table2_name
+
+            for column_name in self.data_loader.get_column_names(dataset_id, table_name):
+                if column_name == 'id':
+                    continue
+                new_column_name = table_pair.get_new_column_name('table2', column_name)
+                selection_query += ', {}.{} as {}'.format(*_ci(
+                    table_pair.get_new_table_name('table2'),
+                    column_name,
+                    new_column_name))
+
+        return selection_query
+
+    def table_join_create_join_query(self, dataset_id, table_name, table_pairs):
+
+        schemaname = "schema-" + str(dataset_id)
+
+        # Join query
+        join_query = ' INTO {}.{}'.format(*_ci(schemaname, table_name))
+        top_table_name = table_pairs[0].table1_name
+        join_query += ' FROM {}.{} AS {}'.format(*_ci(schemaname, top_table_name,
+                                                      table_pairs[0].get_new_table_name('table1')))
+
+        for table_pair in table_pairs:
+            join_query += ' INNER JOIN {}.{}'.format(*_ci(schemaname,
+                                                          table_pair.table2_name))
+
+            # Use table as 'table_nameNUM'
+            join_query += ' {}'.format(_ci(table_pair.get_new_table_name('table2')))
+
+            if table_pair.swapped:
+                table1 = 'table2'
+                table2 = 'table1'
+            else:
+                table1 = 'table1'
+                table2 = 'table2'
+
+            # Join ON 'new_table1_name'.'column' 'operator' 'new_table2_name'.'column'
+            join_query += ' ON {}.{}'.format(*_ci(table_pair.get_new_table_name(table1),
+                                                  table_pair.get_table_column(table1)))
+            join_query += table_pair.relation_operator
+            join_query += '{}.{}'.format(*_ci(table_pair.get_new_table_name(table2),
+                                              table_pair.get_table_column(table2)))
+
+        join_query += ';'
+
+        return join_query
+
+    def table_join_unique_id_query(self, dataset_id, table_name):
+        schema_id = "schema-" + str(dataset_id)
+
+        add_unique_id_query = 'ALTER TABLE {0}.{1} ADD id SERIAL; ALTER TABLE {0}.{1} ADD PRIMARY KEY (id);'.format(
+            *_ci(schema_id, table_name))
+
+        return add_unique_id_query
+
+    def reorder_column_query(self, dataset_id, temp_table_name, new_table_name):
+
+        schema_name = "schema-" + str(dataset_id)
+
+        column_names = self.data_loader.get_column_names(dataset_id, temp_table_name)
+
+        new_table_query = 'CREATE TABLE {}.{} AS SELECT \"id\"'.format(*_ci(schema_name, new_table_name))
+
+        for column_name in column_names:
+            if column_name != 'id':
+                new_table_query += ', {}'.format(_ci(column_name))
+
+        new_table_query += 'FROM {}.{};'.format(*_ci(schema_name, temp_table_name))
+
+        drop_old_table_query = 'DROP TABLE {}.{};'.format(*_ci(schema_name, temp_table_name))
+
+        return new_table_query + drop_old_table_query
+
+    def join_multiple_tables(self, dataset_id, table_name, table_desc, table_pairs):
+        """
+         This method will attempt to join multiple tables into 1 new table
+        """
+        table_pairs = self.prepare_table_pairs(table_pairs)
+
+        schema_name = 'schema-' + str(dataset_id)
+        temp_joined_table = '_join_table'
+
+        try:
+            if self.data_loader.table_exists(table_name, schema_name):
+                raise Exception("There already exists a table with the name '" + table_name + "'")
+            if table_pairs is None:
+                raise Exception("Given tables could not be joined into 1 table")
+
+        except Exception as e:
+            raise (e)
+
+        schema_name = "schema-" + str(dataset_id)
+
+        # Join table
+        connection = db.engine.connect()
+        transaction = connection.begin()
+        try:
+            selection_query = self.table_join_create_selection_query(dataset_id, table_pairs)
+            join_query = self.table_join_create_join_query(dataset_id, '_join_table', table_pairs)
+
+            query = selection_query + join_query
+            connection.execute(query)
+            transaction.commit()
+        except Exception as e:
+            transaction.rollback()
+            app.logger.error("[ERROR] Failed to join tables into table '" + table_name + "'")
+            app.log_exception(e)
+            raise e
+
+        # Unique id
+        try:
+            query = 'ALTER TABLE {0}.{1} ADD id SERIAL; ALTER TABLE {0}.{1} ADD PRIMARY KEY (id);'.format(
+                *_ci(schema_name, temp_joined_table))
+
+            db.engine.execute(query)
+        except Exception as e:
+            app.logger.error("[ERROR] Failed to add unique id to table '" + table_name + "'")
+            app.log_exception(e)
+            raise e
+        except:
+            print("lel")
+
+        # Reorder columns
+        try:
+            query = self.reorder_column_query(dataset_id, temp_joined_table, table_name)
+            db.engine.execute(query)
+        except Exception as e:
+            app.logger.error("[ERROR] Failed to reorder columns in table '" + table_name + "'")
+            app.log_exception(e)
+            raise e
+
+        # Metadata
+        try:
+            query = 'INSERT INTO metadata VALUES({}, {}, {});'.format(
+                *_cv(schema_name, table_name, table_desc))
+            db.engine.execute(query)
+        except Exception as e:
+            app.logger.error("[ERROR] Failed to add metadata for table '" + table_name + "'")
+            app.log_exception(e)
+            raise e
+
+        # Raw data
+        transaction = connection.begin()
+        try:
+            query = 'SELECT * INTO {0}.{1} FROM {0}.{2};'.format(*_ci(schema_name, '_raw_' + table_name, table_name))
+            connection.execute(query)
+            transaction.commit()
+        except Exception as e:
+            transaction.rollback()
+            app.logger.error("[ERROR] Failed to create raw data for table '" + table_name + "'")
+            app.log_exception(e)
             raise e

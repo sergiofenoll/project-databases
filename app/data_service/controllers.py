@@ -1,10 +1,11 @@
 import os
 
-from flask import Blueprint, request, render_template, redirect, url_for, abort
+from flask import Blueprint, request, render_template, redirect, url_for, abort, jsonify
 from flask_login import login_required, current_user
 from werkzeug.utils import secure_filename
 
-from app import app, connection, data_loader, date_time_transformer, ALLOWED_EXTENSIONS, UPLOAD_FOLDER
+from app import app, data_loader, table_joiner, date_time_transformer, ALLOWED_EXTENSIONS, UPLOAD_FOLDER
+from app.data_service.models import TableJoinPair
 
 data_service = Blueprint('data_service', __name__)
 
@@ -28,7 +29,7 @@ def add_dataset():
     name = request.form.get('ds-name')
     meta = request.form.get('ds-meta')
     owner_id = current_user.username
-    data_loader.create_dataset(name, meta, owner_id)
+    data_loader.create_dataset(name, owner_id, meta)
     return render_template('data_service/datasets.html',
                            datasets=data_loader.get_user_datasets(current_user.username))
 
@@ -46,13 +47,13 @@ def get_dataset(dataset_id):
 
     current_user.active_schema = dataset_id
 
-    return render_template('data_service/dataset-view.html', ds=dataset, tables=tables,
+    columns = list()
+    if len(tables) != 0:
+        columns = data_loader.get_column_names(dataset_id, tables[0].name)
+        columns.remove('id')
+
+    return render_template('data_service/dataset-view.html', ds=dataset, tables=tables, columns=columns,
                            access_permission=access_permission, users_with_access=users_with_access)
-
-
-@data_service.route('/datasets/<int:dataset_id>/update', methods=['POST'])
-def update_dataset(dataset_id):
-    pass  # TODO: Edit name/descriptions of dataset
 
 
 @data_service.route('/datasets/<int:dataset_id>/delete', methods=['POST'])
@@ -112,7 +113,6 @@ def add_table(dataset_id):
             app.logger.exception(e)
             return get_dataset(dataset_id)
 
-        connection.commit()
         file.close()
         os.remove(path)
     return get_dataset(dataset_id)
@@ -131,7 +131,7 @@ def get_table(dataset_id, table_name):
 
     raw_table_name = "_raw_" + table_name
     raw_table_exists = data_loader.table_exists(raw_table_name, "schema-" + str(dataset_id))
-
+    current_user.active_schema = dataset_id
     return render_template('data_service/table-view.html', table=table,
                            time_date_transformations=time_date_transformations,
                            statistics=statistics, raw_table_exists=raw_table_exists)
@@ -157,7 +157,7 @@ def grant_dataset_access(dataset_id):
     return redirect(url_for('data_service.get_dataset', dataset_id=dataset_id))
 
 
-@data_service.route('/datasets/<int:dataset_id>/share/delete', methods=['GET'])
+@data_service.route('/datasets/<int:dataset_id>/share/delete', methods=['POST'])
 def delete_dataset_access(dataset_id):
     username = request.form.get('ds-delete-user-select')
     data_loader.remove_access(username, dataset_id)
@@ -191,10 +191,57 @@ def remove_rows_predicate(dataset_id, table_name):
 
     predicates = list()
     for entry in request.form.keys():
-        if (entry.startswith('join')):
+        if entry.startswith('join'):
             p = request.form.getlist(entry)
             predicates.append(p)
 
     data_loader.delete_row_predicate(dataset_id, table_name, predicates)
   
     return redirect(url_for('data_service.get_table', dataset_id=dataset_id, table_name=table_name))
+
+@data_service.route('/datasets/<int:dataset_id>/join-tables/<string:table_name>', methods=['GET'])
+@login_required
+def get_join_column_names(dataset_id, table_name):
+    if (data_loader.has_access(current_user.username, dataset_id)) is False:
+        return abort(403)
+
+    column_names = data_loader.get_column_names(dataset_id, table_name)
+    column_names.remove('id')
+
+    return jsonify(column_names)
+
+@data_service.route('/datasets/<int:dataset_id>/join-tables', methods=['POST'])
+@login_required
+def join_tables(dataset_id):
+    if (data_loader.has_access(current_user.username, dataset_id)) is False:
+        return abort(403)
+    # Extract data from form
+    join_pairs = list()
+
+    try:
+        name = request.form.get('table-name')
+        meta = request.form.get('table-meta')
+
+        f = request.form
+
+        # Iterate over all keys in form starting with join, each join<number> represents a join_pair
+        for key in f.keys():
+            if key.startswith("join"):
+                join_pair_row =  f.getlist(key)
+                t1 = join_pair_row[0]
+                t2 = join_pair_row[1]
+                t1_column = join_pair_row[2]
+                t2_column = join_pair_row[4]
+                relation_operator = join_pair_row[3]
+
+                join_pair = TableJoinPair(table1_name=t1, table2_name=t2, table1_column=t1_column, table2_column=t2_column, relation_operator=relation_operator)
+                join_pairs.append(join_pair)
+            else:
+                continue
+
+        table_joiner.join_multiple_tables(dataset_id, name, meta, join_pairs)
+
+    except Exception as e:
+        return redirect(url_for('data_service.get_dataset', dataset_id=dataset_id))
+
+    return redirect(url_for('data_service.get_dataset', dataset_id=dataset_id))

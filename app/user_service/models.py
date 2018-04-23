@@ -4,8 +4,8 @@ from app import database as db
 
 def _ci(*args: str):
     if len(args) == 1:
-        return '"{}"'.format(args[0].replace('"', '""'))
-    return ['"{}"'.format(arg.replace('"', '""')) for arg in args]
+        return '"{}"'.format(str(args[0]).replace('"', '""'))
+    return ['"{}"'.format(str(arg).replace('"', '""')) for arg in args]
 
 
 def _cv(*args: str):
@@ -88,12 +88,13 @@ class UserDataAccess:
             return user
         else:
             raise Exception
+            return None
 
     def alter_user(self, user):
         try:
             query = 'UPDATE Member SET Firstname = {}, Lastname = {}, Email = {}, Pass = {}, Status = {}, Active = {} WHERE Username={};'.format(
                 *_cv(
-                    user.firstname, user.lastname, user.email, user.password, user.status, user.is_active,
+                    user.firstname, user.lastname, user.email, user.password, str(user.status), str(user.is_active),
                     user.username))
 
             db.engine.execute(query)

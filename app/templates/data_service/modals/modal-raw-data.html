@@ -10,7 +10,7 @@
 			<div class="modal-body">
 				<form id="formRevertRawData">
 					<div class="form-group">
-						<h6>Revert to raw data</h6>
+						<h5>Revert to raw data</h5>
 						<button type="submit" class="btn btn-primary" {% if not raw_table_exists %}
 										disabled  {% endif %}>Revert
 						</button>
@@ -35,7 +35,7 @@
 			type: 'PUT',
 			url: window.location.pathname + '/revert-to-raw-data'
 		});
-		// window.location.reload();
+		window.location.reload();
 	});
 
 	$('#formShowRawData').submit(function (e) {

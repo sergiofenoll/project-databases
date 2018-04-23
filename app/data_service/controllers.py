@@ -4,7 +4,7 @@ from flask import Blueprint, request, render_template, redirect, url_for, abort
 from flask_login import login_required, current_user
 from werkzeug.utils import secure_filename
 
-from app import app, connection, data_loader, date_time_transformer, ALLOWED_EXTENSIONS, UPLOAD_FOLDER
+from app import app, data_loader, date_time_transformer, ALLOWED_EXTENSIONS, UPLOAD_FOLDER
 
 data_service = Blueprint('data_service', __name__)
 
@@ -28,7 +28,7 @@ def add_dataset():
     name = request.form.get('ds-name')
     meta = request.form.get('ds-meta')
     owner_id = current_user.username
-    data_loader.create_dataset(name, meta, owner_id)
+    data_loader.create_dataset(name, owner_id, meta)
     return render_template('data_service/datasets.html',
                            datasets=data_loader.get_user_datasets(current_user.username))
 
@@ -48,11 +48,6 @@ def get_dataset(dataset_id):
 
     return render_template('data_service/dataset-view.html', ds=dataset, tables=tables,
                            access_permission=access_permission, users_with_access=users_with_access)
-
-
-@data_service.route('/datasets/<int:dataset_id>/update', methods=['POST'])
-def update_dataset(dataset_id):
-    pass  # TODO: Edit name/descriptions of dataset
 
 
 @data_service.route('/datasets/<int:dataset_id>/delete', methods=['POST'])
@@ -110,10 +105,8 @@ def add_table(dataset_id):
         except Exception as e:
             app.logger.error("[ERROR] Failed to process file '" + filename + "'")
             app.logger.exception(e)
-            connection.rollback()
             return get_dataset(dataset_id)
 
-        connection.commit()
         file.close()
         os.remove(path)
     return get_dataset(dataset_id)
@@ -132,7 +125,7 @@ def get_table(dataset_id, table_name):
 
     raw_table_name = "_raw_" + table_name
     raw_table_exists = data_loader.table_exists(raw_table_name, "schema-" + str(dataset_id))
-
+    current_user.active_schema = dataset_id
     return render_template('data_service/table-view.html', table=table,
                            time_date_transformations=time_date_transformations,
                            statistics=statistics, raw_table_exists=raw_table_exists)
@@ -158,7 +151,7 @@ def grant_dataset_access(dataset_id):
     return redirect(url_for('data_service.get_dataset', dataset_id=dataset_id))
 
 
-@data_service.route('/datasets/<int:dataset_id>/share/delete', methods=['GET'])
+@data_service.route('/datasets/<int:dataset_id>/share/delete', methods=['POST'])
 def delete_dataset_access(dataset_id):
     username = request.form.get('ds-delete-user-select')
     data_loader.remove_access(username, dataset_id)
@@ -192,7 +185,7 @@ def remove_rows_predicate(dataset_id, table_name):
 
     predicates = list()
     for entry in request.form.keys():
-        if (entry.startswith('join')):
+        if entry.startswith('join'):
             p = request.form.getlist(entry)
             predicates.append(p)
 

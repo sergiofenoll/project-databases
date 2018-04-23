@@ -3,7 +3,7 @@
     <div class="row">
         <div class="col-sm-2"></div>
         <div class="col-sm-8">
-            <form action="/admin_page" method="post">
+            <form action="/admin-page" method="post">
                 <table id="userTable" class="display table table-striped table-bordered" cellspacing="0"
                        width="100%">
                     <thead>
@@ -31,11 +31,11 @@
                                                                    {% if user.is_active %}checked{% endif %}
                                                                    type="checkbox" class="form-check-input"></td>
                             <td style="text-align: center;">
-                                <form action="/admin_page/{{ user.username }}/delete" method="post">
-                                    <button type="submit" class="btn btn-xs btn-danger" {% if user.status == 'admin' %}disabled{% endif %}>
-                                        ❌
-                                    </button>
-                                </form>
+                                <button class="btn btn-xs btn-danger" id="button-delete-user"
+                                        data-user="{{ user.username }}"
+                                        {% if user.status == 'admin' %}disabled{% endif %}>
+                                    ❌
+                                </button>
                             </td>
                         </tr>
                     {% endfor %}
@@ -53,5 +53,20 @@
         </div>
         <div class="col-sm-2"></div>
     </div>
+    <script type="text/javascript" charset="utf-8">
+
+        $('#button-delete-user').click(function () {
+            //var data='hello inside';
+            var user = $(this).data('user');
+            $.ajax({
+                type: 'DELETE',
+                url: window.location.pathname + '/' + user + '/delete',
+                success: function () {
+                    window.location.reload();
+                }
+            })
+        });
+
+    </script>
 {% endblock %}
 

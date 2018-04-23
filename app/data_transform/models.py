@@ -9,16 +9,17 @@ from app import app, database as db
 from app.data_service.models import DataLoader
 from app.history.models import History
 
+
 def _ci(*args: str):
     if len(args) == 1:
-        return '"{}"'.format(args[0].replace('"', '""'))
-    return ['"{}"'.format(arg.replace('"', '""')) for arg in args]
+        return '"{}"'.format(str(args[0]).replace('"', '""'))
+    return ['"{}"'.format(str(arg).replace('"', '""')) for arg in args]
 
 
 def _cv(*args: str):
     if len(args) == 1:
-        return "'{}'".format(args[0].replace("'", "''"))
-    return ["'{}'".format(arg.replace("'", "''")) for arg in args]
+        return "'{}'".format(str(args[0]).replace("'", "''"))
+    return ["'{}'".format(str(arg).replace("'", "''")) for arg in args]
 
 
 history = History()
@@ -40,6 +41,8 @@ class DataTransformer:
 
             db.engine.execute('UPDATE {0}.{1} SET {2} = {3} WHERE {2} IS NULL;'.format(*_ci(schema_name, table, column),
                                                                                        _cv(average)))
+            history.log_action(schema_id, table, datetime.now(), 'Imputed missing data on average')
+
         except Exception as e:
             app.logger.error("[ERROR] Unable to impute missing data for column {} by average".format(column))
             app.logger.exception(e)
@@ -63,6 +66,8 @@ class DataTransformer:
 
             db.engine.execute('UPDATE {0}.{1} SET {2} = {3} WHERE {2} IS NULL;'.format(*_ci(schema_name, table, column),
                                                                                        _cv(median_val)))
+            history.log_action(schema_id, table, datetime.now(), 'Imputed missing data on median')
+
         except Exception as e:
             app.logger.error("[ERROR] Unable to impute missing data for column {} by median".format(column))
             app.logger.exception(e)
@@ -92,6 +97,7 @@ class DataTransformer:
                 app.logger.error("[ERROR] Unable to perform find and replace")
 
             db.engine.execute(query)
+            history.log_action(schema_id, table, datetime.now(), 'Used find and replace')
         except Exception as e:
             app.logger.error("[ERROR] Unable to perform find and replace")
             app.logger.exception(e)
@@ -100,14 +106,17 @@ class DataTransformer:
     def find_and_replace_by_regex(self, schema_id, table, column, regex, replacement):
         """" find and replace """
         try:
+            regex = regex.replace('%', '%%')
+
             schema_name = 'schema-' + str(schema_id)
             query = 'UPDATE {0}.{1} SET {2} = regexp_replace({2}, {3}, {4})'.format(*_ci(schema_name, table, column),
                                                                                     *_cv(regex, replacement))
             db.engine.execute(query)
+            history.log_action(schema_id, table, datetime.now(), 'Used find and replace')
         except Exception as e:
             app.logger.error("[ERROR] Unable to perform find and replace by regex")
             app.logger.exception(e)
-        raise e
+            raise e
 
 
 class DateTimeTransformer:
@@ -132,7 +141,7 @@ class DateTimeTransformer:
         # Log action to history
         history.log_action(schema_id, table, datetime.now(), 'Extracted ' + element + ' from column ' + column)
 
-    def extract_time_or_date(self, schema_id, table, column, element):
+    def extract_date(self, schema_id, table, column, element):
         """extract date or time from datetime type"""
         try:
             schema_name = 'schema-' + str(schema_id)
@@ -150,7 +159,7 @@ class DateTimeTransformer:
         history.log_action(schema_id, table, datetime.now(), 'Extracted ' + element + ' from column ' + column)
 
     def get_transformations(self):
-        trans = ["extract day of week", "extract month", "extract year", "parse date", "extract time", "extract date"]
+        trans = ["extract day of week", "extract month", "extract year", "extract date"]
         return trans
 
     def transform(self, schema_id, table, column, operation):
@@ -161,9 +170,7 @@ class DateTimeTransformer:
         elif operation == "extract year":
             return self.extract_element_from_date(schema_id, table, column, "YEAR")
         elif operation == "extract date":
-            return self.extract_time_or_date(schema_id, table, column, "DATE")
-        elif operation == "extract time":
-            return self.extract_time_or_date(schema_id, table, column, "TIME")
+            return self.extract_date(schema_id, table, column, "DATE")
 
 
 class NumericalTransformations:
@@ -186,9 +193,7 @@ class NumericalTransformations:
         schema_name = 'schema-' + str(schema_id)
         df = pd.read_sql_query('SELECT * FROM "{}"."{}"'.format(schema_name, table_name), db.engine)
         new_column_name = column_name + '_intervals_eq_w_' + str(num_intervals)
-
-        df[new_column_name] = pd.cut(df[column_name], num_intervals).apply(str)
-
+        df[new_column_name] = pd.cut(df[column_name], num_intervals, precision=9).apply(str)
         db.engine.execute('DROP TABLE "{0}"."{1}"'.format(schema_name, table_name))
         df.to_sql(name=table_name, con=db.engine, schema=schema_name, if_exists='fail', index=False)
 
@@ -202,8 +207,8 @@ class NumericalTransformations:
         interval_size = data_length // num_intervals
         intervals_list = []
         for i in range(0, data_length, interval_size):
-            intervals_list.append(sorted_data[i])
-        df[new_column_name] = pd.cut(df[column_name], intervals_list).apply(str)
+            intervals_list.append(sorted_data[i] - (sorted_data[i] / 1000))  #
+        df[new_column_name] = pd.cut(df[column_name], intervals_list, precision=9).apply(str)
 
         db.engine.execute('DROP TABLE "{0}"."{1}"'.format(schema_name, table_name))
         df.to_sql(name=table_name, con=db.engine, schema=schema_name, if_exists='fail', index=False)
@@ -232,29 +237,28 @@ class NumericalTransformations:
         df = pd.read_sql_query('SELECT * FROM "{}"."{}"'.format(schema_name, table_name), db.engine)
 
         intervals = pd.cut(df[column_name], 10).value_counts()
-
         data = {
             'labels': list(intervals.index.astype(str)),
             'data': list(intervals.astype(int)),
-            'chart': 'bar',
-            'label': '# Items Per Interval'
+            'label': '# Items Per Interval',
+            'chart': 'bar'
         }
-
         return data
 
     def chart_data_categorical(self, schema_id, table_name, column_name):
         schema_name = 'schema-' + str(schema_id)
         df = pd.read_sql_query('SELECT * FROM "{}"."{}"'.format(schema_name, table_name), db.engine)
 
-        data = {'labels': [], 'data': []}
-        data['labels'] = list(df[column_name].unique())
-        for label in data['labels']:
-            data['data'].append(int(df[df[column_name] == label][column_name].count()))
-        data['chart'] = 'pie'
-        data['label'] = '# Items Per Slice'
-
+        intervals = df[column_name].value_counts()
+        data = {
+            'labels': list(intervals.index.astype(str)),
+            'data': list(intervals.astype(str)),
+            'label': '# Items Per Slice',
+            'chart': 'pie'
+        }
         return data
 
+      
 class OneHotEncode:
     def __init__(self, dataloader):
         self.dataloader = dataloader
@@ -268,8 +272,6 @@ class OneHotEncode:
         one_hot_encoded = one_hot_encoder.fit_transform(integer_encoded)
 
         return one_hot_encoded
-
-
 
     def encode(self, schema_id, table_name, column_name):
         schema_name = 'schema-' + str(schema_id)

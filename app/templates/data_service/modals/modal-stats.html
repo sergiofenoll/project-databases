@@ -1,97 +1,117 @@
 <div class="modal" tabindex="-1" role="dialog" aria-hidden="true" id="askStats">
-	<div class="modal-dialog modal-lg" role="document">
-		<div class="modal-content">
-			<form class="form-group" id="formAskStats">
-				<div class="modal-header">
-					<h5 class="modal-title">Statistics</h5>
-					<button type="button" class="close" data-dismiss="modal" aria-label="Close">
-						<span aria-hidden="true">&times;</span>
-					</button>
-				</div>
-				<div class="modal-body form-group">
-					<label for="stat-column-selector">Column</label>
-					<select class="custom-select" name="col-name" id="stat-column-selector">
-						<option value="Default" selected>Choose column</option>
-						{% for column in table.columns[1:] %}
-							<option value="{{ column.name }}"
-											data-type="{{ column.type }}">{{ column.name|capitalize }}</option>
-						{% endfor %}
-					</select>
-					<canvas id="chart" width="600" height="400" style="" data-column></canvas>
-					<script>
-						var ctx = $('#chart');
-						var chart = new Chart(ctx, {});
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <form class="form-group" id="formAskStats">
+                <div class="modal-header">
+                    <h5 class="modal-title">Statistics</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body form-group">
+                    <label for="stat-column-selector">Column</label>
+                    <select class="custom-select" name="col-name" id="stat-column-selector">
+                        <option value="Default" selected="selected">Choose column</option>
+                        {% for column in table.columns[1:] %}
+                            <option value="{{ column.name }}"
+                                    data-type="{{ column.type }}">{{ column.name|capitalize }}</option>
+                        {% endfor %}
+                    </select>
+                    <canvas id="chart" width="600" height="400" style="display: none;" data-column></canvas>
+                    <div id="chart-alert" class="alert alert-warning" role="alert"
+                         style="display: none; margin-top: 10px;">
+                        The column you chose has too many data points for our software to display properly.<br>
+                        Try changing the column type to a numeric value or a date if applicable.
+                    </div>
+                    <script>
+                        var ctx = $('#chart');
+                        var ctx_alert = $('#chart-alert');
+                        var chart = new Chart(ctx, {});
 
-						function randomColorGenerator(count) {
-							var data = [];
-							for (var i = 0; i < count; i++) {
-								data.push('#' + (Math.random().toString(16) + '0000000').slice(2, 8));
-							}
-							return data;
-						}
+                        function getRandomInt(min, max) {
+                            min = Math.ceil(min);
+                            max = Math.floor(max);
+                            return Math.floor(Math.random() * (max - min)) + min;
+                        }
 
-						function createChart(data) {
-							console.log(randomColorGenerator());
-							chart = new Chart(ctx, {
-								type: data.chart,
-								data: {
-									labels: data.labels,
-									datasets: [{
-										label: data.label,
-										data: data.data,
-										backgroundColor: randomColorGenerator(data.labels.length)
-									}]
-								}
-							})
+                        function randomColorGenerator(count) {
+                            var backgrounds = [];
+                            var borders = [];
+                            for (var i = 0; i < count; i++) {
+                                var color = 'rgba(' + getRandomInt(0, 256).toString() + ','
+                                    + getRandomInt(0, 256).toString() + ','
+                                    + getRandomInt(0, 256).toString() + ',';
+                                backgrounds.push(color + '0.2)');
+                                borders.push(color + '1.0)');
+                            }
+                            return [backgrounds, borders];
+                        }
 
-						}
+                        function createChart(data) {
+                            ctx.show();
+                            var colors = randomColorGenerator(data.labels.length);
+                            chart = new Chart(ctx, {
+                                type: data.chart,
+                                data: {
+                                    labels: data.labels,
+                                    datasets: [{
+                                        label: data.label,
+                                        data: data.data,
+                                        backgroundColor: colors[0],
+                                        borderColor: colors[1]
+                                    }]
+                                }
+                            })
 
-						function updateChart() {
-							data = {
-								'col-name': $('#stat-column-selector').val(),
-								'col-type': $('option:selected', '#stat-column-selector').data('type')
-							};
-							console.log(data)
-							$.ajax({
-								url: '/api' + window.location.pathname + '/chart?' + $.param(data),
-								success: function (data) {
-									console.log(data);
-									chart.destroy();
-									createChart(data);
-								}
-							})
-						}
-					</script>
-					{% for col_stats in statistics %}
-						{% for stat in col_stats[1] %}
-							<div>
-								<label for="value" id="{{ col_stats[0] }}" class="{{ col_stats[0] }} stats"
-											 style="display:none">
-									{{ stat[0] }}
-								</label>
-								<input id="value" class="{{ col_stats[0] }} stats form-control"
-											 value="{{ stat[1] }}" style="display:none" readonly>
-							</div>
-						{% endfor %}
-					{% endfor %}
-				</div>
-				<div class="modal-footer">
-					<button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
-				</div>
-			</form>
-		</div>
-	</div>
+                        }
+
+                        function updateChart() {
+                            data = {
+                                'col-name': $('#stat-column-selector').val(),
+                                'col-type': $('option:selected', '#stat-column-selector').data('type')
+                            };
+                            $.ajax({
+                                url: '/api' + window.location.pathname + '/chart?' + $.param(data),
+                                success: function (data) {
+                                    chart.destroy();
+                                    ctx.hide();
+                                    ctx_alert.hide();
+                                    if (data.data.length <= 100) createChart(data);
+                                    else ctx_alert.show();
+                                }
+                            })
+                        }
+                    </script>
+                    {% for col_stats in statistics %}
+                        {% for stat in col_stats[1] %}
+                            <div>
+                                <label for="value" id="{{ col_stats[0] }}" class="{{ col_stats[0] }} stats"
+                                       style="display:none">
+                                    {{ stat[0] }}
+                                </label>
+                                <input id="value" class="{{ col_stats[0] }} stats form-control"
+                                       value="{{ stat[1] }}" style="display:none" readonly>
+                            </div>
+                        {% endfor %}
+                    {% endfor %}
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                </div>
+            </form>
+        </div>
+    </div>
 </div>
 <script>
-	$('#stat-column-selector').change(function () {
-		updateChart();
-		$('.stats').hide();
-		var string = "";
-		var words = $(this).val().split(" ");
-		for (var i = 0; i < words.length; i++) {
-			string = string + "." + words[i];
-		}
-		$(string).show();
-		$('#askStats').modal('handleUpdate');
-	});
+    $('#stat-column-selector').change(function () {
+        updateChart();
+        $('.stats').hide();
+        var string = "";
+        var words = $(this).val().split(" ");
+        for (var i = 0; i < words.length; i++) {
+            string = string + "." + words[i];
+        }
+        $(string).show();
+        $('#askStats').modal('handleUpdate');
+    });
 </script>

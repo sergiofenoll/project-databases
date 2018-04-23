@@ -15,14 +15,14 @@ history = History()
 
 def _ci(*args: str):
     if len(args) == 1:
-        return '"{}"'.format(args[0].replace('"', '""'))
-    return ['"{}"'.format(arg.replace('"', '""')) for arg in args]
+        return '"{}"'.format(str(args[0]).replace('"', '""'))
+    return ['"{}"'.format(str(arg).replace('"', '""')) for arg in args]
 
 
 def _cv(*args: str):
     if len(args) == 1:
-        return "'{}'".format(args[0].replace("'", "''"))
-    return ["'{}'".format(arg.replace("'", "''")) for arg in args]
+        return "'{}'".format(str(args[0]).replace("'", "''"))
+    return ["'{}'".format(str(arg).replace("'", "''")) for arg in args]
 
 
 class Dataset:
@@ -331,7 +331,7 @@ class DataLoader:
             flash(u"Something went wrong while inserting a row into your table.", 'danger')
             app.logger.error("[ERROR] Unable to insert row into table '" + table + "'")
             app.logger.exception(e)
-            raise e
+            raise Exception("Unable to insert row into table '" + table + "'")
 
         # Log action to history
         if not file_upload:

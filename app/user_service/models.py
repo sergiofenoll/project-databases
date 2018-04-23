@@ -10,8 +10,8 @@ def _ci(*args: str):
 
 def _cv(*args: str):
     if len(args) == 1:
-        return "'{}'".format(args[0].replace("'", "''"))
-    return ["'{}'".format(arg.replace("'", "''")) for arg in args]
+        return "'{}'".format(str(args[0]).replace("'", "''"))
+    return ["'{}'".format(str(arg).replace("'", "''")) for arg in args]
 
 
 class User:
@@ -91,7 +91,7 @@ class UserDataAccess:
 
     def alter_user(self, user):
         try:
-            query = 'UPDATE Member SET Firstname = {}, Lastname = {}}, Email = {}, Pass = {}, Status = {}, Active = {} WHERE Username={};'.format(
+            query = 'UPDATE Member SET Firstname = {}, Lastname = {}, Email = {}, Pass = {}, Status = {}, Active = {} WHERE Username={};'.format(
                 *_cv(
                     user.firstname, user.lastname, user.email, user.password, user.status, user.is_active,
                     user.username))

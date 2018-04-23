@@ -25,7 +25,6 @@ def login():
                 if not user.is_active:
                     flash(u"This user is inactive and can't log in.", 'warning')
                     return render_template('user_service/login-form.html')
-
                 # Login and validate the user.
                 # user should be an instance of your `User` class
                 login_user(user)
@@ -76,10 +75,11 @@ def logout():
 @login_required
 def user_data():
     if request.method == 'GET':
-        return render_template('user_service/user-data.html', data_updated=False)
+        return render_template('user_service/user-data.html')
     else:
         if not sha256_crypt.verify(request.form.get('lg-current-password'), current_user.password):
-            return render_template('user_service/user-data.html', wrong_password=True)
+            flash(u"Wrong password!", 'danger')
+            return render_template('user_service/user-data.html')
 
         fname = request.form.get('lg-fname')
         lname = request.form.get('lg-lname')
@@ -93,7 +93,8 @@ def user_data():
         user_obj = User(login.current_user.username, password, fname, lname, email, login.current_user.status,
                         login.current_user.active)
         user_data_access.alter_user(user_obj)
-        return render_template('user_service/user-data.html', data_updated=True)
+        flash(u"User data has been updated!", 'succes')
+        return render_template('user_service/user-data.html')
 
 
 @user_service.route('/admin_page', methods=['GET', 'POST'])

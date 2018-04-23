@@ -6,7 +6,7 @@ import os
 # Many of the parts in the string are optional.
 # If no driver is specified the default one is selected
 # (make sure to not include the + in that case)
-SQLALCHEMY_DATABASE_URI = 'postgresql://dbadmin:dbadmin@localhost:5432/userdb'
+SQLALCHEMY_DATABASE_URI = 'postgresql://dbadmin:dbadmin@localhost:5432/test_userdb'
 SQLALCHEMY_TRACK_MODIFICATIONS = False
 SQLALCHEMY_ECHO = False
 

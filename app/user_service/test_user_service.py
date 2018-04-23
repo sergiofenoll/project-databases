@@ -1,259 +1,206 @@
-import unittest
-
 from app.user_service.models import UserDataAccess, User
-from config import *
+from app import app
+from app import database as db, user_data_access
+import pytest
+
+def _ci(*args: str):
+    if len(args) == 1:
+        return '"{}"'.format(str(args[0]).replace('"', '""'))
+    return ['"{}"'.format(str(arg).replace('"', '""')) for arg in args]
 
 
-class TestUserService(unittest.TestCase):
+def _cv(*args: str):
+    if len(args) == 1:
+        return "'{}'".format(str(args[0]).replace("'", "''"))
+    return ["'{}'".format(str(arg).replace("'", "''")) for arg in args]
 
-    def test_cmp_users(self):
-        username = "test_username"
-        password = "test_pass"
-        firstname = "test_fname"
-        lastname = "test_lname"
-        email = "test_email@test.com"
-        status = "user"
-        active = True
 
-        # Create user_obj to compare with self
-        user_obj1 = User(username=username, password=password, firstname=firstname, lastname=lastname, email=email,
-                         status=status, active=active)
+def insert_user_with_query(username, password, firstname, lastname, email, active, status)
+    # Insert user into db
+    query = 'INSERT INTO Member(Username,Pass,FirstName,LastName,Email,Status,Active) VALUES({},{},{},{},{},{})'.format(
+        *_ci(username, password, firstname, lastname, email, status, active))
+    db.engine.execute(query)
 
-        user_obj2 = User(username=username, password=password, firstname=firstname, lastname=lastname, email=email,
-                         status=status, active=active)
+def delete_user_with_query(username):
+    # Remove test_user after test
+    query = 'DELETE FROM Member WHERE UserName={}'.format(_cv(username))
+    db.engine.execute(query)
 
-        self.assertTrue(user_obj1 == user_obj2)
 
-    def connect(self):
-        connection = DBConnection(dbname=config_data['dbname'], dbuser=config_data['dbuser'],
-                                  dbpass=config_data['dbpass'], dbhost=config_data['dbhost'])
-        return connection
+def test_cmp_users():
+    username = "test_username"
+    password = "test_pass"
+    firstname = "test_fname"
+    lastname = "test_lname"
+    email = "test_email@test.com"
+    status = "user"
+    active = True
 
-    def test_add_user(self):
-        connection = self.connect()
-        cursor = connection.get_cursor()
+    # Create user_obj to compare with self
+    user_obj1 = User(username=username, password=password, firstname=firstname, lastname=lastname, email=email,
+                     status=status, active=active)
+    user_obj2 = User(username=username, password=password, firstname=firstname, lastname=lastname, email=email,
+                     status=status, active=active)
 
-        username = "test_username"
-        password = "test_pass"
-        firstname = "test_fname"
-        lastname = "test_lname"
-        email = "test_email@test.com"
-        status = "user"
-        active = True
+    assert (user_obj1 == user_obj2)
 
-        # Create obj to access user data in db
-        user_data_access_obj = UserDataAccess(dbconnect=connection)
 
-        # Remove test_user before trying to add
-        cursor.execute('DELETE FROM Member WHERE UserName=%s', (username,))
-        connection.commit()
+def test_add_user():
+    username = "test_username"
+    password = "test_pass"
+    firstname = "test_fname"
+    lastname = "test_lname"
+    email = "test_email@test.com"
+    status = "user"
+    active = True
 
-        # Create user_obj to add to db
-        user_obj = User(username=username, password=password, firstname=firstname, lastname=lastname, email=email,
-                        status=status, active=active)
+    # Create user_obj to add to db
+    user_obj = User(username=username, password=password, firstname=firstname, lastname=lastname, email=email,
+                    status=status, active=active)
 
-        # Add user to db using UserDataAccess class
-        user_data_access_obj.add_user(user_obj)
+    # Add user to db using UserDataAccess class
+    user_data_access.add_user(user_obj)
 
-        # Retrieve test_user data from db
-        query = cursor.mogrify(
-            'SELECT * FROM Member WHERE Username=%s;',
-            (username,))
-        cursor.execute(query)
+    # Retrieve test_user data from db
+    query = 'SELECT * FROM Member WHERE Username={};'.format(_cv(username))
 
-        row = cursor.fetchone()
+    result = db.engine.execute(query)
+    row = result.first()
 
-        self.assertIsNotNone(row)
-
+    if row is not None:
         db_user_obj = User(row['username'], row['pass'], row['firstname'], row['lastname'], row['email'],
-                           row['status'], row['active'])
-
-        self.assertTrue(user_obj == db_user_obj)
-
-        # Remove test_user after test
-        cursor.execute('DELETE FROM Member WHERE UserName=%s', (username,))
-        connection.commit()
-
-    def test_get_user(self):
-        connection = self.connect()
-        cursor = connection.get_cursor()
-
-        username = "test_username"
-        password = "test_pass"
-        firstname = "test_fname"
-        lastname = "test_lname"
-        email = "test_email@test.com"
-        status = "user"
-        active = True
-
-        # Create obj to access user data in db
-        user_data_access_obj = UserDataAccess(dbconnect=connection)
-
-        # Remove test_user before trying to add
-        cursor.execute('DELETE FROM Member WHERE UserName=%s', (username,))
-        connection.commit()
-
-        # Insert user into db
-        query = cursor.mogrify(
-            'INSERT INTO Member(Username,Pass,FirstName,LastName,Email,Status,Active) '
-            'VALUES(%s,%s,%s,%s,%s,%s,%s)', (username, password, firstname, lastname, email, status, active,))
-        cursor.execute(query)
-        connection.commit()
-
-        # Create user_obj to compare with db_user_obj
-        user_obj = User(username=username, password=password, firstname=firstname, lastname=lastname, email=email,
-                        status=status, active=active)
-
-        # Retrieve db_user_obj using UserDataAccess class
-        db_user_obj = user_data_access_obj.get_user(username)
-
-        self.assertEqual(user_obj, db_user_obj)
+                       row['status'], row['active'])
+        assert (user_obj == db_user_obj)
 
         # Remove test_user after test
-        cursor.execute('DELETE FROM Member WHERE UserName=%s', (username,))
-        connection.commit()
+        delete_user_with_query(username)
+    else:
+        assert False
 
-    def test_get_users(self):
-        connection = self.connect()
-        cursor = connection.get_cursor()
 
-        username = "test_username"
-        password = "test_pass"
-        firstname = "test_fname"
-        lastname = "test_lname"
-        email = "test_email@test.com"
-        status = "user"
-        active = True
+def test_get_user():
+    username = "test_username"
+    password = "test_pass"
+    firstname = "test_fname"
+    lastname = "test_lname"
+    email = "test_email@test.com"
+    status = "user"
+    active = True
 
-        # Create obj to access user data in db
-        user_data_access_obj = UserDataAccess(dbconnect=connection)
+    insert_user_with_query(username, password, firstname, lastname, email, active, status)
 
-        # Remove test_user before trying to add
-        cursor.execute('DELETE FROM Member WHERE UserName=%s', (username,))
-        connection.commit()
+    # Create user_obj to compare with db_user_obj
+    user_obj = User(username=username, password=password, firstname=firstname, lastname=lastname, email=email,
+                    status=status, active=active)
 
-        # Insert user into db
-        query = cursor.mogrify(
-            'INSERT INTO Member(Username,Pass,FirstName,LastName,Email,Status,Active) '
-            'VALUES(%s,%s,%s,%s,%s,%s,%s)', (username, password, firstname, lastname, email, status, active,))
-        cursor.execute(query)
-        connection.commit()
+    # Retrieve db_user_obj using UserDataAccess class
+    db_user_obj = user_data_access.get_user(username)
 
-        # Create user_obj to compare with db_user_obj
-        user_obj = User(username=username, password=password, firstname=firstname, lastname=lastname, email=email,
-                        status=status, active=active)
+    assert (user_obj == db_user_obj)
 
-        # Retrieve db_user_obj using UserDataAccess class
-        db_user_objs = user_data_access_obj.get_users()
-        db_user_found = False
+    delete_user_with_query(username)
 
-        for db_user_obj in db_user_objs:
-            if db_user_obj.username == user_obj.username:
-                db_user_found = True
 
-                self.assertEqual(user_obj, db_user_obj)
-                break
+def test_get_users():
+    username = "test_username"
+    password = "test_pass"
+    firstname = "test_fname"
+    lastname = "test_lname"
+    email = "test_email@test.com"
+    status = "user"
+    active = True
 
-        self.assertTrue(db_user_found)
+    # Insert user into db
+    query = 'INSERT INTO Member(Username,Pass,FirstName,LastName,Email,Status,Active) VALUES({},{},{},{},{},{})'.format(
+        *_ci(username, password, firstname, lastname, email, status, active))
+    db.engine.execute(query)
 
-        # Remove test_user after test
-        cursor.execute('DELETE FROM Member WHERE UserName=%s', (username,))
-        connection.commit()
+    insert_user_with_query(username, password, firstname, lastname, email, active, status)
 
-    def test_login_user(self):
-        connection = self.connect()
-        cursor = connection.get_cursor()
+    # Create user_obj to compare with db_user_obj
+    user_obj = User(username=username, password=password, firstname=firstname, lastname=lastname, email=email,
+                    status=status, active=active)
 
-        username = "test_username"
-        password = "test_pass"
-        firstname = "test_fname"
-        lastname = "test_lname"
-        email = "test_email@test.com"
-        status = "user"
-        active = True
+    # Retrieve db_user_obj using UserDataAccess class
+    db_user_objs = user_data_access.get_users()
+    db_user_found = False
 
-        # Create obj to access user data in db
-        user_data_access_obj = UserDataAccess(dbconnect=connection)
+    for db_user_obj in db_user_objs:
+        if db_user_obj.username == user_obj.username:
+            db_user_found = True
 
-        # Remove test_user before trying to add
-        cursor.execute('DELETE FROM Member WHERE UserName=%s', (username,))
-        connection.commit()
+            assert(user_obj == db_user_obj)
+            break
 
-        # Insert user into db
-        query = cursor.mogrify(
-            'INSERT INTO Member(Username,Pass,FirstName,LastName,Email,Status,Active) '
-            'VALUES(%s,%s,%s,%s,%s,%s,%s)', (username, password, firstname, lastname, email, status, active,))
-        cursor.execute(query)
-        connection.commit()
+    assert(db_user_found == True)
 
-        # Login in user, returns password
-        db_user_pass = user_data_access_obj.login_user(username)
+    # Remove test_user after test
+    delete_user_with_query(username)
 
-        self.assertEqual(db_user_pass, password)
+def test_login_user():
+    username = "test_username"
+    password = "test_pass"
+    firstname = "test_fname"
+    lastname = "test_lname"
+    email = "test_email@test.com"
+    status = "user"
+    active = True
 
-        # Remove test_user after test
-        cursor.execute('DELETE FROM Member WHERE UserName=%s', (username,))
-        connection.commit()
+    # Insert user into db
+    query = 'INSERT INTO Member(Username,Pass,FirstName,LastName,Email,Status,Active) VALUES({},{},{},{},{},{})'.format(
+        *_ci(username, password, firstname, lastname, email, status, active))
+    db.engine.execute(query)
 
-        # Try login in using non-existant username, raises exception
-        self.assertRaises(Exception, user_data_access_obj.login_user, username)
 
-    def test_alter_user(self):
-        connection = self.connect()
-        cursor = connection.get_cursor()
+    # Login in user, returns password
+    db_user_pass = user_data_access.login_user(username)
 
-        username = "test_username"
-        password = "test_pass"
-        firstname = "test_fname"
-        lastname = "test_lname"
-        email = "test_email@test.com"
-        status = "user"
-        active = True
+    assert(db_user_pass == password)
 
-        altered_password = "altered_test_pass"
-        altered_firstname = "altered_test_fname"
-        altered_lastname = "altered_test_lname"
-        altered_email = "altered_est_email@test.com"
-        altered_status = "admin"
-        altered_active = False
+    # Remove test_user after test
+    delete_user_with_query(username)
 
-        # Create obj to access user data in db
-        user_data_access_obj = UserDataAccess(dbconnect=connection)
+    # Try login in using non-existant username, raises exception
+    pytest.raises(Exception, user_data_access.login_user, username)
 
-        # Remove test_user before trying to add
-        cursor.execute('DELETE FROM Member WHERE UserName=%s', (username,))
-        connection.commit()
 
-        # Insert user into db
-        query = cursor.mogrify(
-            'INSERT INTO Member(Username,Pass,FirstName,LastName,Email,Status,Active) '
-            'VALUES(%s,%s,%s,%s,%s,%s,%s)', (username, password, firstname, lastname, email, status, active,))
-        cursor.execute(query)
-        connection.commit()
+def test_alter_user():
+    username = "test_username"
+    password = "test_pass"
+    firstname = "test_fname"
+    lastname = "test_lname"
+    email = "test_email@test.com"
+    status = "user"
+    active = True
 
-        # Create altered_user_obj
-        altered_user_obj = User(username=username, password=altered_password, firstname=altered_firstname,
-                                lastname=altered_lastname, email=altered_email,
-                                status=altered_status, active=altered_active)
+    altered_password = "altered_test_pass"
+    altered_firstname = "altered_test_fname"
+    altered_lastname = "altered_test_lname"
+    altered_email = "altered_est_email@test.com"
+    altered_status = "admin"
+    altered_active = False
 
-        user_data_access_obj.alter_user(altered_user_obj)
+    # Insert user into db
+    insert_user_with_query(username, firstname, lastname, email, active, status)
 
-        # Retrieve db_user_obj from db
-        cursor.execute(
-            'SELECT Username,Pass, FirstName, LastName, Email, Status, Active FROM Member WHERE Username=%s;',
-            (username,))
-        row = cursor.fetchone()
+    # Create altered_user_obj
+    altered_user_obj = User(username=username, password=altered_password, firstname=altered_firstname,
+                            lastname=altered_lastname, email=altered_email,
+                            status=altered_status, active=altered_active)
 
-        self.assertIsNotNone(row)
+    user_data_access.alter_user(altered_user_obj)
+
+    # Retrieve db_user_obj from db
+    query = 'SELECT Username,Pass, FirstName, LastName, Email, Status, Active FROM Member WHERE Username=%s;'.format(_cv(username))
+    result = db.engine.execute(query)
+    row = result.first()
+
+    if row is not None:
         db_altered_user_obj = User(row['username'], row['pass'], row['firstname'], row['lastname'], row['email'],
                                    row['status'], row['active'])
-
-        self.assertTrue(altered_user_obj == db_altered_user_obj)
+        assert(altered_user_obj == db_altered_user_obj)
 
         # Remove test_user after test
-        cursor.execute('DELETE FROM Member WHERE UserName=%s', (username,))
-        connection.commit()
-
-
-if __name__ == '__main__':
-    unittest.main()
+        delete_user_with_query(username )
+    else:
+        assert False

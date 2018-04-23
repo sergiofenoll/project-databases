@@ -4,14 +4,21 @@
 # If after reading the above and looking at the existing files
 # you're still not sure how/where to add new functionality, send Sergio a message
 
+import sys
 from flask import Flask
 from flask_login import LoginManager
 from flask_sqlalchemy import SQLAlchemy
 from config import *
 
 app = Flask(__name__)
+'''
+if len(sys.argv == 2):
+    if sys.argv[1] == 'test':
+        app.config.from_object('test_config')  # See: http://flask.pocoo.org/docs/0.12/config/
+else:
+    app.config.from_object('config')  # See: http://flask.pocoo.org/docs/0.12/config/
+'''
 app.config.from_object('config')  # See: http://flask.pocoo.org/docs/0.12/config/
-
 database = SQLAlchemy(app)
 login = LoginManager(app)
 login.init_app(app)

@@ -203,6 +203,7 @@ def discretize(dataset_id, table_name):
     discretization = request.args.get('discretization')
     try:
         if discretization == 'eq-width':
+            print('porque zo dom iedereen?')
             num_intervals = int(request.args.get('num-intervals'))
             numerical_transformer.equal_width_interval(dataset_id, table_name, column_name, num_intervals)
         elif discretization == 'eq-freq':

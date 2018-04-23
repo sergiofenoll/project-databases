@@ -13,6 +13,7 @@ def _cv(*args: str):
         return "'{}'".format(str(args[0]).replace("'", "''"))
     return ["'{}'".format(str(arg).replace("'", "''")) for arg in args]
 
+
 class User:
     def __init__(self, username, password, firstname, lastname, email, status, active):
         self.username = username
@@ -56,9 +57,10 @@ class UserDataAccess:
 
     def add_user(self, user_obj):
         try:
-            query = 'INSERT INTO Member(Username,Pass,FirstName,LastName,Email,Status,Active) VALUES({},{},{},{},{},{},{})'.format(*_cv(
-                user_obj.username, user_obj.password, user_obj.firstname, user_obj.lastname, user_obj.email,
-            user_obj.status), user_obj.is_active)
+            query = 'INSERT INTO Member(Username,Pass,FirstName,LastName,Email,Status,Active) VALUES({},{},{},{},{},{},{})'.format(
+                *_cv(
+                    user_obj.username, user_obj.password, user_obj.firstname, user_obj.lastname, user_obj.email,
+                    user_obj.status), user_obj.is_active)
             db.engine.execute(query)
             return True
         except Exception as e:
@@ -91,18 +93,18 @@ class UserDataAccess:
         else:
             return None
 
-
     def alter_user(self, user):
         try:
-            query = 'UPDATE Member SET Firstname = {}, Lastname = {}, Email = {}, Pass = {}, Status = {}, Active = {} WHERE Username={};'.format(*_cv(
-                user.firstname, user.lastname, user.email, user.password, str(user.status), str(user.is_active), user.username))
+            query = 'UPDATE Member SET Firstname = {}, Lastname = {}, Email = {}, Pass = {}, Status = {}, Active = {} WHERE Username={};'.format(
+                *_cv(
+                    user.firstname, user.lastname, user.email, user.password, str(user.status), str(user.is_active),
+                    user.username))
 
             db.engine.execute(query)
             return True
         except Exception as e:
             app.logger.exception(e)
             raise e
-
 
     def delete_user(self, data_loader, username):
         """remove user and all of its datasets"""

@@ -3,6 +3,12 @@
     <div class="row">
         <div class="col-sm-2"></div>
         <div class="col-sm-8">
+            {% for message in get_flashed_messages(with_categories=True) %}
+                <div class="alert alert-{{ message[0] }}">
+                    <button type="button" class="close" data-dismiss="alert">&times;</button>
+                    {{ message[1] }}
+                </div>
+            {% endfor %}
             <form action="/user-data" method="post">
                 <div class="form-group">
                     <label for="lg-fname">First name</label>
@@ -45,18 +51,6 @@
                     <input type="password" class="form-control" id="lg-current-password" name="lg-current-password"
                            placeholder="Password" required>
                 </div>
-                {% if data_updated %}
-                    <div class="alert alert-success">
-                        <strong>Success!</strong><br>
-                        User Data was changed.
-                    </div>
-                {% endif %}
-                {% if wrong_password %}
-                    <div class="alert alert-danger">
-                        <strong>Failed login attempt!</strong><br>
-                        Check your password.
-                    </div>
-                {% endif %}
                 <button type="submit" class="btn btn-default" id="change" value="submit">Submit</button>
                 <button type="reset" class="btn btn-default" id="reset">Reset</button>
 

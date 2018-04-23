@@ -101,7 +101,7 @@ class UserDataAccess:
             return True
         except Exception as e:
             app.logger.exception(e)
-            raise e
+            raise Exception
 
     def delete_user(self, data_loader, username):
         """remove user and all of its datasets"""

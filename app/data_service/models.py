@@ -167,7 +167,7 @@ class DataLoader:
             app.logger.exception(e)
             raise e
 
-    def create_table(self, name, schema_id, columns, desc="Default description"):
+    def create_table(self, name, schema_id, columns, desc="Default description", raw=False):
         """
          This method takes a schema, name and a list of columns and creates the corresponding table
         """
@@ -188,7 +188,8 @@ class DataLoader:
 
         try:
             db.engine.execute(query)
-            db.engine.execute(raw_table_query)
+            if raw:
+                db.engine.execute(raw_table_query)
         except Exception as e:
             app.logger.error("[ERROR] Failed to create table '" + name + "'")
             app.logger.exception(e)
@@ -394,7 +395,7 @@ class DataLoader:
             for line in csv:
                 if not append:
                     columns = line.strip().split(',')
-                    self.create_table(tablename, schema_id, columns)
+                    self.create_table(tablename, schema_id, columns, True)
                 break
 
         df = pd.read_csv(file)
@@ -470,7 +471,7 @@ class DataLoader:
                         columns = ['col' + str(i) for i in range(1, len(values_list[0]) + 1)]
 
                     if not self.table_exists(tablename, schema_id):
-                        self.create_table(tablename, schema_id, columns)
+                        self.create_table(tablename, schema_id, columns, True)
                     for values in values_list:
                         val_dict = dict()
                         for c_ix in range(len(columns)):

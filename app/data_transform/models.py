@@ -335,4 +335,4 @@ class OneHotEncode:
             for _label in range(len(labels)):
                 ohe_row_values[labels[_label]] = str(int(one_hot_encoded[_row][_label]))
 
-            self.dataloader.insert_row(ohe_table_name, schema_id, ohe_row_values, ohe_row_values)
+            self.dataloader.insert_row(ohe_table_name, schema_id, ohe_row_values, ohe_row_values, False)

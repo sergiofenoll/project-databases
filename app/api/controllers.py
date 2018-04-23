@@ -1,6 +1,6 @@
 from flask import Blueprint, jsonify, request, send_from_directory
 
-from app import data_loader, date_time_transformer, data_transformer, numerical_transformer, UPLOAD_FOLDER
+from app import data_loader, date_time_transformer, data_transformer, numerical_transformer, one_hot_encoder, UPLOAD_FOLDER
 from app.history.models import History
 
 api = Blueprint('api', __name__)
@@ -249,8 +249,12 @@ def chart(dataset_id, table_name):
 
     if column_type not in ['real', 'double', 'integer', 'timestamp']:
         return jsonify(numerical_transformer.chart_data_categorical(dataset_id, table_name, column_name))
-        # data['chart'] = 'bar'
     else:
         return jsonify(numerical_transformer.chart_data_numerical(dataset_id, table_name, column_name))
-        # data['chart'] = 'pie'
-    # return jsonify(data)
+
+      
+@api.route('/api/datasets/<int:dataset_id>/tables/<string:table_name>/one-hot-encode-column', methods=['PUT'])
+def one_hot_encode(dataset_id, table_name):
+    column_name = request.args.get('col-name')
+    one_hot_encoder.encode(dataset_id, table_name, column_name)
+    return jsonify({'success': True}), 200

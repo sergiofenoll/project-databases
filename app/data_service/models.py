@@ -206,18 +206,26 @@ class DataLoader:
             raise e
 
     def delete_table(self, name, schema_id):
+        connection = db.engine.connect()
+        transaction = connection.begin()
         try:
-            db.engine.execute('DROP TABLE {}.{};'.format(*_ci(schema_id, name)))
-            db.engine.execute('DROP TABLE IF EXISTS {}.{};'.format(*_ci(schema_id, "_raw_" + name)))
+            table_query = 'DROP TABLE {}.{};'.format(*_ci(schema_id, name))
+            raw_table_query = 'DROP TABLE IF EXISTS {}.{};'.format(*_ci(schema_id, "_raw_" + name))
+            connection.execute(table_query)
+            connection.execute(raw_table_query)
+            transaction.commit()
         except Exception as e:
+            transaction.rollback()
             app.logger.error("[ERROR] Failed to delete table '" + name + "'")
             app.logger.exception(e)
             raise e
 
         # Delete metadata
         try:
-            db.engine.execute('DELETE FROM metadata WHERE id_table = {};'.format(_cv(name)))
+            metadata_query = 'DELETE FROM metadata WHERE id_table = {};'.format(_cv(name))
+            connection.execute(metadata_query)
         except Exception as e:
+            transaction.rollback()
             app.logger.error("[ERROR] Failed to delete metadata for table '" + name + "'")
             app.logger.exception(e)
             raise e
@@ -225,9 +233,10 @@ class DataLoader:
         # Delete history
         try:
             schema_name = 'schema-' + str(schema_id)
-            db.engine.execute(
-                'DELETE FROM HISTORY WHERE id_dataset={} AND id_table={};'.format(*_cv(schema_name, name)))
+            history_query = 'DELETE FROM HISTORY WHERE id_dataset={} AND id_table={};'.format(*_cv(schema_name, name))
+            connection.execute(history_query)
         except Exception as e:
+            transaction.rollback()
             app.logger.error("[ERROR] Failed to delete history for table '" + name + "'")
             app.logger.exception(e)
             raise e
@@ -1143,8 +1152,6 @@ class TableJoiner:
             app.logger.error("[ERROR] Failed to add unique id to table '" + table_name + "'")
             app.log_exception(e)
             raise e
-        except:
-            print("lel")
 
         # Reorder columns
         try:

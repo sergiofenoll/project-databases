@@ -388,13 +388,14 @@ class DataLoader:
         import pandas as pd
 
         # TODO: Test if this works
+        raw_tablename = '_raw_' + tablename
         schema_name = 'schema-' + str(schema_id)
 
         with open(file, "r") as csv:
             for line in csv:
                 if not append:
                     columns = line.strip().split(',')
-                    self.create_table(tablename, schema_id, columns)
+                    self.create_table(tablename, schema_id, columns, raw=True)
                 break
 
         df = pd.read_csv(file)

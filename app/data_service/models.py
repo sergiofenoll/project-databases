@@ -209,35 +209,25 @@ class DataLoader:
         connection = db.engine.connect()
         transaction = connection.begin()
         try:
+            # Delete table
             table_query = 'DROP TABLE {}.{};'.format(*_ci(schema_id, name))
             raw_table_query = 'DROP TABLE IF EXISTS {}.{};'.format(*_ci(schema_id, "_raw_" + name))
             connection.execute(table_query)
             connection.execute(raw_table_query)
+
+            # Delete metadata
+            metadata_query = 'DELETE FROM metadata WHERE id_table = {};'.format(_cv(name))
+            connection.execute(metadata_query)
+
+            # Delete history
+            schema_name = 'schema-' + str(schema_id)
+            history_query = 'DELETE FROM HISTORY WHERE id_dataset={} AND id_table={};'.format(*_cv(schema_name, name))
+            connection.execute(history_query)
+
             transaction.commit()
         except Exception as e:
             transaction.rollback()
             app.logger.error("[ERROR] Failed to delete table '" + name + "'")
-            app.logger.exception(e)
-            raise e
-
-        # Delete metadata
-        try:
-            metadata_query = 'DELETE FROM metadata WHERE id_table = {};'.format(_cv(name))
-            connection.execute(metadata_query)
-        except Exception as e:
-            transaction.rollback()
-            app.logger.error("[ERROR] Failed to delete metadata for table '" + name + "'")
-            app.logger.exception(e)
-            raise e
-
-        # Delete history
-        try:
-            schema_name = 'schema-' + str(schema_id)
-            history_query = 'DELETE FROM HISTORY WHERE id_dataset={} AND id_table={};'.format(*_cv(schema_name, name))
-            connection.execute(history_query)
-        except Exception as e:
-            transaction.rollback()
-            app.logger.error("[ERROR] Failed to delete history for table '" + name + "'")
             app.logger.exception(e)
             raise e
 

@@ -9,6 +9,7 @@ api = Blueprint('api', __name__)
 _history = History()
 
 
+
 @api.route('/api/datasets/<int:dataset_id>/tables/<string:table_name>', methods=['GET'])
 def get_table(dataset_id, table_name):
     start = request.args.get('start')
@@ -319,7 +320,6 @@ def chart(dataset_id, table_name):
     except Exception:
         flash(u"Charts couldn't be produced.", 'danger')
         return jsonify({'error': True}), 400
-
 
 @api.route('/api/datasets/<int:dataset_id>/tables/<string:table_name>/one-hot-encode-column', methods=['PUT'])
 def one_hot_encode(dataset_id, table_name):

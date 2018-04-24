@@ -1,0 +1,73 @@
+<div class="modal" tabindex="-1" role="dialog" aria-hidden="true" id="removePredicate">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <form action="/datasets/{{ current_user.active_schema }}/tables/{{ table.name }}/remove-rows"
+                  method="post"
+                  class="form-inline" id="formRemovePredicate">
+                <div class="modal-header">
+                    <h5 class="modal-title">Remove rows</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body form-group">
+                    <div data-dynamic-form>
+                        <div data-dynamic-form-template="multi">
+                            <select class="form-control" form="formRemovePredicate" name="join[ID]"
+                                    data-dynamic-form-input-id-template="ID"
+                                    id="join[ID]-AndOr">
+                                <option value="AND">AND</option>
+                                <option value="OR">OR</option>
+                            </select>
+                            <select class="form-control" form="formRemovePredicate" name="join[ID]"
+                                    data-dynamic-form-input-id-template="ID"
+                                    id="join[ID]-column">
+                                {% for column in table.columns[1:] %}
+                                    <option value="{{ column.name }}">{{ column.name|capitalize }}</option>
+                                {% endfor %}
+                            </select>
+                            <select class="form-control" form="formRemovePredicate" name="join[ID]"
+                                    data-dynamic-form-input-id-template="ID"
+                                    id="join[ID]-condition">
+                                <option value="=">equals</option>
+                                <option value="<>">doesn't equal</option>
+                                <option value="<">less than</option>
+                                <option value="<=">less or equals</option>
+                                <option value=">">more than</option>
+                                <option value=">=">more than or equals</option>
+                                <option value="CONTAINS">contains</option>
+                            </select>
+                            <input class="form-control" form="formRemovePredicate" name="join[ID]"
+                                   data-dynamic-form-input-id-template="ID"
+                                   id="join[ID]-value">
+
+                            <button class="btn btn-secondary" type="button" data-dynamic-form-remove>Remove
+                            </button>
+                            <button class="btn btn-primary" type="button" data-dynamic-form-add>Add</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="submit" class="btn btn-primary">Delete</button>
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+<script>
+    $('#formFindAndReplace').submit(function (e) {
+        e.preventDefault();
+        $.ajax({
+            type: 'PUT',
+            url: '/api' + window.location.pathname + '/find-and-replace?' + $('#formFindAndReplace').serialize(),
+            success: function () {
+                window.location.reload();
+            },
+            error: function () {
+                window.location.reload();
+            }
+        });
+        $('#formFindAndReplace').modal('hide');
+    });
+</script>

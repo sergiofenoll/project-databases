@@ -1,0 +1,53 @@
+<div class="modal" tabindex="-1" role="dialog" aria-hidden="true" id="updateColumn">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <form class="form-group" id="formUpdateColumn">
+                <div class="modal-header">
+                    <h5 class="modal-title">Update column type</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <label for="col-name">Column</label>
+                    <select class="form-control" name="col-name" id="col-name">
+                        {% for column in table.columns[1:] %}
+                            <option value="{{ column.name }}">{{ column.name|capitalize }}
+                                ({{ column.type|capitalize }})
+                            </option>
+                        {% endfor %}
+                    </select>
+                    <label for="col-type">Column type</label>
+                    <select class="form-control" name="col-type" id="col-type">
+                        <option value="INT">INTEGER</option>
+                        <option value="DOUBLE PRECISION">DOUBLE</option>
+                        <option value="TIMESTAMP">DATE/TIME</option>
+                        <option value="VARCHAR(255)">TEXT</option>
+                        <option value="BIT">BIT</option>
+                    </select>
+                </div>
+                <div class="modal-footer">
+                    <button type="submit" class="btn btn-primary">Save changes
+                    </button>
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+<script>
+    $('#formUpdateColumn').submit(function (e) {
+        e.preventDefault();
+        $.ajax({
+            type: 'PUT',
+            url: '/api' + window.location.pathname + '/columns?' + $('#formUpdateColumn').serialize(),
+            success: function () {
+                window.location.reload();
+            },
+            error: function () {
+                window.location.reload();
+            }
+        });
+        $('#updateColumn').modal('hide');
+    });
+</script>

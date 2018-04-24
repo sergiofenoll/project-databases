@@ -13,9 +13,11 @@ psql -U postgres -c "ALTER ROLE dbadmin CREATEDB;"
 psql -U postgres -c "CREATE DATABASE userdb OWNER dbadmin;"
 psql -U postgres -c "GRANT ALL PRIVILEGES ON DATABASE userdb TO dbadmin;"
 
-psql -U dbadmin -d userdb -f sql/tables.sql
+psql -U postgres -c "CREATE DATABASE test_userdb OWNER dbadmin;"
+psql -U postgres -c "GRANT ALL PRIVILEGES ON DATABASE test_userdb TO dbadmin;"
 
-cp src/default_config.py src/config.py
+psql -U dbadmin -d userdb -f sql/tables.sql
+psql -U dbadmin -d test_userdb -f sql/tables.sql
 
 virtualenv venv/
 source venv/bin/activate

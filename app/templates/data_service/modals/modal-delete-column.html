@@ -1,0 +1,43 @@
+<div class="modal" tabindex="-1" role="dialog" aria-hidden="true" id="deleteColumn">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <form class="form-group" id="formDeleteColumn">
+                <div class="modal-header">
+                    <h5 class="modal-title">Delete column</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <label for="col-name">Column</label>
+                    <select class="form-control" name="col-name" id="col-name">
+                        {% for column in table.columns[1:] %}
+                            <option value="{{ column.name }}">{{ column.name|capitalize }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="modal-footer">
+                    <button type="submit" class="btn btn-primary">Save changes
+                    </button>
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+<script>
+    $('#formDeleteColumn').submit(function (e) {
+        e.preventDefault();
+        $.ajax({
+            type: 'DELETE',
+            url: '/api' + window.location.pathname + '/columns?' + $('#formDeleteColumn').serialize(),
+            success: function () {
+                window.location.reload();
+            },
+            error: function () {
+                window.location.reload();
+            }
+        });
+        $('#deleteColumn').modal('hide');
+    });
+</script>

@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% block content %}
+    <div class="row">
+        <div class="col-sm-2"></div>
+        <div class="col-sm-8">
+            {% for message in get_flashed_messages(with_categories=True) %}
+                <div class="alert alert-{{ message[0] }}">
+                    <button type="button" class="close" data-dismiss="alert">&times;</button>
+                    {{ message[1] }}
+                </div>
+            {% endfor %}
+            <form action="/register" method="post">
+                <div class="form-group">
+                    <label for="lg-fname">First name</label>
+                    <input type="text" class="form-control" id="lg-fname" name="lg-fname" placeholder="First name"
+                           required>
+                </div>
+                <div class="form-group">
+                    <label for="lg-lname">Last name</label>
+                    <input type="text" class="form-control" id="lg-lname" name="lg-lname" placeholder="Last name"
+                           required>
+                </div>
+                <div class="form-group">
+                    <span for="lg-username">Username</span>
+                    <input type="text" class="form-control" id="lg-username" name="lg-username" placeholder="Username"
+                           required>
+                </div>
+                <div class="form-group">
+                    <label for="lg-password">Password</label>
+                    <input type="password" class="form-control" id="lg-password" name="lg-password"
+                           placeholder="Password" required>
+                </div>
+                <div class="form-group">
+                    <label for="lg-confirm-password">Confirm Password</label>
+                    <input type="password" class="form-control" id="lg-confirm-password" name="lg-confirm-password"
+                           placeholder="Password" required>
+                </div>
+                <div class="form-group">
+                    <label for="lg-email">Email</label>
+                    <input type="email" class="form-control" id="lg-email" name="lg-email" placeholder="Email" required>
+                </div>
+                <div class="form-group">
+                    <label for="lg-status">Status</label>
+                    <select type="status" class="form-control" id="lg-status" name="lg-status" placeholder="Status"
+                            required>
+                        <option value="user">User</option>
+                        <option value="admin">Admin</option>
+                    </select>
+                </div>
+                {% if wrong_password %}
+                    <div class="alert alert-danger">
+                        <strong>Failed register attempt!</strong><br>
+                        Check that password and password confirmation are the same.
+                    </div>
+                {% endif %}
+                <button type="submit" class="btn btn-default" id="register">Submit</button>
+            </form>
+        </div>
+        <div class="col-sm-2"></div>
+    </div>
+
+    <script type="text/javascript">
+        window.onload = function () {
+            document.getElementById("lg-confirm-password").onblur = validatePassword;
+
+        };
+
+        function validatePassword() {
+            var pass2 = document.getElementById("lg-confirm-password").value;
+            var pass1 = document.getElementById("lg-password").value;
+            if (pass1 !== pass2)
+                document.getElementById("lg-confirm-password").setCustomValidity("Passwords don't match");
+            else
+            //empty string means no validation error
+                document.getElementById("lg-confirm-password").setCustomValidity('');
+
+        }
+    </script>
+{% endblock %}

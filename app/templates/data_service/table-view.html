@@ -1,0 +1,220 @@
+{% extends "base.html" %}
+{% block content %}
+    <div class="row">
+        <h1>{{ table.name }}</h1>
+        <p>{{ table.desc }}</p>
+    </div>
+    <div>
+        {% for message in get_flashed_messages(with_categories=True) %}
+            <div class="alert alert-{{ message[0] }}">
+                <button type="button" class="close" data-dismiss="alert">&times;</button>
+                {{ message[1] }}
+            </div>
+        {% endfor %}
+    </div>
+    <div class="row">
+        <div class="col-sm-2">
+            <div class="panel-group" id="accordion">
+                <div class="panel panel-default">
+                    <div class="panel-heading">
+                        <a class="btn btn-dark panel-button" data-toggle="collapse"
+                           data-parent="#accordion"
+                           href="#collapseOne"><i class="fas fa-list-ul"></i> Row transformations</a>
+                    </div>
+                    <div id="collapseOne" class="panel-collapse collapse in">
+                        <div class="panel-body">
+                            <table class="table">
+                                <tr>
+                                    <td><a class="btn btn-light panel-button" data-toggle="modal" data-target="#addRow"
+                                           href="#addRow"><i class="fas fa-plus-square"></i>
+                                        Add row</a></td>
+                                </tr>
+                                <tr>
+                                    <td><a class="btn btn-light panel-button" id="removeRow" href="#"><i
+                                            class="fas fa-minus-circle"></i>
+                                        Remove selected row(s)</a></td>
+                                </tr>
+                                <tr>
+                                    <td><a class="btn btn-light panel-button" data-toggle="modal"
+                                           data-target="#removePredicate" href="#removePredicate"><i
+                                            class="fas fa-minus-circle"></i>
+                                        Remove by predicate</a></td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                <div class="panel panel-default">
+                    <div class="panel-heading">
+                        <a data-toggle="collapse" data-parent="#accordion"
+                           class="btn btn-dark panel-button"
+                           href="#collapseTwo"><i class="fas fa-columns"></i>
+                            Column transformations</a>
+                    </div>
+                    <div id="collapseTwo" class="panel-collapse collapse">
+                        <div class="panel-body">
+                            <table class="table">
+                                <tr>
+                                    <td><a class="btn btn-light panel-button" data-toggle="modal"
+                                           data-target="#addColumn"
+                                           href="#addColumn"><i class="fas fa-plus-square"></i> Add column</a>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td><a class="btn btn-light panel-button" data-toggle="modal"
+                                           data-target="#deleteColumn" href="#deleteColumn"><i
+                                            class="fas fa-minus-circle"></i> Delete column</a></td>
+                                </tr>
+                                <tr>
+                                    <td><a class="btn btn-light panel-button" data-toggle="modal"
+                                           data-target="#updateColumn" href="#updateColumn"><i
+                                            class="fas fa-edit"></i> Change column type</a></td>
+                                </tr>
+                                <tr>
+                                    <td><a class="btn btn-light panel-button" data-toggle="modal"
+                                           data-target="#renameColumnModal" href="#renameColumnModal"><i
+                                            class="fas fa-edit"></i> Rename column</a></td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                <div class="panel panel-default">
+                    <div class="panel-heading">
+                        <a data-toggle="collapse" data-parent="#accordion"
+                           class="btn btn-dark panel-button"
+                           href="#collapseThree"><i class="fas fa-chart-bar"></i>
+                            Numerical transformations</a>
+                    </div>
+                    <div id="collapseThree" class="panel-collapse collapse">
+                        <div class="panel-body">
+                            <table class="table">
+                                <tr>
+                                    <td><a class="btn btn-light panel-button" data-toggle="modal"
+                                           data-target="#normalizeModal"
+                                           href="#normalizeModal"><i class="fas fa-align-center"></i> Normalize</a>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td><a class="btn btn-light panel-button" data-toggle="modal"
+                                           data-target="#discretizeModal" href="#discretizeModal"><i
+                                            class="fas fa-chart-bar"></i> Discretize</a></td>
+                                </tr>
+                                <tr>
+                                    <td><a class="btn btn-light panel-button" data-toggle="modal"
+                                           data-target="#outlierModal" href="#outlierModal"><i
+                                            class="fas fa-filter"></i> Remove outliers</a></td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                <div class="panel panel-default">
+                    <div class="panel-heading">
+                        <a class="btn btn-dark panel-button" data-toggle="modal" data-target="#DateTimeTransformations"
+                           href="#DateTimeTransformations"><i class="fas fa-clock"></i> Date/Time transformations</a>
+                    </div>
+                </div>
+                <div class="panel panel-default">
+                    <div class="panel-heading">
+                        <a class="btn btn-dark panel-button" id="history" href="#"><i class="fas fa-history"></i>
+                            History</a>
+                    </div>
+                </div>
+                <div class="panel panel-default">
+                    <div class="panel-heading">
+                        <a class="btn btn-dark panel-button" data-toggle="modal" data-target="#ImputeMissingData"
+                           href="#ImputeMissingData"><i class="fas fa-syringe"></i> Fill empty data</a>
+                    </div>
+                </div>
+                <div class="panel panel-default">
+                    <div class="panel-heading">
+                        <a class="btn btn-dark panel-button" data-toggle="modal" data-target="#askStats"
+                           href="#askStats"><i class="fas fa-pie-chart"></i> Statistics</a>
+                    </div>
+                </div>
+                <div class="panel panel-default">
+                    <div class="panel-heading">
+                        <a class="btn btn-dark panel-button" data-toggle="modal" data-target="#rawData"
+                           href="#rawData"><i class="fas fa-undo"></i> Raw data</a>
+                    </div>
+                </div>
+                <div class="panel panel-default">
+                    <div class="panel-heading">
+                        <a class="btn btn-dark panel-button" data-toggle="modal" data-target="#exportOptions"
+                           href="#exportOptions"><i class="fas fa-file-code"></i> Export</a>
+                    </div>
+                </div>
+                <div class="panel panel-default">
+                    <div class="panel-heading">
+                        <a class="btn btn-dark panel-button" data-toggle="modal" data-target="#findAndReplace"
+                           href="#findAndReplace"><i class="fas fa-search"></i> Find and replace</a>
+                    </div>
+                </div>
+                <div class="panel panel-default">
+                    <div class="panel-heading">
+                        <a class="btn btn-dark panel-button" data-toggle="modal" data-target="#oneHotEncode"
+                           href="#oneHotEncode"><i class="fas">01</i> One Hot Encode</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-sm-10">
+            <table class="table table-striped table-bordered table-responsive-sm" cellspacing="0" width="100%"
+                   id="dataTable">
+                <thead>
+                <tr>
+                    <th class="scrolling-disabled"></th>
+                    {% for column in table.columns[1:] %}
+
+                        <th>
+                            {{ column.name|capitalize }}
+                        </th>
+                    {% endfor %}
+                </tr>
+                </thead>
+            </table>
+        </div>
+        <script type="text/javascript" charset="utf-8">
+            $(document).ready(function () {
+                    var dynamicForms = new DynamicForms();
+                    dynamicForms.automaticallySetupForm();
+                    var table = $('#dataTable').DataTable({
+                        scrollX: "auto",
+                        scrollY: "50vh",
+                        scrollCollapse: true,
+                        processing: true,
+                        serverSide: true,
+                        ajax: '/api' + window.location.pathname,
+                        order: [[1, 'asc']],
+                        rowsDefs: [{}],
+                        columnDefs: [{
+                            targets: 0,
+                            searchable: false,
+                            orderable: false,
+                            width: '1%', // min width
+                            render: function (data) {
+                                return '<input type="checkbox" class="form-check" name="row-' + data + '" id="row-' + data + '">';
+                            }
+                        }]
+                    });
+                    $('#removeRow').click(function () {
+                        $.ajax({
+                            type: 'DELETE',
+                            url: '/api' + window.location.pathname + '/rows?' + $('input:checked').serialize(),
+                            contentType: 'application/json;charset=UTF-8',
+                            success: function () {
+                                window.location.reload();
+                            }
+                        })
+                    });
+                    $('#history').click(function (e) {
+                        e.preventDefault();
+                        window.location.href = window.location.pathname + '/history';
+                    });
+                }
+            );
+        </script>
+        {% include 'data_service/modals/modals.html' %}
+    </div>
+{% endblock %}

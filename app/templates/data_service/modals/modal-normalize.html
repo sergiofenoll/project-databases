@@ -1,0 +1,46 @@
+<div class="modal" tabindex="-1" role="dialog" aria-hidden="true" id="normalizeModal">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <form class="form-group" id="formNormalizeModal">
+                <div class="modal-header">
+                    <h5 class="modal-title">Normalize data</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <label for="col-name">Column</label>
+                    <select class="custom-select" name="col-name" id="col-name">
+                        {% for column in table.columns[1:] %}
+                            {% if ((column.type == "real") or (column.type == "double") or (column.type == "integer")) %}
+                                <option value="{{ column.name }}">{{ column.name|capitalize }}
+                                    ({{ column.type|capitalize }})
+                                </option>
+                            {% endif %}
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="modal-footer">
+                    <button type="submit" class="btn btn-primary">Normalize
+                    </button>
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+<script>
+    $('#formNormalizeModal').submit(function (e) {
+        e.preventDefault();
+        $.ajax({
+            type: 'PUT',
+            url: '/api' + window.location.pathname + '/normalize?' + $('#formNormalizeModal').serialize(),
+            success: function () {
+                window.location.reload();
+            },
+            error: function () {
+                window.location.reload();
+            }
+        });
+    });
+</script>

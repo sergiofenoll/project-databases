@@ -1,0 +1,51 @@
+<div class="modal" tabindex="-1" role="dialog" aria-hidden="true" id="exportOptions">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <form class="form-group" id="formExportOptions">
+                <div class="modal-header">
+                    <h5 class="modal-title">Export table</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <label for="separator">Separator</label>
+                    <input type="text" class="form-control" name="separator" id="separator"
+                           placeholder="Separator">
+
+                    <label for="quote">Quote character</label>
+                    <input type="text" class="form-control" name="quote_char" id="quote_char"
+                           placeholder="Quote character">
+
+                    <label for="empty-char">Empty character</label>
+                    <input type="text" class="form-control" name="empty_char" id="empty_char"
+                           placeholder="Empty character">
+
+                </div>
+                <div class="modal-footer">
+                    <button type="submit" class="btn btn-primary">Done</button>
+                    <a href="/api/download/{{ table.name }}.csv" id="exportDLBtn" download
+                       style="display:none"></a>
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+<script type="text/javascript" charset="utf-8">
+    $('#formExportOptions').submit(function (e) {
+        e.preventDefault();
+        $.ajax({
+            type: 'PUT',
+            url: '/api' + window.location.pathname + '/export?' + $('#formExportOptions').serialize(),
+            success: function () {
+                document.getElementById('exportDLBtn').click();
+                window.location.reload();
+            },
+            error: function () {
+                window.location.reload();
+            }
+        });
+        $('#formExportOptions').modal('hide');
+    });
+</script>

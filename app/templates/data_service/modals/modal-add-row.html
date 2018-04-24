@@ -1,0 +1,42 @@
+<div class="modal" tabindex="-1" role="dialog" aria-hidden="true" id="addRow">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <form class="form-group" method="post" id="formAddRow">
+                <div class="modal-header">
+                    <h5 class="modal-title">Add row</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    {% for column in table.columns[1:] %}
+                        <label for="value-col-{{ column.name }}">{{ column.name|capitalize }}</label>
+                        <input type="text" class="form-control" name="value-col-{{ column.name }}"
+                               id="value-col-{{ column.name }}">
+                    {% endfor %}
+                </div>
+                <div class="modal-footer">
+                    <button type="submit" class="btn btn-primary">Save changes
+                    </button>
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+<script>
+    $('#formAddRow').submit(function (e) {
+        e.preventDefault();
+        $.ajax({
+            type: 'POST',
+            url: '/api' + window.location.pathname + '/rows?' + $('#formAddRow').serialize(),
+            success: function () {
+                window.location.reload();
+            },
+            error: function () {
+                window.location.reload();
+            }
+        });
+        $('#addRow').modal('hide');
+    });
+</script>

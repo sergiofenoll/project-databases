@@ -1,0 +1,78 @@
+<div class="modal" tabindex="-1" role="dialog" aria-hidden="true" id="discretizeModal">
+	<div class="modal-dialog" role="document">
+		<div class="modal-content">
+			<form class="form-group" id="formDiscretizeModal">
+				<div class="modal-header">
+					<h5 class="modal-title">Discretize data</h5>
+					<button type="button" class="close" data-dismiss="modal" aria-label="Close">
+						<span aria-hidden="true">&times;</span>
+					</button>
+				</div>
+				<div class="modal-body">
+					<label for="col-name">Column</label>
+					<select class="custom-select" name="col-name" id="col-name">
+						{% for column in table.columns[1:] %}
+							{% if ((column.type == "real") or (column.type == "double") or (column.type == "integer")) %}
+								<option value="{{ column.name }}">{{ column.name|capitalize }}
+									({{ column.type|capitalize }})
+								</option>
+							{% endif %}
+						{% endfor %}
+					</select>
+					<label for="discretization">Option</label>
+					<select class="custom-select" name="discretization" id="discretization"
+									onchange="displayOnSelect(this);">
+						<option value="" selected hidden>Choose discretization...</option>
+						<option value="eq-width">Equal width ranges</option>
+						<option value="eq-freq">Equal frequency ranges</option>
+						<option value="manual">Manual ranges</option>
+					</select>
+					<div class="show-when-discretization select-eq-width select-eq-freq" style="display: none;">
+						<label for="num-intervals">Number of intervals</label>
+						<input name="num-intervals" id="num-intervals" class="form-control"
+									 aria-describedby="numIntervalsHelpBlock">
+						<small id="numIntervalsHelpBlock" class="form-text text-muted">
+							Choose the amount of intervals you want
+						</small>
+					</div>
+					<div class="show-when-discretization select-manual" style="display: none;">
+						<label for="intervals">Ranges</label>
+						<input name="intervals" id="intervals" class="form-control"
+									 aria-describedby="intervalsHelpBlock">
+						<small id="intervalsHelpBlock" class="form-text text-muted">
+							Define a range [a, b), [b, c) as follows: a, b, c
+						</small>
+					</div>
+					<script>
+						function displayOnSelect(select) {
+							$('.show-when-' + select.id).hide();
+							$('.show-when-' + select.id).find('input').removeAttr('required');
+							$('.select-' + select.value).show();
+							$('.select-' + select.value).find('input').attr('required', 'required');
+						}
+					</script>
+				</div>
+				<div class="modal-footer">
+					<button type="submit" class="btn btn-primary">Discretize
+					</button>
+					<button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+				</div>
+			</form>
+		</div>
+	</div>
+</div>
+<script>
+	$('#formDiscretizeModal').submit(function (e) {
+		e.preventDefault();
+		$.ajax({
+			type: 'PUT',
+			url: '/api' + window.location.pathname + '/discretize?' + $('#formDiscretizeModal').serialize(),
+			success: function () {
+				window.location.reload();
+			},
+			error: function () {
+				window.location.reload();
+			}
+		});
+	});
+</script>

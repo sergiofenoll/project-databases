@@ -1,0 +1,90 @@
+<div class="modal" tabindex="-1" role="dialog" aria-hidden="true" id="findAndReplace">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <form class="form-group" id="formFindAndReplace">
+                <div class="modal-header">
+                    <h5 class="modal-title">Find and replace</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <label for="replace-column-selector">Column</label>
+                    <select class="form-control" name="col-name" id="replace-column-selector">
+                        <option value="Default" selected="selected">Choose column...
+                        </option>
+                        {% for column in table.columns[1:] %}
+                            <option value="{{ column.name }}"
+                                    data-type="{{ column.type }}">{{ column.name|capitalize }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                    <label for="replace-function-selector">Replacement type</label>
+                    <select class="form-control" name="replacement-function" id="replace-function-selector">
+                        <option value="Default" selected="selected">Choose replacement type...
+                        </option>
+                        <option value="substring" class="textOnly">Substring</option>
+                        <option value="full replace">Full replace</option>
+                        <option value="regex" class="textOnly">Regex</option>
+                    </select>
+                    <label for="value-to-be-replaced" class="noRegex" style="display:none;">Replace</label>
+                    <input class="form-control noRegex" name="value-to-be-replaced" id="value-to-be-replaced"
+                           style="display:none;">
+                    <label for="replacement-regex " class="regex" style="display:none;">Regex</label>
+                    <input class="form-control regex" name="replacement-regex" id="replacement-regex"
+                           style="display:none">
+                    <label for="replacement-value" class="regexAndNoRegex" style="display:none;">Replace
+                        with</label>
+                    <input class="form-control regexAndNoRegex" name="replacement-value" id="replacement-value"
+                           style="display:none">
+                </div>
+                <div class="modal-footer">
+                    <button type="submit" class="btn btn-primary">Replace</button>
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+<script>
+    $('#replace-column-selector').change(function () {
+        if ($(this).find(':selected').data('type') != "text") {
+            $('.textOnly').hide();
+        }
+        else {
+            $('.textOnly').show();
+        }
+    });
+    $('#replace-function-selector').change(function () {
+        if ($(this).val() == "regex") {
+            $('.noRegex').hide();
+            $('.regex').show();
+            $('.regexAndNoRegex').show();
+        }
+        else if (($(this).val() == "substring") || ($(this).val() == "full replace")) {
+            $('.noRegex').show();
+            $('.regex').hide();
+            $('.regexAndNoRegex').show();
+        }
+        else {
+            $('.noRegex').hide();
+            $('.regex').hide();
+            $('.regexAndNoRegex').hide();
+        }
+    });
+
+    $('#formFindAndReplace').submit(function (e) {
+        e.preventDefault();
+        $.ajax({
+            type: 'PUT',
+            url: '/api' + window.location.pathname + '/find-and-replace?' + $('#formFindAndReplace').serialize(),
+            success: function () {
+                window.location.reload();
+            },
+            error: function () {
+                window.location.reload();
+            }
+        });
+        $('#formFindAndReplace').modal('hide');
+    });
+</script>

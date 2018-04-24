@@ -1,0 +1,54 @@
+<div class="modal" tabindex="-1" role="dialog" aria-hidden="true" id="DateTimeTransformations">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <form class="form-group" id="formDateTimeTransformations">
+                <div class="modal-header">
+                    <h5 class="modal-title">Time/Date transformations</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <label for="col-name">Column</label>
+                    <select class="form-control" name="col-name" id="col-name">
+                        {% for column in table.columns[1:] %}
+                            {% if (column.type == "timestamp") %}
+                                <option value="{{ column.name }}">{{ column.name|capitalize }}</option>
+                            {% endif %}
+                        {% endfor %}
+                    </select>
+
+                    <label for="transformation-name">Transformation</label>
+                    <select id="operation-name" class="form-control" name="operation-name">
+                        {% for transformation in time_date_transformations %}
+                            <option value="{{ transformation }}">
+                                {{ transformation }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="modal-footer">
+                    <button type="submit" class="btn btn-primary">Save changes
+                    </button>
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+<script>
+    $('#formDateTimeTransformations').submit(function (e) {
+        e.preventDefault();
+        $.ajax({
+            type: 'PUT',
+            url: '/api' + window.location.pathname + '/date-time-transformations?' + $('#formDateTimeTransformations').serialize(),
+            success: function () {
+                window.location.reload();
+            },
+            error: function () {
+                window.location.reload();
+            }
+        });
+        $('#formDateTimeTransformations').modal('hide');
+    });
+</script>

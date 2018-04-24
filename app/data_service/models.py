@@ -32,6 +32,9 @@ class Dataset:
         self.moderators = moderators or []
         self.id = id
 
+    def __eq__(self, other):
+        return self.name == other.name and self.desc == other.desc and self.owner == other.owner and self.id == other.id
+
 
 class Column:
     def __init__(self, name, type):
@@ -45,6 +48,9 @@ class Table:
         self.desc = desc
         self.rows = rows or []
         self.columns = columns or []
+
+    def __eq__(self, other):
+        return self.name == other.name and self.desc == other.desc
 
 
 class DataLoader:
@@ -548,7 +554,7 @@ class DataLoader:
             app.logger.exception(e)
             raise e
 
-    def grant_access(self, user_id, schema_id, role='contributer'):
+    def grant_access(self, user_id, schema_id, role='contributor'):
 
         try:
             schema_id = 'schema-' + str(schema_id);

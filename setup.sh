@@ -12,9 +12,11 @@ psql -U postgres -c "ALTER ROLE dbadmin CREATEDB;"
 
 psql -U postgres -c "CREATE DATABASE userdb OWNER dbadmin;"
 psql -U postgres -c "GRANT ALL PRIVILEGES ON DATABASE userdb TO dbadmin;"
+psql -U postgres -c "ALTER DATABASE userdb SET datestyle TO "ISO, MDY";"
 
 psql -U postgres -c "CREATE DATABASE test_userdb OWNER dbadmin;"
 psql -U postgres -c "GRANT ALL PRIVILEGES ON DATABASE test_userdb TO dbadmin;"
+psql -U postgres -c "ALTER DATABASE test_userdb SET datestyle TO "ISO, MDY";"
 
 psql -U dbadmin -d userdb -f sql/tables.sql
 psql -U dbadmin -d test_userdb -f sql/tables.sql

@@ -53,10 +53,6 @@ def get_dataset(dataset_id):
 
     if len(tables) != 0:
         columns = data_loader.get_column_names(dataset_id, tables[0].name)
-        try:
-            columns.remove('id')
-        except Exception as e:
-            pass
 
     return render_template('data_service/dataset-view.html', ds=dataset, tables=tables, columns=columns,
                            access_permission=access_permission, users_with_access=users_with_access)
@@ -243,7 +239,7 @@ def get_join_column_names(dataset_id, table_name):
         return abort(403)
 
     column_names = data_loader.get_column_names(dataset_id, table_name)
-    column_names.remove('id')
+    #column_names.remove('id')
 
     return jsonify(column_names)
 

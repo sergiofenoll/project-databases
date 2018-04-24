@@ -32,6 +32,9 @@ class Dataset:
         self.moderators = moderators or []
         self.id = id
 
+    def __eq__(self, other):
+        return self.name == other.name and self.desc == other.desc and self.owner == other.owner and self.id == other.id
+
 
 class Column:
     def __init__(self, name, type):
@@ -45,6 +48,9 @@ class Table:
         self.desc = desc
         self.rows = rows or []
         self.columns = columns or []
+
+    def __eq__(self, other):
+        return self.name == other.name and self.desc == other.desc
 
 
 class DataLoader:
@@ -200,29 +206,28 @@ class DataLoader:
             raise e
 
     def delete_table(self, name, schema_id):
+        connection = db.engine.connect()
+        transaction = connection.begin()
         try:
-            db.engine.execute('DROP TABLE {}.{};'.format(*_ci(schema_id, name)))
-            db.engine.execute('DROP TABLE IF EXISTS {}.{};'.format(*_ci(schema_id, "_raw_" + name)))
-        except Exception as e:
-            app.logger.error("[ERROR] Failed to delete table '" + name + "'")
-            app.logger.exception(e)
-            raise e
+            # Delete table
+            table_query = 'DROP TABLE {}.{};'.format(*_ci(schema_id, name))
+            raw_table_query = 'DROP TABLE IF EXISTS {}.{};'.format(*_ci(schema_id, "_raw_" + name))
+            connection.execute(table_query)
+            connection.execute(raw_table_query)
 
-        # Delete metadata
-        try:
-            db.engine.execute('DELETE FROM metadata WHERE id_table = {};'.format(_cv(name)))
-        except Exception as e:
-            app.logger.error("[ERROR] Failed to delete metadata for table '" + name + "'")
-            app.logger.exception(e)
-            raise e
+            # Delete metadata
+            metadata_query = 'DELETE FROM metadata WHERE id_table = {};'.format(_cv(name))
+            connection.execute(metadata_query)
 
-        # Delete history
-        try:
+            # Delete history
             schema_name = 'schema-' + str(schema_id)
-            db.engine.execute(
-                'DELETE FROM HISTORY WHERE id_dataset={} AND id_table={};'.format(*_cv(schema_name, name)))
+            history_query = 'DELETE FROM HISTORY WHERE id_dataset={} AND id_table={};'.format(*_cv(schema_name, name))
+            connection.execute(history_query)
+
+            transaction.commit()
         except Exception as e:
-            app.logger.error("[ERROR] Failed to delete history for table '" + name + "'")
+            transaction.rollback()
+            app.logger.error("[ERROR] Failed to delete table '" + name + "'")
             app.logger.exception(e)
             raise e
 
@@ -389,7 +394,7 @@ class DataLoader:
             for line in csv:
                 if not append:
                     columns = line.strip().split(',')
-                    self.create_table(tablename, schema_id, columns, True)
+                    self.create_table(tablename, schema_id, columns, raw=True)
                 break
 
         df = pd.read_csv(file)
@@ -548,7 +553,7 @@ class DataLoader:
             app.logger.exception(e)
             raise e
 
-    def grant_access(self, user_id, schema_id, role='contributer'):
+    def grant_access(self, user_id, schema_id, role='contributor'):
 
         try:
             schema_id = 'schema-' + str(schema_id);
@@ -1137,8 +1142,6 @@ class TableJoiner:
             app.logger.error("[ERROR] Failed to add unique id to table '" + table_name + "'")
             app.log_exception(e)
             raise e
-        except:
-            print("lel")
 
         # Reorder columns
         try:

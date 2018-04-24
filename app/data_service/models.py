@@ -280,8 +280,6 @@ class DataLoader:
             self.delete_row(schema_id, table_name, to_delete, False)
 
             history.log_action(schema_id, table_name, datetime.now(), 'Deleted rows on predicate')
-
-
         except Exception as e:
             app.logger.error('[ERROR] Unable to fetch rows to delete from ' + table_name)
             app.logger.exception(e)
@@ -407,7 +405,8 @@ class DataLoader:
          The name of the CSV file will be used as table name. If a table with the same name is found
          the data will be appended
         """
-
+        connection = db.engine.connect()
+        transaction = connection.begin()
         try:
 
             with ZipFile(file) as archive:
@@ -431,8 +430,10 @@ class DataLoader:
 
                 # Clean up temp folder
                 shutil.rmtree("../output/temp")
+                transaction.commit()
 
         except Exception as e:
+            transaction.rollback()
             app.logger.error("[ERROR] Failed to load from .zip archive '" + file + "'")
             app.logger.exception(e)
 
@@ -442,40 +443,49 @@ class DataLoader:
             raise e
 
     def process_dump(self, file, schema_id):
+
         """
          This method takes a SQL dump file and processes the INSERT statements,
          either by creating tables and filling them or by filling pre-existing tables.
          All other statements (DELETE, DROP, ...) won't be executed.
         """
+        connection = db.engine.connect()
+        transaction = connection.begin()
+        try:
+            with open(file, 'r') as dump:
+                # Read the file as a string, split on ';' and check each statement individually
+                for statement in dump.read().strip().split(';'):
+                    if len(statement.split()) and statement.split()[0] == 'INSERT':  # Only handle INSERT statements
+                        # NOTE: An INSERT statement looks like this:
+                        # INSERT INTO table_name (column1, column2, column3, ...) VALUES (value1, value2, value3, ...);
 
-        with open(file, 'r') as dump:
-            # Read the file as a string, split on ';' and check each statement individually
-            for statement in dump.read().strip().split(';'):
-                if len(statement.split()) and statement.split()[0] == 'INSERT':  # Only handle INSERT statements
-                    # NOTE: An INSERT statement looks like this:
-                    # INSERT INTO table_name (column1, column2, column3, ...) VALUES (value1, value2, value3, ...);
+                        tablename = statement.split()[2]
+                        values_list = list()
+                        for values_tuple in re.findall(r'\(.*?\)', statement[statement.find('VALUES'):]):
+                            # Tuple is any match of the above regex, e.g. (values1, values2, values3, ...)
+                            # after VALUES, i.e. the column names (if they're given) aren't matched
+                            values_list.append(re.sub(r'\s|\(|\)', '', values_tuple).split(','))
 
-                    tablename = statement.split()[2]
-                    values_list = list()
-                    for values_tuple in re.findall(r'\(.*?\)', statement[statement.find('VALUES'):]):
-                        # Tuple is any match of the above regex, e.g. (values1, values2, values3, ...)
-                        # after VALUES, i.e. the column names (if they're given) aren't matched
-                        values_list.append(re.sub(r'\s|\(|\)', '', values_tuple).split(','))
+                        if re.search(r'{}\s\(.*?\)\sVALUES'.format(tablename), statement):
+                            # Matches 'table_name (column1, column2, column3, ...) VALUES', \s stands for whitespace
+                            columns = re.sub(r'\s|\(|\)', '',
+                                             re.findall(r'\(.*?\)', statement[:statement.find('VALUES')])[0]).split(',')
+                        else:
+                            columns = ['col' + str(i) for i in range(1, len(values_list[0]) + 1)]
 
-                    if re.search(r'{}\s\(.*?\)\sVALUES'.format(tablename), statement):
-                        # Matches 'table_name (column1, column2, column3, ...) VALUES', \s stands for whitespace
-                        columns = re.sub(r'\s|\(|\)', '',
-                                         re.findall(r'\(.*?\)', statement[:statement.find('VALUES')])[0]).split(',')
-                    else:
-                        columns = ['col' + str(i) for i in range(1, len(values_list[0]) + 1)]
+                        if not self.table_exists(tablename, schema_id):
+                            self.create_table(tablename, schema_id, columns, True)
+                        for values in values_list:
+                            val_dict = dict()
+                            for c_ix in range(len(columns)):
+                                val_dict[columns[c_ix]] = values[c_ix]
+                            self.insert_row(tablename, schema_id, columns, val_dict, False)
+            transaction.commit()
 
-                    if not self.table_exists(tablename, schema_id):
-                        self.create_table(tablename, schema_id, columns, True)
-                    for values in values_list:
-                        val_dict = dict()
-                        for c_ix in range(len(columns)):
-                            val_dict[columns[c_ix]] = values[c_ix]
-                        self.insert_row(tablename, schema_id, columns, val_dict, False)
+        except Exception as e:
+            transaction.rollback()
+            app.logger.error("[ERROR] Failed to load from sql dump")
+            app.logger.exception(e)
 
     # Data access handling
     def get_user_datasets(self, user_id):
@@ -523,7 +533,6 @@ class DataLoader:
         """
 
         try:
-            # TODO: Stole this cheeky bit from another method so if we decide to fix it there, don't forget to fix this too
             ordering_query = ''
             if ordering is not None:
                 # ordering tuple is of the form (columns, asc|desc)

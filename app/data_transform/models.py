@@ -178,59 +178,104 @@ class NumericalTransformations:
         pass
 
     def normalize(self, schema_id, table_name, column_name):
-        schema_name = 'schema-' + str(schema_id)
-        df = pd.read_sql_query('SELECT * FROM "{}"."{}"'.format(schema_name, table_name), db.engine)
-        new_column_name = column_name + '_norm'
+        connection = db.engine.connect()
+        transaction = connection.begin()
+        try:
+            schema_name = 'schema-' + str(schema_id)
+            df = pd.read_sql_query('SELECT * FROM "{}"."{}"'.format(schema_name, table_name), db.engine)
+            new_column_name = column_name + '_norm'
 
-        df[new_column_name] = df[column_name]
-        if df[column_name].std(ddof=0):
-            df[new_column_name] = (df[column_name] - df[column_name].mean()) / df[column_name].std(ddof=0)
+            df[new_column_name] = df[column_name]
+            if df[column_name].std(ddof=0):
+                df[new_column_name] = (df[column_name] - df[column_name].mean()) / df[column_name].std(ddof=0)
 
-        db.engine.execute('DROP TABLE "{0}"."{1}"'.format(schema_name, table_name))
-        df.to_sql(name=table_name, con=db.engine, schema=schema_name, if_exists='fail', index=False)
+            db.engine.execute('DROP TABLE "{0}"."{1}"'.format(schema_name, table_name))
+            df.to_sql(name=table_name, con=db.engine, schema=schema_name, if_exists='fail', index=False)
+        except Exception as e:
+            transaction.rollback()
+            app.logger.error("[ERROR] Couldn't normalize data")
+            app.logger.exception(e)
+            raise e
 
     def equal_width_interval(self, schema_id, table_name, column_name, num_intervals):
-        schema_name = 'schema-' + str(schema_id)
-        df = pd.read_sql_query('SELECT * FROM "{}"."{}"'.format(schema_name, table_name), db.engine)
-        new_column_name = column_name + '_intervals_eq_w_' + str(num_intervals)
-        df[new_column_name] = pd.cut(df[column_name], num_intervals, precision=9).apply(str)
-        db.engine.execute('DROP TABLE "{0}"."{1}"'.format(schema_name, table_name))
-        df.to_sql(name=table_name, con=db.engine, schema=schema_name, if_exists='fail', index=False)
+        connection = db.engine.connect()
+        transaction = connection.begin()
+        try:
+            schema_name = 'schema-' + str(schema_id)
+            df = pd.read_sql_query('SELECT * FROM "{}"."{}"'.format(schema_name, table_name), db.engine)
+            new_column_name = column_name + '_intervals_eq_w_' + str(num_intervals)
+            df[new_column_name] = pd.cut(df[column_name], num_intervals, precision=9).apply(str)
+            db.engine.execute('DROP TABLE "{0}"."{1}"'.format(schema_name, table_name))
+            df.to_sql(name=table_name, con=db.engine, schema=schema_name, if_exists='fail', index=False)
+            transaction.commit()
+        except Exception as e:
+            transaction.rollback()
+            app.logger.error("[ERROR] Couldn't process intervals with equal width")
+            app.logger.exception(e)
+            raise e
 
     def equal_freq_interval(self, schema_id, table_name, column_name, num_intervals):
-        schema_name = 'schema-' + str(schema_id)
-        df = pd.read_sql_query('SELECT * FROM "{}"."{}"'.format(schema_name, table_name), db.engine)
-        new_column_name = column_name + '_intervals_eq_f_' + str(num_intervals)
+        connection = db.engine.connect()
+        transaction = connection.begin()
+        try:
+            schema_name = 'schema-' + str(schema_id)
+            df = pd.read_sql_query('SELECT * FROM "{}"."{}"'.format(schema_name, table_name), db.engine)
+            new_column_name = column_name + '_intervals_eq_f_' + str(num_intervals)
 
-        sorted_data = list(df[column_name].sort_values())
-        data_length = len(df[column_name])
-        interval_size = data_length // num_intervals
-        intervals_list = []
-        for i in range(0, data_length, interval_size):
-            intervals_list.append(sorted_data[i] - (sorted_data[i] / 1000))  #
-        df[new_column_name] = pd.cut(df[column_name], intervals_list, precision=9).apply(str)
+            sorted_data = list(df[column_name].sort_values())
+            data_length = len(df[column_name])
+            interval_size = data_length // num_intervals
+            intervals_list = []
+            for i in range(0, data_length, interval_size):
+                intervals_list.append(sorted_data[i] - (sorted_data[i] / 1000))  #
+            df[new_column_name] = pd.cut(df[column_name], intervals_list, precision=9).apply(str)
 
-        db.engine.execute('DROP TABLE "{0}"."{1}"'.format(schema_name, table_name))
-        df.to_sql(name=table_name, con=db.engine, schema=schema_name, if_exists='fail', index=False)
+            db.engine.execute('DROP TABLE "{0}"."{1}"'.format(schema_name, table_name))
+            df.to_sql(name=table_name, con=db.engine, schema=schema_name, if_exists='fail', index=False)
+            transaction.commit()
+        except Exception as e:
+            transaction.rollback()
+            app.logger.error("[ERROR] Couldn't process intervals with equal frequency")
+            app.logger.exception(e)
+            raise e
 
     def manual_interval(self, schema_id, table_name, column_name, intervals):
-        schema_name = 'schema-' + str(schema_id)
-        df = pd.read_sql_query('SELECT * FROM "{}"."{}"'.format(schema_name, table_name), db.engine)
-        new_column_name = column_name + '_intervals_custom'
+        connection = db.engine.connect()
+        transaction = connection.begin()
+        try:
+            schema_name = 'schema-' + str(schema_id)
+            df = pd.read_sql_query('SELECT * FROM "{}"."{}"'.format(schema_name, table_name), db.engine)
+            new_column_name = column_name + '_intervals_custom'
 
-        df[new_column_name] = pd.cut(df[column_name], intervals).apply(str)
+            df[new_column_name] = pd.cut(df[column_name], intervals).apply(str)
 
-        db.engine.execute('DROP TABLE "{0}"."{1}"'.format(schema_name, table_name))
-        df.to_sql(name=table_name, con=db.engine, schema=schema_name, if_exists='fail', index=False)
+            db.engine.execute('DROP TABLE "{0}"."{1}"'.format(schema_name, table_name))
+            df.to_sql(name=table_name, con=db.engine, schema=schema_name, if_exists='fail', index=False)
+
+            transaction.commit()
+        except Exception as e:
+            transaction.rollback()
+            app.logger.error("[ERROR] Couldn't process manuel intervals")
+            app.logger.exception(e)
+            raise e
 
     def remove_outlier(self, schema_id, table_name, column_name, value, less_than=False):
-        schema_name = 'schema-' + str(schema_id)
-        if less_than:
-            db.engine.execute(
-                'DELETE FROM "{}"."{}" WHERE "{}" < {}'.format(schema_name, table_name, column_name, value))
-        else:
-            db.engine.execute(
-                'DELETE FROM "{}"."{}" WHERE "{}" > {}'.format(schema_name, table_name, column_name, value))
+        connection = db.engine.connect()
+        transaction = connection.begin()
+        try:
+            schema_name = 'schema-' + str(schema_id)
+            if less_than:
+                db.engine.execute(
+                    'DELETE FROM "{}"."{}" WHERE "{}" < {}'.format(schema_name, table_name, column_name, value))
+            else:
+                db.engine.execute(
+                    'DELETE FROM "{}"."{}" WHERE "{}" > {}'.format(schema_name, table_name, column_name, value))
+            transaction.commit()
+        except Exception as e:
+            transaction.rollback()
+            app.logger.error("[ERROR] Couldn't remove outliers from " + column_name)
+            app.logger.exception(e)
+            raise e
 
     def chart_data_numerical(self, schema_id, table_name, column_name):
         schema_name = 'schema-' + str(schema_id)
@@ -258,13 +303,16 @@ class NumericalTransformations:
         }
         return data
 
-      
+
 class OneHotEncode:
     def __init__(self, dataloader):
         self.dataloader = dataloader
 
     def encode(self, schema_id, table_name, column_name):
+
         schema_name = 'schema-' + str(schema_id)
+        connection = db.engine.connect()
+        transaction = connection.begin()
 
         is_categorical = False
         column_types = self.dataloader.get_column_names_and_types(schema_id, table_name)
@@ -273,13 +321,18 @@ class OneHotEncode:
                 is_categorical = True
                 break
 
-        if not is_categorical:
-            return
+        if is_categorical:
+            try:
+                # SELECT id, 'column' FROM "schema_name"."table";
+                data_query = 'SELECT * FROM {}.{}'.format(*_ci(schema_name, table_name))
 
-        # SELECT id, 'column' FROM "schema_name"."table";
-        data_query = 'SELECT * FROM {}.{}'.format(*_ci(schema_name, table_name))
+                df = pd.read_sql(data_query, con=db.engine)
+                ohe = pd.get_dummies(df[column_name])
+                df = df.join(ohe)
+                df.to_sql(table_name, con=db.engine, schema=schema_name, if_exists='replace', index=False)
 
-        df = pd.read_sql(data_query, con=db.engine)
-        ohe = pd.get_dummies(df[column_name])
-        df = df.join(ohe)
-        df.to_sql(table_name, con=db.engine, schema=schema_name, if_exists='replace', index=False)
+            except Exception as e:
+                transaction.rollback()
+                app.logger.error("[ERROR] Couldn't one_hot_encode  '" + column_name + "' in '." + table_name + "',")
+                app.logger.exception(e)
+                raise e

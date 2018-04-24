@@ -187,22 +187,3 @@ class TestDateTimeTransformer(unittest.TestCase):
         self.assertEqual(len(table.rows[0]), 3)
 
         self.assertEqual(table.rows[0][2], '8/31/2015')
-
-'''
-class TestNumericalTranformations(unittest.TestCase):
-    def setUp(self):
-        user_data_access.add_user(user_obj)
-        data_loader.create_dataset('test_dataset', username)
-
-    def tearDown(self):
-        user_data_access.delete_user(username)
-        data_loader.delete_dataset('schema-0')
-        
-    def test_equal_width_interval(self):
-        
-    def test_equal_freq_interval(self):
-        
-    def test_manual_interval(self):
-    
-    def test_remove_outlier(self):
-'''

@@ -1,7 +1,5 @@
 from datetime import datetime
 from statistics import median
-from numpy import array, argmax
-from sklearn.preprocessing import LabelEncoder, OneHotEncoder
 
 import pandas as pd
 
@@ -278,65 +276,10 @@ class OneHotEncode:
         if not is_categorical:
             return
 
-        '''
-        # SELECT id, 'column' FROM "schema_name"."table";
-        data_query = 'SELECT id, {} FROM {}.{}'.format(*_ci(column_name, schema_name, table_name))
-        '''
-        '''
-        try:
-            result = db.engine.execute(data_query)
-
-            id_s = list()
-            data = list()
-            for row in result:
-                id = row[0]
-                value = row[1]
-
-                id_s.append(id)
-                data.append(value)
-        except Exception as e:
-            app.logger.error("[ERROR] Couldn't one_hot_encode  '" + column_name + "' in '." + table_name + "',")
-            app.logger.exception(e)
-            raise e
-
-        # Extract 'column' values into array
-        values = array(data)
-
-        # Pass trough LabelEncoder
-        # integer encode
-        label_encoder = LabelEncoder()
-        integer_encoded = label_encoder.fit_transform(values)
-
-        # Pass through OneHotEncoder
-        one_hot_encoded = self.one_hot_encode(integer_encoded)
-
-        # Get labels from LabelEncoder
-        labels = label_encoder.classes_
-        
-        # If table already exists, remove it
-        if self.dataloader.table_exists(ohe_table_name, schema_name):
-            self.dataloader.delete_table(ohe_table_name, schema_name)
-
-        # Create OHE_table
-        self.dataloader.create_table(ohe_table_name, schema_id, labels)
-        # For each id, insert encoded row into table
-        for _row in range(len(id_s)):
-            ohe_row_values = dict()
-            ohe_row_values['id'] = str(id_s[_row])
-
-            for _label in range(len(labels)):
-                ohe_row_values[labels[_label]] = str(int(one_hot_encoded[_row][_label]))
-
-            self.dataloader.insert_row(ohe_table_name, schema_id, ohe_row_values, ohe_row_values, False)
-        '''
-
         # SELECT id, 'column' FROM "schema_name"."table";
         data_query = 'SELECT * FROM {}.{}'.format(*_ci(schema_name, table_name))
 
         df = pd.read_sql(data_query, con=db.engine)
         ohe = pd.get_dummies(df[column_name])
-        print('DF', df)
-        print('OH', ohe)
         df = df.join(ohe)
-        print('DF', df)
         df.to_sql(table_name, con=db.engine, schema=schema_name, if_exists='replace', index=False)

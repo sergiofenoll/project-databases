@@ -265,19 +265,8 @@ class OneHotEncode:
     def __init__(self, dataloader):
         self.dataloader = dataloader
 
-    def one_hot_encode(self, integer_encoded):
-        one_hot_encoder = OneHotEncoder(sparse=False)
-
-        # Reshape 1D array into 2D suitable for one_hot_encoder
-        integer_encoded = integer_encoded.reshape(len(integer_encoded), 1)
-
-        one_hot_encoded = one_hot_encoder.fit_transform(integer_encoded)
-
-        return one_hot_encoded
-
     def encode(self, schema_id, table_name, column_name):
         schema_name = 'schema-' + str(schema_id)
-        ohe_table_name = 'ohe_' + table_name + '_' + column_name
 
         is_categorical = False
         column_types = self.dataloader.get_column_names_and_types(schema_id, table_name)
@@ -289,9 +278,11 @@ class OneHotEncode:
         if not is_categorical:
             return
 
+        '''
         # SELECT id, 'column' FROM "schema_name"."table";
         data_query = 'SELECT id, {} FROM {}.{}'.format(*_ci(column_name, schema_name, table_name))
-
+        '''
+        '''
         try:
             result = db.engine.execute(data_query)
 
@@ -337,3 +328,15 @@ class OneHotEncode:
                 ohe_row_values[labels[_label]] = str(int(one_hot_encoded[_row][_label]))
 
             self.dataloader.insert_row(ohe_table_name, schema_id, ohe_row_values, ohe_row_values, False)
+        '''
+
+        # SELECT id, 'column' FROM "schema_name"."table";
+        data_query = 'SELECT * FROM {}.{}'.format(*_ci(schema_name, table_name))
+
+        df = pd.read_sql(data_query, con=db.engine)
+        ohe = pd.get_dummies(df[column_name])
+        print('DF', df)
+        print('OH', ohe)
+        df = df.join(ohe)
+        print('DF', df)
+        df.to_sql(table_name, con=db.engine, schema=schema_name, if_exists='replace', index=False)

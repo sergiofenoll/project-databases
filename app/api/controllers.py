@@ -331,3 +331,13 @@ def one_hot_encode(dataset_id, table_name):
     except Exception:
         flash(u"One hot encoding was unsuccessful.", 'danger')
         return jsonify({'error': True}), 400
+
+@api.route('/api/datasets/<int:dataset_id>/tables/<string:table_name>/create-backup', methods=['PUT'])
+def create_backup(dataset_id, table_name):
+    try:
+        data_loader.make_backup(dataset_id, table_name)
+        flash(u"Succesfully created backup.", 'success')
+        return jsonify({'success': True}), 200
+    except Exception:
+        flash(u"Failed to create backup.", 'danger')
+        return jsonify({'error': True}), 400

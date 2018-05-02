@@ -239,7 +239,7 @@ class DataLoader:
         """ Copies the content of table 'name' to a new table 'copy_name' in the same schema"""
         schema_name = 'schema-' + str(schema_id)
         try:
-            db.engine.execute('CREATE TABLE {0}.{1} AS SELECT * FROM {0}.{2}'.format(_ci(schema_name), _ci(name), _ci(copy_name)))
+            db.engine.execute('CREATE TABLE {0}.{1} AS SELECT * FROM {0}.{2}'.format(_ci(schema_name), _ci(copy_name), _ci(name)))
             history.log_action(schema_id, name, datetime.now(), "Created backup.")
         except Exception as e:
             app.logger.error("[ERROR] Unable to create copy of table {}".format(name))
@@ -928,9 +928,10 @@ class DataLoader:
 
         query = 'CREATE TABLE {}._backups ('
 
-        query += 'table_name VARCHAR PRIMARY KEY,\n'
+        query += 'table_name VARCHAR,\n'
         query += 'timestamp TIMESTAMP,\n'
-        query += 'backup_name VARCHAR\n);'
+        query += 'backup_name VARCHAR\n,'
+        query += 'PRIMARY KEY (table_name, timestamp)\n);'
 
         query = query.format(_ci(schema_name))
 
@@ -945,7 +946,7 @@ class DataLoader:
         """ Makes a backup of the table in its current state.
             Backups are given the name '_<table_name>_backup_<timestamp>'
         """
-        schema_name = schema_id + str(schema_id)
+        schema_name = "schema-" + str(schema_id)
         connection = db.engine.connect()
         transaction = connection.begin()
         try:
@@ -953,14 +954,15 @@ class DataLoader:
             backup_name = '_{}_backup_{}'.format(table_name, timestamp)
             self.copy_table(table_name, schema_id, backup_name)
 
-            db.engine.execute('INSERT INTO {}._backups VALUES ({}, {}, {})'.format(*_ci(schema_name, table_name), timestamp, _cv(backup_name)))
+            backup_query = 'INSERT INTO {}._backups VALUES ({}, {}, {})'.format(_ci(schema_name), *_cv(table_name, timestamp, backup_name))
+
+            db.engine.execute(backup_query)
 
         except Exception as e:
             transaction.rollback()
             app.logger.error("[ERROR] Couldn't make backup of table {}".format(table_name))
             app.logger.exception(e)
             raise e
-
 
 
 class TableJoinPair:

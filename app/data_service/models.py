@@ -102,6 +102,10 @@ class DataLoader:
             db.engine.execute(
                 'INSERT INTO Access(id_dataset, id_user, role) VALUES({}, {}, {});'.format(
                     *_cv(schema_name, owner_id, 'owner')))
+
+            # Add _backup table to dataset
+            self.create_backup_table(schema_id)
+
         except Exception as e:
             app.logger.error("[ERROR] Failed to insert dataset '" + name + "' into the database")
             app.logger.exception(e)
@@ -238,7 +242,7 @@ class DataLoader:
             db.engine.execute('CREATE TABLE {0}.{1} AS SELECT * FROM {0}.{2}'.format(_ci(schema_name), _ci(name), _ci(copy_name)))
             history.log_action(schema_id, name, datetime.now(), "Created backup.")
         except Exception as e:
-            app.logger.error("[ERROR] Unable to create copy of table {}.{}".format(schema_name schema_id))
+            app.logger.error("[ERROR] Unable to create copy of table {}".format(name))
             app.logger.exception(e)
             raise e
 
@@ -812,6 +816,7 @@ class DataLoader:
 
         return filename
 
+    # Statistics
     def get_numerical_statistic(self, schema_id, table_name, column, function):
 
         """" calculate average of column """
@@ -893,6 +898,7 @@ class DataLoader:
             stats.append([column.name, self.get_statistics_for_column(schema_id, table_name, column.name, numerical)])
         return stats
 
+    # Raw data & backups
     def revert_back_to_raw_data(self, schema_id, table_name):
         schema_name = "schema-" + str(schema_id)
         try:
@@ -915,6 +921,46 @@ class DataLoader:
             app.logger.error("[ERROR] Couldn't convert back to raw data")
             app.logger.exception(e)
             raise e
+
+    def create_backup_table(self, schema_id):
+        """ Creates a _backup table for the dataset """
+        schema_name = 'schema-' + str(schema_id)
+
+        query = 'CREATE TABLE {}._backups ('
+
+        query += 'table_name VARCHAR PRIMARY KEY,\n'
+        query += 'timestamp TIMESTAMP,\n'
+        query += 'backup_name VARCHAR\n);'
+
+        query = query.format(_ci(schema_name))
+
+        try:
+            db.engine.execute(query)
+        except Exception as e:
+            app.logger.error("[ERROR] Failed to create backup table for dataset")
+            app.logger.exception(e)
+            raise e
+
+    def make_backup(self, schema_id, table_name):
+        """ Makes a backup of the table in its current state.
+            Backups are given the name '_<table_name>_backup_<timestamp>'
+        """
+        schema_name = schema_id + str(schema_id)
+        connection = db.engine.connect()
+        transaction = connection.begin()
+        try:
+            timestamp = datetime.now()
+            backup_name = '_{}_backup_{}'.format(table_name, timestamp)
+            self.copy_table(table_name, schema_id, backup_name)
+
+            db.engine.execute('INSERT INTO {}._backups VALUES ({}, {}, {})'.format(*_ci(schema_name, table_name), timestamp, _cv(backup_name)))
+
+        except Exception as e:
+            transaction.rollback()
+            app.logger.error("[ERROR] Couldn't make backup of table {}".format(table_name))
+            app.logger.exception(e)
+            raise e
+
 
 
 class TableJoinPair:

@@ -231,6 +231,17 @@ class DataLoader:
             app.logger.exception(e)
             raise e
 
+    def copy_table(self, name, schema_id, copy_name):
+        """ Copies the content of table 'name' to a new table 'copy_name' in the same schema"""
+        schema_name = 'schema-' + str(schema_id)
+        try:
+            db.engine.execute('CREATE TABLE {0}.{1} AS SELECT * FROM {0}.{2}'.format(_ci(schema_name), _ci(name), _ci(copy_name)))
+            history.log_action(schema_id, name, datetime.now(), "Created backup.")
+        except Exception as e:
+            app.logger.error("[ERROR] Unable to create copy of table {}.{}".format(schema_name schema_id))
+            app.logger.exception(e)
+            raise e
+
     def delete_row(self, schema_id, table_name, row_ids, add_history=True):
         schema_name = 'schema-' + str(schema_id)
         try:

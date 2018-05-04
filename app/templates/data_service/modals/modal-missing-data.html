@@ -20,12 +20,18 @@
                     </select>
 
                     <label class="options" for="function" style="display: none">Based on</label>
-                    <select id="function" class="form-control options" name="function" style="display: none">
+                    <select id="fill-function-selector" class="form-control options" name="function" style="display: none">
                         <option selected disabled>choose a replacement value...</option>
                         <option value="AVG" class="numerical">AVERAGE</option>
                         <option value="MEDIAN" class="numerical">MEDIAN</option>
                         <option value="MCV">MOST COMMON VALUE</option>
+                        <option value="CUSTOM">CUSTOM VALUE</option>
                     </select>
+
+                    <br>
+                    <label class="custom-value"  style="display: none" for="custom-value">Fill with</label>
+                    <input class="custom-value" id="custom-value" name="custom-value"  value="" style="display: none">
+
                 </div>
                 <div class="modal-footer">
                     <button type="submit" class="btn btn-primary">Save changes
@@ -61,6 +67,16 @@
             $('.numerical').hide();
         }
     });
+
+    $('#fill-function-selector').change(function () {
+        if ($(this).val() == "CUSTOM"){
+            $('.custom-value').show();
+        }
+        else {
+            $('.custom-value').hide();
+        }
+    });
+
 
 
 

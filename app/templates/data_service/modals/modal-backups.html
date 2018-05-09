@@ -17,6 +17,11 @@
 				<form id="formRestoreBackup">
 					<div class="form-group">
 						<h5>Restore a previous backup</h5>
+						<select class="form-control" name="backup-timestamp" id="backup-timestamp">
+							{% for ts in backups %}
+								<option value="{{ts}}">{{ts}}</option>
+							{% endfor %}
+                    	</select>
 						<button type="submit" class="btn btn-primary">Restore</button>
 					</div>
 				</form>
@@ -30,6 +35,19 @@
 		$.ajax({
 			type: 'PUT',
 			url: '/api' + window.location.pathname + '/create-backup',
+			success: function () {
+                window.location.reload();
+            },
+            error: function () {
+                window.location.reload();
+            }
+		});
+	});
+	$('#formRestoreBackup').submit(function (e) {
+		e.preventDefault();
+		$.ajax({
+			type: 'GET',
+			url: '/api' + window.location.pathname + '/restore-backup?' + $('#formRestoreBackup').serialize(),
 			success: function () {
                 window.location.reload();
             },

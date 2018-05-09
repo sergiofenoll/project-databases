@@ -341,3 +341,14 @@ def create_backup(dataset_id, table_name):
     except Exception:
         flash(u"Failed to create backup.", 'danger')
         return jsonify({'error': True}), 400
+
+@api.route('/api/datasets/<int:dataset_id>/tables/<string:table_name>/restore-backup', methods=['GET'])
+def restore_backup(dataset_id, table_name):
+        try:
+            backup_ts = request.args.get('backup-timestamp')
+            data_loader.restore_backup(dataset_id, table_name, backup_ts)
+            flash(u"Succesfully restored backup.", 'succes')
+            return jsonify({'success': True}), 200
+        except Exception:
+            flash(u"Failed to restore backup.", 'danger')
+            return jsonify({'error': True}), 400

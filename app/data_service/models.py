@@ -932,15 +932,64 @@ class DataLoader:
 
             backup_query = 'INSERT INTO Backups VALUES ({}, {}, {}, {})'.format(*_cv(schema_name, table_name, backup_name, timestamp))
 
-            db.engine.execute(backup_query)
+            connection.execute(backup_query)
 
             history.log_action(schema_id, table_name, datetime.now(), "Created backup.")
+
+            transaction.commit()
 
         except Exception as e:
             transaction.rollback()
             app.logger.error("[ERROR] Couldn't make backup of table {}".format(table_name))
             app.logger.exception(e)
             raise e
+
+    def get_backups(self, schema_id, table_name):
+        """ Returns list with timestamps (as strings) for available backups for given table.
+            (This info is fetched from the 'Backups' table)
+        """
+        schema_name = "schema-" + str(schema_id)
+        try:
+            query = 'SELECT timestamp::VARCHAR FROM Backups WHERE schema_name = {} AND table_name = {}'.format(*_cv(schema_name, table_name))
+            rows = db.engine.execute(query)
+
+            timestamps = [str(ts[0]) for ts in rows]
+            return timestamps
+        except Exception as e:
+            app.logger.error("[ERROR] Couldn't fetch backups for table '{}'".format(table_name))
+            app.logger.exception(e)
+            raise e
+
+    def restore_backup(self, schema_id, table_name, timestamp):
+        """ Restores a backup given a table & a timestamp """
+        schema_name = "schema-" + str(schema_id)
+        connection = db.engine.connect()
+        transaction = connection.begin()
+        try:
+            connection.execute('DROP TABLE {}.{};'.format(*_ci(schema_name, table_name)))
+        except Exception as e:
+            transaction.rollback()
+            app.logger.error("[ERROR] Couldn't convert back to raw data")
+            app.logger.exception(e)
+            raise e
+
+        try:
+            backup_name = '_{}_backup_{}'.format(table_name, timestamp)
+            connection.execute(
+                'CREATE TABLE {}.{} AS TABLE {}.{}'.format(*_ci(schema_name, table_name, schema_name, backup_name)))
+
+            # Log action to history
+            history.log_action(schema_id, table_name, datetime.now(), 'Restored backup from {}'.format(timestamp))
+
+            transaction.commit()
+        except Exception as e:
+            transaction.rollback()
+            app.logger.error("[ERROR] Couldn't restore backup for table '{}'".format(table_name))
+            app.logger.exception(e)
+            raise e
+
+
+
 
 
 class TableJoinPair:

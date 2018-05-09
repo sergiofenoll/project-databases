@@ -741,6 +741,8 @@ class DataLoader:
     def update_dataset_metadata(self, schema_id, new_name, new_desc):
         schema_name = "schema-" + str(schema_id)
         try:
+            if not new_name or new_name.isspace():
+                raise Exception("Can't rename table to empty string")
             db.engine.execute('UPDATE dataset SET (metadata, nickname) = ({} , {}) WHERE id={}'.format(
                 *_cv(new_desc, new_name, schema_name, )))
 
@@ -752,6 +754,8 @@ class DataLoader:
     def update_table_metadata(self, schema_id, old_table_name, new_table_name, new_desc):
         schema_name = "schema-" + str(schema_id)
         try:
+            if not new_table_name or new_table_name.isspace():
+                raise Exception("Can't rename table to empty string")
             db.engine.execute(
                 'UPDATE metadata SET (id_table, metadata) = ({}, {}) WHERE id_dataset={} AND id_table={}'.format(
                     *_cv(new_table_name, new_desc, schema_name, old_table_name)))

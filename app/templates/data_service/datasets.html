@@ -131,6 +131,9 @@
                     url: '/api' + window.location.pathname + '/update-dataset-metadata?' + $('#formMetadata').serialize(),
                     success: function () {
                         window.location.reload();
+                    },
+                    error: function () {
+                        window.location.reload();
                     }
                 });
                 $('#metadata').modal('hide');

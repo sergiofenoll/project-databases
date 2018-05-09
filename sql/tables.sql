@@ -55,3 +55,11 @@ CREATE TABLE Available_Schema (
   id INTEGER,
   PRIMARY KEY (id)
 );
+
+CREATE TABLE Backups (
+  schema_name VARCHAR(255),
+  table_name VARCHAR(255),
+  backup_name VARCHAR(255),
+  timestamp TIMESTAMP,
+  PRIMARY KEY (schema_name, table_name, timestamp)
+);

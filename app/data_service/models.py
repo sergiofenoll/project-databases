@@ -103,9 +103,6 @@ class DataLoader:
                 'INSERT INTO Access(id_dataset, id_user, role) VALUES({}, {}, {});'.format(
                     *_cv(schema_name, owner_id, 'owner')))
 
-            # Add _backup table to dataset
-            self.create_backup_table(schema_id)
-
         except Exception as e:
             app.logger.error("[ERROR] Failed to insert dataset '" + name + "' into the database")
             app.logger.exception(e)
@@ -240,7 +237,6 @@ class DataLoader:
         schema_name = 'schema-' + str(schema_id)
         try:
             db.engine.execute('CREATE TABLE {0}.{1} AS SELECT * FROM {0}.{2}'.format(_ci(schema_name), _ci(copy_name), _ci(name)))
-            history.log_action(schema_id, name, datetime.now(), "Created backup.")
         except Exception as e:
             app.logger.error("[ERROR] Unable to create copy of table {}".format(name))
             app.logger.exception(e)
@@ -922,26 +918,6 @@ class DataLoader:
             app.logger.exception(e)
             raise e
 
-    def create_backup_table(self, schema_id):
-        """ Creates a _backup table for the dataset """
-        schema_name = 'schema-' + str(schema_id)
-
-        query = 'CREATE TABLE {}._backups ('
-
-        query += 'table_name VARCHAR,\n'
-        query += 'timestamp TIMESTAMP,\n'
-        query += 'backup_name VARCHAR\n,'
-        query += 'PRIMARY KEY (table_name, timestamp)\n);'
-
-        query = query.format(_ci(schema_name))
-
-        try:
-            db.engine.execute(query)
-        except Exception as e:
-            app.logger.error("[ERROR] Failed to create backup table for dataset")
-            app.logger.exception(e)
-            raise e
-
     def make_backup(self, schema_id, table_name):
         """ Makes a backup of the table in its current state.
             Backups are given the name '_<table_name>_backup_<timestamp>'
@@ -954,9 +930,11 @@ class DataLoader:
             backup_name = '_{}_backup_{}'.format(table_name, timestamp)
             self.copy_table(table_name, schema_id, backup_name)
 
-            backup_query = 'INSERT INTO {}._backups VALUES ({}, {}, {})'.format(_ci(schema_name), *_cv(table_name, timestamp, backup_name))
+            backup_query = 'INSERT INTO Backups VALUES ({}, {}, {}, {})'.format(*_cv(schema_name, table_name, backup_name, timestamp))
 
             db.engine.execute(backup_query)
+
+            history.log_action(schema_id, table_name, datetime.now(), "Created backup.")
 
         except Exception as e:
             transaction.rollback()

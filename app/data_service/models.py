@@ -340,6 +340,8 @@ class DataLoader:
     def rename_column(self, schema_id, table_name, column_name, new_column_name):
         schema_name = 'schema-' + str(schema_id)
         try:
+            if not new_column_name or new_column_name.isspace():
+                raise Exception("Can't rename column to empty string")
             db.engine.execute(
                 'ALTER TABLE {0}.{1} RENAME {2} TO {3}'.format(
                     *_ci(schema_name, table_name, column_name, new_column_name)))

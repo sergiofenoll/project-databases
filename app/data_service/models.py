@@ -950,7 +950,7 @@ class DataLoader:
         """
         schema_name = "schema-" + str(schema_id)
         try:
-            query = 'SELECT timestamp::VARCHAR FROM Backups WHERE schema_name = {} AND table_name = {}'.format(*_cv(schema_name, table_name))
+            query = 'SELECT timestamp::VARCHAR FROM Backups WHERE id_dataset = {} AND table_name = {}'.format(*_cv(schema_name, table_name))
             rows = db.engine.execute(query)
 
             timestamps = [str(ts[0]) for ts in rows]

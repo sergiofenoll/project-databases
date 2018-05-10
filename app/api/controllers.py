@@ -176,7 +176,11 @@ def impute_missing_data(dataset_id, table_name):
     try:
         column_name = request.args.get('col-name')
         function = request.args.get('function')
-        data_transformer.impute_missing_data(dataset_id, table_name, column_name, function)
+        if function == "CUSTOM":
+            custom_value = request.args.get('custom-value')
+            data_transformer.impute_missing_data(dataset_id, table_name, column_name, function, custom_value)
+        else:
+            data_transformer.impute_missing_data(dataset_id, table_name, column_name, function)
         flash(u"Missing data has been filled.", 'success')
         return jsonify({'success': True}), 200
     except Exception:

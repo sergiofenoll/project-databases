@@ -990,6 +990,24 @@ class DataLoader:
             app.logger.exception(e)
             raise e
 
+    def delete_backup(self, schema_id, table_name, timestamp):
+        """ Deletes the approriate backup table from the dataset """
+        schema_name = "schema-" + str(schema_id)
+        connection = db.engine.connect()
+        transaction = connection.begin()
+        try:
+            backup_name = '_{}_backup_{}'.format(table_name, timestamp)
+            query = 'DELETE FROM Backups WHERE id_dataset = {} AND backup_name = {}'.format(*_cv(schema_name, backup_name))
+            connection.execute(query)
+            history.log_action(schema_id, table_name, datetime.now(), "Deleted backup {}.".format(timestamp))
+            transaction.commit()
+        except Exception as e:
+            transaction.rollback()
+            app.logger.error("[ERROR] Couldn't delete backup.")
+            app.logger.exception(e)
+            raise e
+
+
     def get_backup_info(self, schema_id, table_name, timestamp):
         """ Returns the info (the note) for a given backup """
         schema_name = "schema-" + str(schema_id)

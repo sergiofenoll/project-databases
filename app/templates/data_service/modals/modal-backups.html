@@ -21,13 +21,15 @@
 						<h5>Restore a previous backup</h5>
 						<select class="form-control" name="backup-timestamp" id="backup-timestamp"
 								onchange="update_note(this.value)">
-							{% for ts in backups %}
-								<option value="{{ts}}">{{ts}}</option>
-							{% endfor %}
+								{% for ts in backups %}
+									<option value="{{ts}}">{{ts}}</option>
+								{% endfor %}
                     	</select>
                     	<b>Note:</b>
                     	<p id="note-txt"><i>Select backup to display note...</i></p>
+                    	<!-- Form in form to remove backups -->
 						<button type="submit" class="btn btn-primary">Restore</button>
+                    	<button type="button" class="btn btn-xs btn-danger" onclick="delete_backup()">Delete backup</button>
 					</div>
 				</form>
 			</div>
@@ -61,6 +63,29 @@
             }
 		});
 	});
+
+	function update_select(selectbox, deleted_ts) {
+		var i;
+	    for(i = selectbox.options.length - 1 ; i >= 0 ; i--)
+	    {
+	        if (selectbox.options[i].value == deleted_ts)
+	        {
+	        	selectbox.remove(i);
+	        }
+	    }
+	}
+
+	function delete_backup() {
+		var timestamp = document.getElementById("backup-timestamp").value;
+		$.ajax({
+			type: 'DELETE',
+			url: '/api' + window.location.pathname + '/delete-backup/' + timestamp,
+			success: function() {
+				// Reload options in dropdown
+				update_select(document.getElementById("backup-timestamp"), timestamp);
+			}
+		});
+	}
 
 	function update_note(timestamp) {
         $.ajax({

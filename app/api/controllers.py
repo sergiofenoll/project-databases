@@ -354,6 +354,14 @@ def restore_backup(dataset_id, table_name):
             flash(u"Failed to restore backup.", 'danger')
             return jsonify({'error': True}), 400
 
+@api.route('/api/datasets/<int:dataset_id>/tables/<string:table_name>/delete-backup/<string:timestamp>', methods=['DELETE'])
+def delete_backup(dataset_id, table_name, timestamp):
+    try:
+        data_loader.delete_backup(dataset_id, table_name, timestamp)
+        return jsonify({'success': True}), 200
+    except Exception:
+        return jsonify({'error': True}), 400
+
 @api.route('/api/datasets/<int:dataset_id>/tables/<string:table_name>/get-backup-info/<string:timestamp>', methods=['GET'])
 def get_backup_info(dataset_id, table_name, timestamp):
     try:

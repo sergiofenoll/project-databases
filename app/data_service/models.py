@@ -927,6 +927,8 @@ class DataLoader:
         transaction = connection.begin()
         try:
             timestamp = datetime.now()
+            # Format time to leave out microseconds
+            timestamp = timestamp.replace(microsecond=0)
             backup_name = '_{}_backup_{}'.format(table_name, timestamp)
             self.copy_table(table_name, schema_id, backup_name)
 

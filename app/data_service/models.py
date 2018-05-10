@@ -918,7 +918,7 @@ class DataLoader:
             app.logger.exception(e)
             raise e
 
-    def make_backup(self, schema_id, table_name):
+    def make_backup(self, schema_id, table_name, note=""):
         """ Makes a backup of the table in its current state.
             Backups are given the name '_<table_name>_backup_<timestamp>'
         """
@@ -930,7 +930,7 @@ class DataLoader:
             backup_name = '_{}_backup_{}'.format(table_name, timestamp)
             self.copy_table(table_name, schema_id, backup_name)
 
-            backup_query = 'INSERT INTO Backups VALUES ({}, {}, {}, {})'.format(*_cv(schema_name, table_name, backup_name, timestamp))
+            backup_query = 'INSERT INTO Backups VALUES ({}, {}, {}, {}, {})'.format(*_cv(schema_name, table_name, backup_name, timestamp, note))
 
             connection.execute(backup_query)
 
@@ -988,6 +988,22 @@ class DataLoader:
             app.logger.exception(e)
             raise e
 
+    def get_backup_info(self, schema_id, table_name, timestamp):
+        """ Returns the info (the note) for a given backup """
+        schema_name = "schema-" + str(schema_id)
+        try:
+            backup_name = '_{}_backup_{}'.format(table_name, timestamp)
+            query = 'SELECT note FROM Backups WHERE id_dataset = {} AND backup_name = {}'.format(*_cv(schema_name, backup_name))
+            result = db.engine.execute(query)
+            note = ""
+            for row in result:
+                if row[0] is not None:
+                    note = row[0]
+            return note
+        except Exception as e:
+            app.logger.error("[ERROR] Couldn't get info for backup.")
+            app.logger.exception(e)
+            raise e
 
 
 

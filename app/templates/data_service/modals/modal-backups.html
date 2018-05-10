@@ -11,17 +11,22 @@
 				<form id="formCreateBackup">
 					<div class="form-group">
 						<h5>Create a backup now</h5>
+						<p>Note:</p>
+						<input type="text" class="form-control" name="backup-note" id="backup-note">
 						<button type="submit" class="btn btn-primary">Create backup</button>
 					</div>
 				</form>
 				<form id="formRestoreBackup">
 					<div class="form-group">
 						<h5>Restore a previous backup</h5>
-						<select class="form-control" name="backup-timestamp" id="backup-timestamp">
+						<select class="form-control" name="backup-timestamp" id="backup-timestamp"
+								onchange="update_note(this.value)">
 							{% for ts in backups %}
 								<option value="{{ts}}">{{ts}}</option>
 							{% endfor %}
                     	</select>
+                    	<b>Note:</b>
+                    	<p id="note-txt"><i>Select backup to display note...</i></p>
 						<button type="submit" class="btn btn-primary">Restore</button>
 					</div>
 				</form>
@@ -34,7 +39,7 @@
 		e.preventDefault();
 		$.ajax({
 			type: 'PUT',
-			url: '/api' + window.location.pathname + '/create-backup',
+			url: '/api' + window.location.pathname + '/create-backup?' + $('#formCreateBackup').serialize(),
 			success: function () {
                 window.location.reload();
             },
@@ -56,4 +61,17 @@
             }
 		});
 	});
+
+	function update_note(timestamp) {
+        $.ajax({
+            type: 'GET',
+            url: '/api' + window.location.pathname + '/get-backup-info/' + timestamp,
+            async: true,
+            dataType: 'text',
+            success: function (data) {
+                document.getElementById("note-txt").innerHTML = data;
+            }
+        });
+    }
+
 </script>

@@ -61,6 +61,7 @@ CREATE TABLE Backups (
   table_name VARCHAR(255),
   backup_name VARCHAR(255),
   timestamp TIMESTAMP,
+  note VARCHAR(255),
   FOREIGN KEY (id_dataset) REFERENCES Dataset(id) ON DELETE CASCADE,
   PRIMARY KEY (id_dataset, table_name, timestamp)
 );

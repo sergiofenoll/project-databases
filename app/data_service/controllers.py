@@ -216,6 +216,24 @@ def show_raw_data(dataset_id, table_name):
         return redirect(url_for('data_service.get_table', dataset_id=dataset_id, table_name=table_name), code=303)
 
 
+@data_service.route('/datasets/<int:dataset_id>/tables/<string:table_name>/show-dedup-data', methods=['GET'])
+def show_dedup_data(dataset_id, table_name):
+    if (data_loader.has_access(current_user.username, dataset_id)) is False:
+        return abort(403)
+    dedup_table_name = "_dedup_" + table_name
+    dedup_table_exists = data_loader.table_exists(dedup_table_name, "schema-" + str(dataset_id))
+    if not dedup_table_exists:
+        flash(u"Dedup data does not exist.", 'warning')
+        return redirect(url_for('data_service.get_table', dataset_id=dataset_id, table_name=table_name))
+    try:
+        table = data_loader.get_table(dataset_id, dedup_table_name)
+        title = "Duplicate data for " + table_name
+        return render_template('data_service/dedup-data-view.html', table=table, title=title)
+    except Exception:
+        flash(u"Duplicate data couldn't be shown.", 'danger')
+        return redirect(url_for('data_service.get_table', dataset_id=dataset_id, table_name=table_name), code=303)
+
+
 @data_service.route('/datasets/<int:dataset_id>/tables/<string:table_name>/remove-rows', methods=['POST'])
 def remove_rows_predicate(dataset_id, table_name):
     predicates = list()
@@ -232,6 +250,17 @@ def remove_rows_predicate(dataset_id, table_name):
     return redirect(url_for('data_service.get_table', dataset_id=dataset_id, table_name=table_name))
 
 
+@data_service.route('/datasets/<int:dataset_id>/tables/<string:table_name>/show-dedup-data', methods=['POST'])
+def remove_identical_rows_on_distance(dataset_id, table_name):
+    try:
+        row_ids = [key.split('-')[1] for key in request.args]
+        data_loader.delete_row(dataset_id, table_name, row_ids)
+        flash(u"Rows have been deleted.", 'success')
+    except Exception:
+        flash(u"Rows couldn't be deleted.", 'warning')
+
+    return url_for('data_service.get_table', dataset_id=dataset_id, table_name=table_name)
+
 @data_service.route('/datasets/<int:dataset_id>/join-tables/<string:table_name>', methods=['GET'])
 @login_required
 def get_join_column_names(dataset_id, table_name):
@@ -239,7 +268,7 @@ def get_join_column_names(dataset_id, table_name):
         return abort(403)
 
     column_names = data_loader.get_column_names(dataset_id, table_name)
-    #column_names.remove('id')
+    # column_names.remove('id')
 
     return jsonify(column_names)
 
@@ -279,5 +308,3 @@ def join_tables(dataset_id):
     except Exception:
         flash(u"Join of tables was unsuccessful.", 'danger')
     return redirect(url_for('data_service.get_dataset', dataset_id=dataset_id))
-
-

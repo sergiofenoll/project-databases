@@ -12,9 +12,9 @@
                     <label for="col-type">Columns to check on</label>
                     <ul class="list-unstyled">
                         <li><input type="checkbox" class="parent" data-group=".removeIdenticalRows"> Select All</li>
-                    {% for column in table.columns[1:] %}
-                        <li><input type="checkbox" class="removeIdenticalRows" name="col-names" value="{{ column.name }}"> {{ column.name }}</li>
-                    {% endfor %}
+                        {% for column in table.columns[1:] %}
+                            <li><input type="checkbox" class="removeIdenticalRows" name="col-names" value="{{ column.name }}"> {{ column.name }}</li>
+                        {% endfor %}
                     </ul>
                 </div>
                 <div class="modal-footer">
@@ -50,7 +50,7 @@
         });
         $(group).change(function(){
             parent.prop('checked', false);
-            if ($(group+':checked').length == $(group).length ){
+            if ($(group+':checked').length === $(group).length ){
                 parent.prop('checked', true);
            }
         });

@@ -337,6 +337,7 @@ class OneHotEncode:
                 app.logger.exception(e)
                 raise e
 
+
 class DataDeduplicator:
     def __init__(self, dataloader):
         self.dataloader = dataloader
@@ -362,9 +363,38 @@ class DataDeduplicator:
 
             db.engine.execute(delete_rows_query)
         except Exception as e:
-            app.logger.error("[ERROR] Unable to remove identical duplicates from table '{}'".format(table_name))
+            app.logger.error("[ERROR] Unable to remove identical rows from table '{}'".format(table_name))
             app.logger.exception(e)
             raise e
 
-    def remove_rows_on_distance(self, schema_id, table_name, column_name, distance):
-        """ remove identical rows from table based on given distance of words in column """
+    def collect_identical_rows_on_distance(self, schema_id, table_name, column_names, selected_column, distance):
+        """ create view of identical rows from table based on given distance of words in column"""
+
+        schema_name = 'schema-' + str(schema_id)
+        dedup_table_name = '_dedup_' + table_name
+        try:
+            # Retrieve id's and 'column_name' value for identical rows
+            '''
+            identical_rows_query = "SELECT t1.id, t1.{2}, t2.id, t2.{2} FROM {0}.{1} as t1, {0}.{1} as t2 WHERE t1.id > t2.id".format(
+                *_ci(schema_name, table_name, selected_column))
+            '''
+
+            identical_rows_query = "SELECT t1.id FROM {0}.{1} as t1, {0}.{1} as t2 WHERE t1.id <> t2.id".format(
+                *_ci(schema_name, table_name))
+
+            for column_name in column_names:
+                # Skip 'id' and 'column_name'
+                if column_name == 'id' or column_name == selected_column:
+                    continue
+                identical_rows_query += " AND t1.{0} = t2.{0}".format(_ci(column_name))
+
+            # Create a view if 'identical' rows
+            create_view_query = "CREATE OR REPLACE VIEW {}.{} AS ".format(*_ci(schema_name, dedup_table_name))
+            create_view_query += "SELECT * FROM {}.{} WHERE id IN ({});".format(*_ci(schema_name, table_name),
+                                                                                identical_rows_query)
+
+            db.engine.execute(create_view_query)
+        except Exception as e:
+            app.logger.error("[ERROR] Could not create view for \'identical\' rows for table '{}'".format(table_name))
+            app.logger.exception(e)
+            raise e

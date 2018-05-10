@@ -1,0 +1,69 @@
+<div class="modal" tabindex="-1" role="dialog" aria-hidden="true" id="removeIdenticalRowsOnDistance">
+	<div class="modal-dialog" role="document">
+		<div class="modal-content">
+			<div class="modal-header">
+				<h5 class="modal-title"> Raw data</h5>
+				<button type="button" class="close" data-dismiss="modal" aria-label="Close">
+					<span aria-hidden="true">&times;</span>
+				</button>
+			</div>
+			<div class="modal-body">
+				<form id="formRemoveIdenticalRowsOnDistance">
+					<div class="form-group">
+						<h5>Columns to check on</h5>
+                        <label for="col-type">Columns to check on</label>
+                        <ul class="list-unstyled">
+                            <li><input type="checkbox" class="parent" data-group=".removeIdenticalRows"> Select All</li>
+                            {% for column in table.columns[1:] %}
+                                <li><input type="checkbox" class="removeIdenticalRows" name="col-names" value="{{ column.name }}"> {{ column.name }}</li>
+                            {% endfor %}
+                            <li>
+                                <select form="formRemoveIdenticalRowsOnDistance" name="selected-col-name">
+                                    <{% for column in table.columns[1:] %}
+                                        <option value="{{ column.name }}">{{ column.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </li>
+                            <li><input type="number" name="distance" value="0"></li>
+                        </ul>
+						<button type="submit" class="btn btn-primary">Collect duplicate rows
+						</button>
+					</div>
+				</form>
+			</div>
+		</div>
+	</div>
+</div>
+<script>
+	$('#formRemoveIdenticalRowsOnDistance').submit(function (e) {
+		e.preventDefault();
+		$.ajax({
+			type: 'PUT',
+			url: '/api' + window.location.pathname + '/remove-identical-rows-on-distance?' + $('#formRemoveIdenticalRowsOnDistance').serialize(),
+            success: function () {
+			    $.ajax({
+                    type: 'GET',
+			        url: window.location.pathname + '/show-dedup-data'
+                });
+			    window.location.assign(window.location.pathname + '/show-dedup-data')
+            },
+            error: function () {
+                window.location.reload();
+            }
+		});
+	});
+	$(".parent").each(function(index){
+        var group = $(this).data("group");
+        var parent = $(this);
+
+        parent.change(function(){  //"select all" change
+             $(group).prop('checked', parent.prop("checked"));
+        });
+        $(group).change(function(){
+            parent.prop('checked', false);
+            if ($(group+':checked').length === $(group).length ){
+                parent.prop('checked', true);
+           }
+        });
+    });
+</script>

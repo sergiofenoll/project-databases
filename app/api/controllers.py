@@ -350,3 +350,37 @@ def remove_identical_rows(dataset_id, table_name):
 
     flash(u"Identical rows have been removed.", 'success')
     return jsonify({'success': True}), 200
+
+
+@api.route('/api/datasets/<int:dataset_id>/tables/<string:table_name>/remove-identical-rows-on-distance', methods=['PUT'])
+def collect_identical_rows_on_distance(dataset_id, table_name):
+    try:
+        column_names = request.args.getlist('col-names')
+        selected_column = request.args.get('selected-col-name')
+        distance = int(request.args.get('distance'))
+        data_deduplicator.collect_identical_rows_on_distance(dataset_id, table_name, column_names, selected_column,
+                                                             distance)
+        return jsonify({'success': True}), 200
+    except Exception:
+        flash(u"Couldn't collect identical rows", 'danger')
+        return jsonify({'error': True}), 400
+
+
+@api.route('/api/datasets/<int:dataset_id>/tables/<string:table_name>/show-dedup-data', methods=['GET'])
+def show_dedup_data(dataset_id, table_name):
+    try:
+        start = request.args.get('start')
+        length = request.args.get('length')
+        order_column = int(request.args.get('order[0][column]'))
+        order_direction = request.args.get('order[0][dir]')
+        dedup_table_name = "_dedup_" + table_name
+        ordering = (data_loader.get_column_names(dataset_id, dedup_table_name)[order_column], order_direction)
+        table = data_loader.get_table(dataset_id, dedup_table_name, offset=start, limit=length, ordering=ordering)
+        _table = data_loader.get_table(dataset_id, dedup_table_name)
+        return jsonify(draw=int(request.args.get('draw')),
+                       recordsTotal=len(_table.rows),
+                       recordsFiltered=len(_table.rows),
+                       data=table.rows)
+    except Exception:
+        flash(u"Duplicate rows could't be shown.", 'danger')
+        return jsonify({'error': True}), 400

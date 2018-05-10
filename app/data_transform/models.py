@@ -336,3 +336,35 @@ class OneHotEncode:
                 app.logger.error("[ERROR] Couldn't one_hot_encode  '" + column_name + "' in '." + table_name + "',")
                 app.logger.exception(e)
                 raise e
+
+class DataDeduplicator:
+    def __init__(self, dataloader):
+        self.dataloader = dataloader
+
+    def remove_identical_rows(self, schema_id, table_name, column_names):
+        """ remove identical rows from table for given columns, only row with smallest 'id' remains """
+
+        schema_name = 'schema-' + str(schema_id)
+
+        try:
+            # Retrieve id's for identical rows
+            identical_rows_query = "SELECT t1.id FROM {0}.{1} as t1, {0}.{1} as t2 WHERE t1.id > t2.id".format(
+                *_ci(schema_name, table_name))
+
+            for column_name in column_names:
+                if column_name == 'id':
+                    continue
+                identical_rows_query += " AND t1.{0} = t2.{0}".format(_ci(column_name))
+
+            # Delete the retrieved rows on 'id'
+            delete_rows_query = "DELETE FROM {}.{} WHERE id IN ({});".format(*_ci(schema_name, table_name),
+                                                                             identical_rows_query)
+
+            db.engine.execute(delete_rows_query)
+        except Exception as e:
+            app.logger.error("[ERROR] Unable to remove identical duplicates from table '{}'".format(table_name))
+            app.logger.exception(e)
+            raise e
+
+    def remove_rows_on_distance(self, schema_id, table_name, column_name, distance):
+        """ remove identical rows from table based on given distance of words in column """

@@ -1,13 +1,13 @@
 from flask import Blueprint, jsonify, request, send_from_directory, flash
 
 from app import data_loader, date_time_transformer, data_transformer, numerical_transformer, one_hot_encoder, \
+    data_deduplicator, \
     UPLOAD_FOLDER
 from app.history.models import History
 
 api = Blueprint('api', __name__)
 
 _history = History()
-
 
 
 @api.route('/api/datasets/<int:dataset_id>/tables/<string:table_name>', methods=['GET'])
@@ -183,6 +183,7 @@ def impute_missing_data(dataset_id, table_name):
         flash(u"Couldn't fill missing data.", 'danger')
         return jsonify({'error': True}), 400
 
+
 @api.route('/api/datasets/<int:dataset_id>/tables/<string:table_name>/export', methods=['PUT'])
 def export_table(dataset_id, table_name):
     # Maybe later we might add other types, but for now this is hardcoded to export as CSV
@@ -201,6 +202,7 @@ def export_table(dataset_id, table_name):
     except Exception:
         flash(u"Data couldn't be exported.", 'danger')
         return jsonify({'error': True}), 400
+
 
 @api.route('/api/download/<string:filename>', methods=['GET'])
 def download_file(filename):
@@ -256,6 +258,7 @@ def normalize(dataset_id, table_name):
         flash(u"Data couldn't be normalized.", 'danger')
         return jsonify({'error': True}), 400
 
+
 @api.route('/api/datasets/<int:dataset_id>/tables/<string:table_name>/discretize', methods=['PUT'])
 def discretize(dataset_id, table_name):
     column_name = request.args.get('col-name')
@@ -307,6 +310,7 @@ def rename_column(dataset_id, table_name):
         flash(u"Column couldn't be renamed.", 'danger')
         return jsonify({'error': True}), 400
 
+
 @api.route('/api/datasets/<int:dataset_id>/tables/<string:table_name>/chart', methods=['GET'])
 def chart(dataset_id, table_name):
     try:
@@ -321,6 +325,7 @@ def chart(dataset_id, table_name):
         flash(u"Charts couldn't be produced.", 'danger')
         return jsonify({'error': True}), 400
 
+
 @api.route('/api/datasets/<int:dataset_id>/tables/<string:table_name>/one-hot-encode-column', methods=['PUT'])
 def one_hot_encode(dataset_id, table_name):
     try:
@@ -331,3 +336,17 @@ def one_hot_encode(dataset_id, table_name):
     except Exception:
         flash(u"One hot encoding was unsuccessful.", 'danger')
         return jsonify({'error': True}), 400
+
+
+@api.route('/api/datasets/<int:dataset_id>/tables/<string:table_name>/remove-identical-rows', methods=['DELETE'])
+def remove_identical_rows(dataset_id, table_name):
+    try:
+        column_names = request.args.getlist('col-names')
+        data_deduplicator.remove_identical_rows(dataset_id, table_name, column_names)
+
+    except Exception:
+        flash(u"Couldn't remove identical rows")
+        return jsonify({'error': True}), 400
+
+    flash(u"Identical rows have been removed.", 'success')
+    return jsonify({'success': True}), 200

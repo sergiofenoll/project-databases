@@ -26,7 +26,7 @@ login.init_app(app)
 from app.data_service.models import DataLoader, TableJoiner
 
 from app.user_service.models import UserDataAccess
-from app.data_transform.models import DateTimeTransformer, DataTransformer, NumericalTransformations, OneHotEncode
+from app.data_transform.models import DateTimeTransformer, DataTransformer, NumericalTransformations, OneHotEncode, DataDeduplicator
 
 user_data_access = UserDataAccess()
 data_loader = DataLoader()
@@ -36,6 +36,7 @@ numerical_transformer = NumericalTransformations()
 
 table_joiner = TableJoiner(data_loader)
 one_hot_encoder = OneHotEncode(data_loader)
+data_deduplicator = DataDeduplicator(data_loader)
 
 @login.user_loader
 def load_user(user_id):

@@ -1,7 +1,7 @@
 from flask import Blueprint, jsonify, request, send_from_directory, flash
 
 from app import data_loader, date_time_transformer, data_transformer, numerical_transformer, one_hot_encoder, \
-    UPLOAD_FOLDER
+    active_user_handler, UPLOAD_FOLDER
 from app.history.models import History
 
 api = Blueprint('api', __name__)
@@ -330,4 +330,13 @@ def one_hot_encode(dataset_id, table_name):
         return jsonify({'success': True}), 200
     except Exception:
         flash(u"One hot encoding was unsuccessful.", 'danger')
+        return jsonify({'error': True}), 400
+
+
+@api.route('/api/datasets/<int:dataset_id>/tables/<string:table_name>/active-users', methods=['GET'])
+def get_active_users(dataset_id, table_name):
+    try:
+        active_users = active_user_handler.get_active_users_in_table(dataset_id, table_name)
+        return jsonify(data=active_users)
+    except Exception:
         return jsonify({'error': True}), 400

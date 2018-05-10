@@ -115,7 +115,7 @@ class ActiveUserHandler:
         try:
             schema_name = "schema-" + str(schema_id)
             rows = db.engine.execute(
-                'SELECT id_user FROM Active_In_Table WHERE id_dataset = {} AND id_table = {} and id_user = {};'
+                'SELECT DISTINCT id_user FROM Active_In_Table WHERE id_dataset = {} AND id_table = {};'
                     .format(*_cv(schema_name, table_name)))
 
             active_users = list()

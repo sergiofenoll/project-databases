@@ -23,7 +23,7 @@ database = SQLAlchemy(app)
 login = LoginManager(app)
 login.init_app(app)
 
-from app.data_service.models import DataLoader, TableJoiner
+from app.data_service.models import DataLoader, TableJoiner, ActiveUserHandler
 
 from app.user_service.models import UserDataAccess
 from app.data_transform.models import DateTimeTransformer, DataTransformer, NumericalTransformations, OneHotEncode
@@ -33,6 +33,7 @@ data_loader = DataLoader()
 date_time_transformer = DateTimeTransformer()
 data_transformer = DataTransformer()
 numerical_transformer = NumericalTransformations()
+active_user_handler = ActiveUserHandler()
 
 table_joiner = TableJoiner(data_loader)
 one_hot_encoder = OneHotEncode(data_loader)

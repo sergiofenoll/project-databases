@@ -113,6 +113,7 @@ class ActiveUserHandler:
 
     def get_active_users_in_table(self, schema_id, table_name):
         try:
+            self.remove_unactive_users_in_tables()
             schema_name = "schema-" + str(schema_id)
             rows = db.engine.execute(
                 'SELECT DISTINCT id_user FROM Active_In_Table WHERE id_dataset = {} AND id_table = {};'

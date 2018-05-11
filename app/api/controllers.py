@@ -38,6 +38,7 @@ def auth_required(f):
 def get_table(dataset_id, table_name):
     if (data_loader.has_access(current_user.username, dataset_id)) is False:
         return abort(403)
+    active_user_handler.make_user_active_in_table(dataset_id, table_name, current_user.username)
     start = request.args.get('start')
     length = request.args.get('length')
     order_column = int(request.args.get('order[0][column]'))
@@ -58,6 +59,7 @@ def get_table(dataset_id, table_name):
 def get_access_table(dataset_id):
     if (data_loader.has_access(current_user.username, dataset_id)) is False:
         return abort(403)
+    active_user_handler.make_user_active_in_dataset(dataset_id, current_user.username)
     start = request.args.get('start')
     length = request.args.get('length')
     access_table_columns = ['id_user', 'role']
@@ -78,6 +80,7 @@ def get_access_table(dataset_id):
 def get_history(dataset_id, table_name):
     if (data_loader.has_access(current_user.username, dataset_id)) is False:
         return abort(403)
+    active_user_handler.make_user_active_in_table(dataset_id, table_name, current_user.username)
     start = request.args.get('start')
     length = request.args.get('length')
     search = request.args.get('search[value]')
@@ -100,6 +103,7 @@ def add_row(dataset_id, table_name):
     if (data_loader.has_access(current_user.username, dataset_id)) is False:
         return abort(403)
     try:
+        active_user_handler.make_user_active_in_table(dataset_id, table_name, current_user.username)
         values = dict()
         columns = list()
         for key in request.args:
@@ -121,6 +125,7 @@ def delete_row(dataset_id, table_name):
     if (data_loader.has_access(current_user.username, dataset_id)) is False:
         return abort(403)
     try:
+        active_user_handler.make_user_active_in_table(dataset_id, table_name, current_user.username)
         row_ids = [key.split('-')[1] for key in request.args]
         data_loader.delete_row(dataset_id, table_name, row_ids)
         flash(u"Rows have been deleted.", 'success')
@@ -137,6 +142,7 @@ def add_column(dataset_id, table_name):
     if (data_loader.has_access(current_user.username, dataset_id)) is False:
         return abort(403)
     try:
+        active_user_handler.make_user_active_in_table(dataset_id, table_name, current_user.username)
         column_name = request.args.get('col-name')
         column_type = request.args.get('col-type')
         data_loader.insert_column(dataset_id, table_name, column_name, column_type)
@@ -153,6 +159,7 @@ def update_column(dataset_id, table_name):
     if (data_loader.has_access(current_user.username, dataset_id)) is False:
         return abort(403)
     try:
+        active_user_handler.make_user_active_in_table(dataset_id, table_name, current_user.username)
         column_name = request.args.get('col-name')
         column_type = request.args.get('col-type')
         data_loader.update_column_type(dataset_id, table_name, column_name, column_type)
@@ -169,6 +176,7 @@ def delete_column(dataset_id, table_name):
     if (data_loader.has_access(current_user.username, dataset_id)) is False:
         return abort(403)
     try:
+        active_user_handler.make_user_active_in_table(dataset_id, table_name, current_user.username)
         column_name = request.args.get('col-name')
         data_loader.delete_column(dataset_id, table_name, column_name)
         flash(u"Column has been deleted.", 'success')
@@ -184,6 +192,7 @@ def transform_date_or_time(dataset_id, table_name):
     if (data_loader.has_access(current_user.username, dataset_id)) is False:
         return abort(403)
     try:
+        active_user_handler.make_user_active_in_table(dataset_id, table_name, current_user.username)
         column_name = request.args.get('col-name')
         operation_name = request.args.get('operation-name')
         date_time_transformer.transform(dataset_id, table_name, column_name, operation_name)
@@ -197,12 +206,12 @@ def transform_date_or_time(dataset_id, table_name):
 @api.route('/api/datasets/update-dataset-metadata', methods=['PUT'])
 @auth_required
 def update_dataset_metadata():
-    if (data_loader.has_access(current_user.username, dataset_id)) is False:
-        return abort(403)   
     try:
         dataset_id = request.args.get('ds-id')
         new_name = request.args.get('ds-name')
         new_desc = request.args.get('ds-desc')
+        if (data_loader.has_access(current_user.username, dataset_id)) is False:
+            return abort(403)
         data_loader.update_dataset_metadata(dataset_id, new_name, new_desc)
         flash(u"Metadata has been updated.", 'success')
         return jsonify({'success': True}), 200
@@ -217,6 +226,7 @@ def update_table_metadata(dataset_id):
     if (data_loader.has_access(current_user.username, dataset_id)) is False:
         return abort(403)
     try:
+        active_user_handler.make_user_active_in_dataset(dataset_id, current_user.username)
         old_table_name = request.args.get('t-old-name')
         new_table_name = request.args.get('t-name')
         new_desc = request.args.get('t-desc')
@@ -234,6 +244,7 @@ def impute_missing_data(dataset_id, table_name):
     if (data_loader.has_access(current_user.username, dataset_id)) is False:
         return abort(403)
     try:
+        active_user_handler.make_user_active_in_table(dataset_id, table_name, current_user.username)
         column_name = request.args.get('col-name')
         function = request.args.get('function')
         if function == "CUSTOM":
@@ -254,6 +265,7 @@ def export_table(dataset_id, table_name):
         return abort(403)
     # Maybe later we might add other types, but for now this is hardcoded to export as CSV
     try:
+        active_user_handler.make_user_active_in_table(dataset_id, table_name, current_user.username)
         filename = table_name + ".csv"
         path = UPLOAD_FOLDER + "/" + filename
 
@@ -280,6 +292,7 @@ def download_file(filename):
 def show_raw_data(dataset_id, table_name):
     if (data_loader.has_access(current_user.username, dataset_id)) is False:
         return abort(403)
+    active_user_handler.make_user_active_in_table(dataset_id, table_name, current_user.username)
     start = request.args.get('start')
     length = request.args.get('length')
     order_column = int(request.args.get('order[0][column]'))
@@ -300,6 +313,7 @@ def find_and_replace(dataset_id, table_name):
     if (data_loader.has_access(current_user.username, dataset_id)) is False:
         return abort(403)
     try:
+        active_user_handler.make_user_active_in_table(dataset_id, table_name, current_user.username)
         colomn = request.args.get('col-name')
         replacement_function = request.args.get('replacement-function')
 
@@ -325,6 +339,7 @@ def normalize(dataset_id, table_name):
     if (data_loader.has_access(current_user.username, dataset_id)) is False:
         return abort(403)
     try:
+        active_user_handler.make_user_active_in_table(dataset_id, table_name, current_user.username)
         column_name = request.args.get('col-name')
         numerical_transformer.normalize(dataset_id, table_name, column_name)
         flash(u"Data has been normalized.", 'success')
@@ -341,6 +356,7 @@ def discretize(dataset_id, table_name):
     column_name = request.args.get('col-name')
     discretization = request.args.get('discretization')
     try:
+        active_user_handler.make_user_active_in_table(dataset_id, table_name, current_user.username)
         if discretization == 'eq-width':
             print('porque zo dom iedereen?')
             num_intervals = int(request.args.get('num-intervals'))
@@ -367,6 +383,7 @@ def outliers(dataset_id, table_name):
     if (data_loader.has_access(current_user.username, dataset_id)) is False:
         return abort(403)
     try:
+        active_user_handler.make_user_active_in_table(dataset_id, table_name, current_user.username)
         column_name = request.args.get('col-name')
         option = request.args.get('option') == 'less-than'
         value = float(request.args.get('value'))
@@ -384,6 +401,7 @@ def rename_column(dataset_id, table_name):
     if (data_loader.has_access(current_user.username, dataset_id)) is False:
         return abort(403)
     try:
+        active_user_handler.make_user_active_in_table(dataset_id, table_name, current_user.username)
         to_rename = request.args.get('col-name')
         new_name = request.args.get('new-name')
         data_loader.rename_column(dataset_id, table_name, to_rename, new_name)
@@ -399,6 +417,7 @@ def chart(dataset_id, table_name):
     if (data_loader.has_access(current_user.username, dataset_id)) is False:
         return abort(403)
     try:
+        active_user_handler.make_user_active_in_table(dataset_id, table_name, current_user.username)
         column_name = request.args.get('col-name')
         column_type = request.args.get('col-type')
 
@@ -417,6 +436,7 @@ def one_hot_encode(dataset_id, table_name):
     if (data_loader.has_access(current_user.username, dataset_id)) is False:
         return abort(403)
     try:
+        active_user_handler.make_user_active_in_table(dataset_id, table_name, current_user.username)
         column_name = request.args.get('col-name')
         one_hot_encoder.encode(dataset_id, table_name, column_name)
         flash(u"One hot encoding was successful.", 'success')
@@ -432,6 +452,7 @@ def get_active_users(dataset_id, table_name):
     if (data_loader.has_access(current_user.username, dataset_id)) is False:
         return abort(403)
     try:
+        active_user_handler.make_user_active_in_table(dataset_id, table_name, current_user.username)
         active_users = active_user_handler.get_active_users_in_table(dataset_id, table_name)
         return jsonify(data=active_users)
     except Exception:
@@ -444,6 +465,7 @@ def create_backup(dataset_id, table_name):
     if (data_loader.has_access(current_user.username, dataset_id)) is False:
         return abort(403)
     try:
+        active_user_handler.make_user_active_in_table(dataset_id, table_name, current_user.username)
         note = request.args.get('backup-note')
         data_loader.make_backup(dataset_id, table_name, note)
         flash(u"Succesfully created backup.", 'success')
@@ -458,11 +480,12 @@ def restore_backup(dataset_id, table_name):
     if (data_loader.has_access(current_user.username, dataset_id)) is False:
         return abort(403)
     try:
+        active_user_handler.make_user_active_in_table(dataset_id, table_name, current_user.username)
         backup_ts = request.args.get('backup-timestamp')
         if backup_ts == "DEFAULT":
             return jsonify({'error': True}), 400
         data_loader.restore_backup(dataset_id, table_name, backup_ts)
-        flash(u"Succesfully restored backup.", 'succes')
+        flash(u"Succesfully restored backup.", 'success')
         return jsonify({'success': True}), 200
     except Exception:
         flash(u"Failed to restore backup.", 'danger')
@@ -474,6 +497,7 @@ def delete_backup(dataset_id, table_name, timestamp):
     if (data_loader.has_access(current_user.username, dataset_id)) is False:
         return abort(403)
     try:
+        active_user_handler.make_user_active_in_table(dataset_id, table_name, current_user.username)
         data_loader.delete_backup(dataset_id, table_name, timestamp)
         return jsonify({'success': True}), 200
     except Exception:
@@ -486,6 +510,7 @@ def get_backup_info(dataset_id, table_name, timestamp):
     if (data_loader.has_access(current_user.username, dataset_id)) is False:
         return abort(403)
     try:
+        active_user_handler.make_user_active_in_table(dataset_id, table_name, current_user.username)
         if timestamp == "DEFAULT":
             return "Select backup to display note..."
         note = data_loader.get_backup_info(dataset_id, table_name, timestamp)

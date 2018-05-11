@@ -67,8 +67,8 @@ def register():
 @user_service.route('/logout')
 @login_required
 def logout():
-    logout_user()
     active_user_handler.remove_active_states_of_user(current_user.username)
+    logout_user()
     flash(u"Successfully logged out!", 'success')
     return redirect(url_for('main.index'))
 

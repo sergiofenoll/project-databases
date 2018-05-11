@@ -427,7 +427,10 @@ def one_hot_encode(dataset_id, table_name):
 
 
 @api.route('/api/datasets/<int:dataset_id>/tables/<string:table_name>/active-users', methods=['GET'])
+@auth_required
 def get_active_users(dataset_id, table_name):
+    if (data_loader.has_access(current_user.username, dataset_id)) is False:
+        return abort(403)
     try:
         active_users = active_user_handler.get_active_users_in_table(dataset_id, table_name)
         return jsonify(data=active_users)

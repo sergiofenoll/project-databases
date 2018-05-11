@@ -335,3 +335,45 @@ def one_hot_encode(dataset_id, table_name):
     except Exception:
         flash(u"One hot encoding was unsuccessful.", 'danger')
         return jsonify({'error': True}), 400
+
+@api.route('/api/datasets/<int:dataset_id>/tables/<string:table_name>/create-backup', methods=['PUT'])
+def create_backup(dataset_id, table_name):
+    try:
+        note = request.args.get('backup-note')
+        data_loader.make_backup(dataset_id, table_name, note)
+        flash(u"Succesfully created backup.", 'success')
+        return jsonify({'success': True}), 200
+    except Exception:
+        flash(u"Failed to create backup.", 'danger')
+        return jsonify({'error': True}), 400
+
+@api.route('/api/datasets/<int:dataset_id>/tables/<string:table_name>/restore-backup', methods=['GET'])
+def restore_backup(dataset_id, table_name):
+        try:
+            backup_ts = request.args.get('backup-timestamp')
+            if backup_ts == "DEFAULT":
+                return jsonify({'error': True}), 400
+            data_loader.restore_backup(dataset_id, table_name, backup_ts)
+            flash(u"Succesfully restored backup.", 'succes')
+            return jsonify({'success': True}), 200
+        except Exception:
+            flash(u"Failed to restore backup.", 'danger')
+            return jsonify({'error': True}), 400
+
+@api.route('/api/datasets/<int:dataset_id>/tables/<string:table_name>/delete-backup/<string:timestamp>', methods=['DELETE'])
+def delete_backup(dataset_id, table_name, timestamp):
+    try:
+        data_loader.delete_backup(dataset_id, table_name, timestamp)
+        return jsonify({'success': True}), 200
+    except Exception:
+        return jsonify({'error': True}), 400
+
+@api.route('/api/datasets/<int:dataset_id>/tables/<string:table_name>/get-backup-info/<string:timestamp>', methods=['GET'])
+def get_backup_info(dataset_id, table_name, timestamp):
+    try:
+        if timestamp == "DEFAULT":
+            return "Select backup to display note..."
+        note = data_loader.get_backup_info(dataset_id, table_name, timestamp)
+        return note
+    except Exception:
+        return ""

@@ -102,6 +102,7 @@ class DataLoader:
             db.engine.execute(
                 'INSERT INTO Access(id_dataset, id_user, role) VALUES({}, {}, {});'.format(
                     *_cv(schema_name, owner_id, 'owner')))
+
         except Exception as e:
             app.logger.error("[ERROR] Failed to insert dataset '" + name + "' into the database")
             app.logger.exception(e)
@@ -228,6 +229,16 @@ class DataLoader:
         except Exception as e:
             transaction.rollback()
             app.logger.error("[ERROR] Failed to delete table '" + name + "'")
+            app.logger.exception(e)
+            raise e
+
+    def copy_table(self, name, schema_id, copy_name):
+        """ Copies the content of table 'name' to a new table 'copy_name' in the same schema"""
+        schema_name = 'schema-' + str(schema_id)
+        try:
+            db.engine.execute('CREATE TABLE {0}.{1} AS SELECT * FROM {0}.{2}'.format(_ci(schema_name), _ci(copy_name), _ci(name)))
+        except Exception as e:
+            app.logger.error("[ERROR] Unable to create copy of table {}".format(name))
             app.logger.exception(e)
             raise e
 
@@ -807,6 +818,7 @@ class DataLoader:
 
         return filename
 
+    # Statistics
     def get_numerical_statistic(self, schema_id, table_name, column, function):
 
         """" calculate average of column """
@@ -888,6 +900,7 @@ class DataLoader:
             stats.append([column.name, self.get_statistics_for_column(schema_id, table_name, column.name, numerical)])
         return stats
 
+    # Raw data & backups
     def revert_back_to_raw_data(self, schema_id, table_name):
         schema_name = "schema-" + str(schema_id)
         try:
@@ -910,6 +923,115 @@ class DataLoader:
             app.logger.error("[ERROR] Couldn't convert back to raw data")
             app.logger.exception(e)
             raise e
+
+    def make_backup(self, schema_id, table_name, note=""):
+        """ Makes a backup of the table in its current state.
+            Backups are given the name '_<table_name>_backup_<timestamp>'
+        """
+        schema_name = "schema-" + str(schema_id)
+        connection = db.engine.connect()
+        transaction = connection.begin()
+        try:
+            timestamp = datetime.now()
+            # Format time to leave out microseconds
+            timestamp = timestamp.replace(microsecond=0)
+            backup_name = '_{}_backup_{}'.format(table_name, timestamp)
+            self.copy_table(table_name, schema_id, backup_name)
+
+            backup_query = 'INSERT INTO Backups VALUES ({}, {}, {}, {}, {})'.format(*_cv(schema_name, table_name, backup_name, timestamp, note))
+
+            connection.execute(backup_query)
+
+            history.log_action(schema_id, table_name, datetime.now(), "Created backup.")
+
+            transaction.commit()
+
+        except Exception as e:
+            transaction.rollback()
+            app.logger.error("[ERROR] Couldn't make backup of table {}".format(table_name))
+            app.logger.exception(e)
+            raise e
+
+    def get_backups(self, schema_id, table_name):
+        """ Returns list with timestamps (as strings) for available backups for given table.
+            (This info is fetched from the 'Backups' table)
+        """
+        schema_name = "schema-" + str(schema_id)
+        try:
+            query = 'SELECT timestamp::VARCHAR FROM Backups WHERE id_dataset = {} AND table_name = {}'.format(*_cv(schema_name, table_name))
+            rows = db.engine.execute(query)
+
+            timestamps = [str(ts[0]) for ts in rows]
+            return timestamps
+        except Exception as e:
+            app.logger.error("[ERROR] Couldn't fetch backups for table '{}'".format(table_name))
+            app.logger.exception(e)
+            raise e
+
+    def restore_backup(self, schema_id, table_name, timestamp):
+        """ Restores a backup given a table & a timestamp """
+        schema_name = "schema-" + str(schema_id)
+        connection = db.engine.connect()
+        transaction = connection.begin()
+        try:
+            connection.execute('DROP TABLE {}.{};'.format(*_ci(schema_name, table_name)))
+        except Exception as e:
+            transaction.rollback()
+            app.logger.error("[ERROR] Couldn't convert back to raw data")
+            app.logger.exception(e)
+            raise e
+
+        try:
+            backup_name = '_{}_backup_{}'.format(table_name, timestamp)
+            connection.execute(
+                'CREATE TABLE {}.{} AS TABLE {}.{}'.format(*_ci(schema_name, table_name, schema_name, backup_name)))
+
+            # Log action to history
+            history.log_action(schema_id, table_name, datetime.now(), 'Restored backup from {}'.format(timestamp))
+
+            transaction.commit()
+        except Exception as e:
+            transaction.rollback()
+            app.logger.error("[ERROR] Couldn't restore backup for table '{}'".format(table_name))
+            app.logger.exception(e)
+            raise e
+
+    def delete_backup(self, schema_id, table_name, timestamp):
+        """ Deletes the approriate backup table from the dataset """
+        schema_name = "schema-" + str(schema_id)
+        connection = db.engine.connect()
+        transaction = connection.begin()
+        try:
+            backup_name = '_{}_backup_{}'.format(table_name, timestamp)
+            query = 'DELETE FROM Backups WHERE id_dataset = {} AND backup_name = {}'.format(*_cv(schema_name, backup_name))
+            connection.execute(query)
+            history.log_action(schema_id, table_name, datetime.now(), "Deleted backup {}.".format(timestamp))
+            transaction.commit()
+        except Exception as e:
+            transaction.rollback()
+            app.logger.error("[ERROR] Couldn't delete backup.")
+            app.logger.exception(e)
+            raise e
+
+
+    def get_backup_info(self, schema_id, table_name, timestamp):
+        """ Returns the info (the note) for a given backup """
+        schema_name = "schema-" + str(schema_id)
+        try:
+            backup_name = '_{}_backup_{}'.format(table_name, timestamp)
+            query = 'SELECT note FROM Backups WHERE id_dataset = {} AND backup_name = {}'.format(*_cv(schema_name, backup_name))
+            result = db.engine.execute(query)
+            note = ""
+            for row in result:
+                if row[0] is not None:
+                    note = row[0]
+            return note
+        except Exception as e:
+            app.logger.error("[ERROR] Couldn't get info for backup.")
+            app.logger.exception(e)
+            raise e
+
+
 
 
 class TableJoinPair:

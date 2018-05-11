@@ -1,0 +1,102 @@
+<div class="modal" tabindex="-1" role="dialog" aria-hidden="true" id="backups">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Backups</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form id="formCreateBackup">
+                    <div class="form-group">
+                        <h5>Create a backup now</h5>
+                        <p>Note:</p>
+                        <input type="text" class="form-control" name="backup-note" id="backup-note">
+                        <button type="submit" class="btn btn-primary">Create backup</button>
+                    </div>
+                </form>
+                <form id="formRestoreBackup">
+                    <div class="form-group">
+                        <h5>Restore a previous backup</h5>
+                        <select class="form-control" name="backup-timestamp" id="backup-timestamp"
+                                onchange="update_note(this.value)">
+                        <option selected value="DEFAULT">Choose a backup...</option>
+                            {% for ts in backups %}
+                                <option value="{{ ts }}">{{ ts }}</option>
+                            {% endfor %}
+                        </select>
+                        <b>Note:</b>
+                        <p id="note-txt"><i>Select backup to display note...</i></p>
+                        <!-- Form in form to remove backups -->
+                        <button type="submit" class="btn btn-primary">Restore</button>
+                        <button type="button" class="btn btn-xs btn-danger" onclick="delete_backup()">Delete backup
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+    $('#formCreateBackup').submit(function (e) {
+        e.preventDefault();
+        $.ajax({
+            type: 'PUT',
+            url: '/api' + window.location.pathname + '/create-backup?' + $('#formCreateBackup').serialize(),
+            success: function () {
+                window.location.reload();
+            },
+            error: function () {
+                window.location.reload();
+            }
+        });
+    });
+    $('#formRestoreBackup').submit(function (e) {
+        e.preventDefault();
+        $.ajax({
+            type: 'GET',
+            url: '/api' + window.location.pathname + '/restore-backup?' + $('#formRestoreBackup').serialize(),
+            success: function () {
+                window.location.reload();
+            },
+            error: function () {
+                window.location.reload();
+            }
+        });
+    });
+
+    function update_select(selectbox, deleted_ts) {
+        var i;
+        for (i = selectbox.options.length - 1; i >= 0; i--) {
+            if ((selectbox.options[i].value == deleted_ts) && (deleted_ts != "DEFAULT")) {
+                selectbox.remove(i);
+            }
+        }
+    }
+
+    function delete_backup() {
+        var timestamp = document.getElementById("backup-timestamp").value;
+        $.ajax({
+            type: 'DELETE',
+            url: '/api' + window.location.pathname + '/delete-backup/' + timestamp,
+            success: function () {
+                // Reload options in dropdown
+                update_select(document.getElementById("backup-timestamp"), timestamp);
+            }
+        });
+    }
+
+    function update_note(timestamp) {
+        $.ajax({
+            type: 'GET',
+            url: '/api' + window.location.pathname + '/get-backup-info/' + timestamp,
+            async: true,
+            dataType: 'text',
+            success: function (data) {
+                document.getElementById("note-txt").innerHTML = data;
+            }
+        });
+    }
+
+</script>

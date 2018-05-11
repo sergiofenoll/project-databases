@@ -347,6 +347,8 @@ def create_backup(dataset_id, table_name):
 def restore_backup(dataset_id, table_name):
         try:
             backup_ts = request.args.get('backup-timestamp')
+            if backup_ts == "DEFAULT":
+                return jsonify({'error': True}), 400
             data_loader.restore_backup(dataset_id, table_name, backup_ts)
             flash(u"Succesfully restored backup.", 'succes')
             return jsonify({'success': True}), 200
@@ -365,6 +367,8 @@ def delete_backup(dataset_id, table_name, timestamp):
 @api.route('/api/datasets/<int:dataset_id>/tables/<string:table_name>/get-backup-info/<string:timestamp>', methods=['GET'])
 def get_backup_info(dataset_id, table_name, timestamp):
     try:
+        if timestamp == "DEFAULT":
+            return "Select backup to display note..."
         note = data_loader.get_backup_info(dataset_id, table_name, timestamp)
         return note
     except Exception:

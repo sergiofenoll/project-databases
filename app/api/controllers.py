@@ -459,7 +459,7 @@ def restore_backup(dataset_id, table_name):
 @api.route('/api/datasets/<int:dataset_id>/tables/<string:table_name>/delete-backup/<string:timestamp>', methods=['DELETE'])
 @auth_required
 def delete_backup(dataset_id, table_name, timestamp):
-  if (data_loader.has_access(current_user.username, dataset_id)) is False:
+    if (data_loader.has_access(current_user.username, dataset_id)) is False:
         return abort(403)
     try:
         data_loader.delete_backup(dataset_id, table_name, timestamp)
@@ -470,7 +470,8 @@ def delete_backup(dataset_id, table_name, timestamp):
 @api.route('/api/datasets/<int:dataset_id>/tables/<string:table_name>/get-backup-info/<string:timestamp>', methods=['GET'])
 @auth_required
 def get_backup_info(dataset_id, table_name, timestamp):
-  if (data_loader.has_access(current_user.username, dataset_id)) is False:
+
+    if (data_loader.has_access(current_user.username, dataset_id)) is False:
         return abort(403)
     try:
         if timestamp == "DEFAULT":

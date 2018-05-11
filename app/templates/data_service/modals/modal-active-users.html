@@ -39,9 +39,15 @@
         $.getJSON('/api' + window.location.pathname + '/active-users', function (data) {
             var table = $("#activeUsersTable tbody");
             $.each(data, function (idx, elem) {
-                for (var i = 0; i < elem.length; i++) {
+                if(elem.length == 0){
+                    table.append("<tr><td>" + "No active users beside yourself" + "</td></tr>");
+                }
+                else{
+                    for (var i = 0; i < elem.length; i++) {
                     table.append("<tr><td>" + elem[i] + "</td></tr>");
                 }
+                }
+
 
             });
         });

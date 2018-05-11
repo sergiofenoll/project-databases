@@ -453,7 +453,7 @@ def get_active_users(dataset_id, table_name):
         return abort(403)
     try:
         active_user_handler.make_user_active_in_table(dataset_id, table_name, current_user.username)
-        active_users = active_user_handler.get_active_users_in_table(dataset_id, table_name)
+        active_users = active_user_handler.get_active_users_in_table(dataset_id, table_name, current_user.username)
         return jsonify(data=active_users)
     except Exception:
         return jsonify({'error': True}), 400

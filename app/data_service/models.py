@@ -111,14 +111,14 @@ class ActiveUserHandler:
             app.logger.exception(e)
             raise e
 
-    def get_active_users_in_table(self, schema_id, table_name):
+    def get_active_users_in_table(self, schema_id, table_name, user_id):
         """ give the names of active users in table"""
         try:
             self.remove_unactive_users_in_tables()
             schema_name = "schema-" + str(schema_id)
             rows = db.engine.execute(
-                'SELECT DISTINCT id_user FROM Active_In_Table WHERE id_dataset = {} AND id_table = {};'
-                    .format(*_cv(schema_name, table_name)))
+                'SELECT DISTINCT id_user FROM Active_In_Table WHERE id_dataset = {} AND id_table = {} AND id_user <> {};'
+                    .format(*_cv(schema_name, table_name, user_id)))
 
             active_users = list()
             for row in rows:

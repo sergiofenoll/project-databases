@@ -724,12 +724,8 @@ class DataLoader:
     def has_access(self, user_id, id):
         schema_id = "schema-" + str(id)
         try:
-            rows = db.engine.execute(
-                "SELECT * FROM access WHERE id_user={} AND id_dataset={};".format(*_cv(user_id, schema_id)))
-            for _ in rows:
-                return True
-            else:
-                return False
+            exists = db.engine.execute("SELECT EXISTS(SELECT 1 FROM access WHERE id_user={} AND id_dataset={});".format(*_cv(user_id, schema_id)))
+            return exists.first()[0]
 
         except Exception as e:
             app.logger.error("[ERROR] Couldn't find if '" + user_id + "' has access to '" + schema_id + "'")
@@ -1158,8 +1154,6 @@ class DataLoader:
             app.logger.error("[ERROR] Couldn't get info for backup.")
             app.logger.exception(e)
             raise e
-
-
 
 
 class TableJoinPair:

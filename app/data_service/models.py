@@ -6,7 +6,7 @@ from zipfile import ZipFile
 
 from psycopg2 import IntegrityError
 
-from app import app, database as db, ACTIVE_USER_TIME_SECONDS
+from app import app, database as db, ACTIVE_USER_TIME_SECONDS, BACKUP_LIMIT
 from app.history.models import History
 
 history = History()
@@ -1049,7 +1049,7 @@ class DataLoader:
             raise e
 
     def make_backup(self, schema_id, table_name, note=""):
-        """ Makes a backup of the table in its current state.
+        """ Makes a backup of the table in its current state, if there's still room.
             Backups are given the name '_<table_name>_backup_<timestamp>'
         """
         schema_name = "schema-" + str(schema_id)
@@ -1060,6 +1060,12 @@ class DataLoader:
             # Format time to leave out microseconds
             timestamp = timestamp.replace(microsecond=0)
             backup_name = '_{}_backup_{}'.format(table_name, timestamp)
+
+            # First check if there aren't too many backups already
+            if len(self.get_backups(schema_id, table_name)) >= BACKUP_LIMIT:
+                app.logger.warning("[WARNING] Couldn't make backup; limit reached.")
+                raise Exception("Backup limit reached.")
+
             self.copy_table(table_name, schema_id, backup_name)
 
             backup_query = 'INSERT INTO Backups VALUES ({}, {}, {}, {}, {})'.format(*_cv(schema_name, table_name, backup_name, timestamp, note))

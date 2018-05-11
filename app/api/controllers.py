@@ -470,7 +470,9 @@ def create_backup(dataset_id, table_name):
         data_loader.make_backup(dataset_id, table_name, note)
         flash(u"Succesfully created backup.", 'success')
         return jsonify({'success': True}), 200
-    except Exception:
+    except Exception as e:
+        if e.__str__() == "Backup limit reached.":
+            flash(u"Can't create backup, limit reached.", 'danger')
         flash(u"Failed to create backup.", 'danger')
         return jsonify({'error': True}), 400
 

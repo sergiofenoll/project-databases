@@ -1048,6 +1048,10 @@ class DataLoader:
             app.logger.exception(e)
             raise e
 
+    def backup_available(self, schema_id, table_name):
+        """ returns true if the back up limit is not yet reached"""
+        return len(self.get_backups(schema_id, table_name)) < BACKUP_LIMIT
+
     def make_backup(self, schema_id, table_name, note=""):
         """ Makes a backup of the table in its current state, if there's still room.
             Backups are given the name '_<table_name>_backup_<timestamp>'
@@ -1142,7 +1146,6 @@ class DataLoader:
             app.logger.error("[ERROR] Couldn't delete backup.")
             app.logger.exception(e)
             raise e
-
 
     def get_backup_info(self, schema_id, table_name, timestamp):
         """ Returns the info (the note) for a given backup """

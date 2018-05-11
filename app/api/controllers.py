@@ -466,6 +466,9 @@ def create_backup(dataset_id, table_name):
         return abort(403)
     try:
         active_user_handler.make_user_active_in_table(dataset_id, table_name, current_user.username)
+        if not data_loader.backup_available(dataset_id, table_name):
+            flash(u"You have reached the limit amount of backups. You must remove a backup to create a new one.", 'danger')
+            return jsonify({'error': True}), 400
         note = request.args.get('backup-note')
         data_loader.make_backup(dataset_id, table_name, note)
         flash(u"Succesfully created backup.", 'success')
@@ -475,6 +478,7 @@ def create_backup(dataset_id, table_name):
             flash(u"Can't create backup, limit reached.", 'danger')
         flash(u"Failed to create backup.", 'danger')
         return jsonify({'error': True}), 400
+
 
 @api.route('/api/datasets/<int:dataset_id>/tables/<string:table_name>/restore-backup', methods=['GET'])
 @auth_required

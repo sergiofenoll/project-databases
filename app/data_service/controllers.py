@@ -136,6 +136,7 @@ def get_table(dataset_id, table_name):
         table = data_loader.get_table(dataset_id, table_name)
         statistics = data_loader.get_statistics_for_all_columns(dataset_id, table_name, table.columns)
         time_date_transformations = date_time_transformer.get_transformations()
+        backups = data_loader.get_backups(dataset_id, table_name)
 
         raw_table_name = "_raw_" + table_name
         raw_table_exists = data_loader.table_exists(raw_table_name, "schema-" + str(dataset_id))
@@ -143,7 +144,7 @@ def get_table(dataset_id, table_name):
         active_user_handler.make_user_active_in_table(dataset_id, table_name, current_user.username)
         return render_template('data_service/table-view.html', table=table,
                                time_date_transformations=time_date_transformations,
-                               statistics=statistics, raw_table_exists=raw_table_exists)
+                               statistics=statistics, raw_table_exists=raw_table_exists, backups=backups)
     except Exception:
         flash(u"Table couldn't be shown.", 'danger')
         return redirect(url_for('data_service.get_dataset', dataset_id=dataset_id), code=303)

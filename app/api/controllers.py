@@ -1,17 +1,43 @@
-from flask import Blueprint, jsonify, request, send_from_directory, flash
+
+from functools import wraps
+
+from flask import abort, Blueprint, jsonify, request, send_from_directory, flash
+from flask_login import current_user, login_user
+from passlib.hash import sha256_crypt
 
 from app import data_loader, date_time_transformer, data_transformer, numerical_transformer, one_hot_encoder, \
     active_user_handler, UPLOAD_FOLDER
 from app.history.models import History
+from app.user_service.models import UserDataAccess
 
 api = Blueprint('api', __name__)
 
 _history = History()
 
+def auth_required(f):
+    @wraps(f)
+    def wrapper(*args, **kwargs):
+        auth = request.authorization
+        if not auth:
+            if current_user.is_authenticated:
+                return f(*args, **kwargs)
+            else:
+                abort(401)
+        user = UserDataAccess().get_user(user_id=auth.username)
+        retrieved_pass = UserDataAccess().login_user(auth.username)
+        if user is None or sha256_crypt.verify(auth.password, retrieved_pass):
+            abort(401)
+        login_user(user)
+        return f(*args, **kwargs)
 
+    return wrapper
+  
 
 @api.route('/api/datasets/<int:dataset_id>/tables/<string:table_name>', methods=['GET'])
+@auth_required
 def get_table(dataset_id, table_name):
+    if (data_loader.has_access(current_user.username, dataset_id)) is False:
+        return abort(403)
     start = request.args.get('start')
     length = request.args.get('length')
     order_column = int(request.args.get('order[0][column]'))
@@ -28,7 +54,10 @@ def get_table(dataset_id, table_name):
 
 
 @api.route('/api/datasets/<int:dataset_id>/share', methods=['GET'])
+@auth_required
 def get_access_table(dataset_id):
+    if (data_loader.has_access(current_user.username, dataset_id)) is False:
+        return abort(403)
     start = request.args.get('start')
     length = request.args.get('length')
     access_table_columns = ['id_user', 'role']
@@ -45,7 +74,10 @@ def get_access_table(dataset_id):
 
 
 @api.route('/api/datasets/<int:dataset_id>/tables/<string:table_name>/history', methods=['GET'])
+@auth_required
 def get_history(dataset_id, table_name):
+    if (data_loader.has_access(current_user.username, dataset_id)) is False:
+        return abort(403)
     start = request.args.get('start')
     length = request.args.get('length')
     search = request.args.get('search[value]')
@@ -63,7 +95,10 @@ def get_history(dataset_id, table_name):
 
 
 @api.route('/api/datasets/<int:dataset_id>/tables/<string:table_name>/rows', methods=['POST'])
+@auth_required
 def add_row(dataset_id, table_name):
+    if (data_loader.has_access(current_user.username, dataset_id)) is False:
+        return abort(403)
     try:
         values = dict()
         columns = list()
@@ -81,7 +116,10 @@ def add_row(dataset_id, table_name):
 
 
 @api.route('/api/datasets/<int:dataset_id>/tables/<string:table_name>/rows', methods=['DELETE'])
+@auth_required
 def delete_row(dataset_id, table_name):
+    if (data_loader.has_access(current_user.username, dataset_id)) is False:
+        return abort(403)
     try:
         row_ids = [key.split('-')[1] for key in request.args]
         data_loader.delete_row(dataset_id, table_name, row_ids)
@@ -92,8 +130,12 @@ def delete_row(dataset_id, table_name):
         return jsonify({'error': True}), 400
 
 
+
 @api.route('/api/datasets/<int:dataset_id>/tables/<string:table_name>/columns', methods=['POST'])
+@auth_required
 def add_column(dataset_id, table_name):
+    if (data_loader.has_access(current_user.username, dataset_id)) is False:
+        return abort(403)
     try:
         column_name = request.args.get('col-name')
         column_type = request.args.get('col-type')
@@ -106,7 +148,10 @@ def add_column(dataset_id, table_name):
 
 
 @api.route('/api/datasets/<int:dataset_id>/tables/<string:table_name>/columns', methods=['PUT'])
+@auth_required
 def update_column(dataset_id, table_name):
+    if (data_loader.has_access(current_user.username, dataset_id)) is False:
+        return abort(403)
     try:
         column_name = request.args.get('col-name')
         column_type = request.args.get('col-type')
@@ -119,7 +164,10 @@ def update_column(dataset_id, table_name):
 
 
 @api.route('/api/datasets/<int:dataset_id>/tables/<string:table_name>/columns', methods=['DELETE'])
+@auth_required
 def delete_column(dataset_id, table_name):
+    if (data_loader.has_access(current_user.username, dataset_id)) is False:
+        return abort(403)
     try:
         column_name = request.args.get('col-name')
         data_loader.delete_column(dataset_id, table_name, column_name)
@@ -131,7 +179,10 @@ def delete_column(dataset_id, table_name):
 
 
 @api.route('/api/datasets/<int:dataset_id>/tables/<string:table_name>/date-time-transformations', methods=['PUT'])
+@auth_required
 def transform_date_or_time(dataset_id, table_name):
+    if (data_loader.has_access(current_user.username, dataset_id)) is False:
+        return abort(403)
     try:
         column_name = request.args.get('col-name')
         operation_name = request.args.get('operation-name')
@@ -144,7 +195,10 @@ def transform_date_or_time(dataset_id, table_name):
 
 
 @api.route('/api/datasets/update-dataset-metadata', methods=['PUT'])
+@auth_required
 def update_dataset_metadata():
+    if (data_loader.has_access(current_user.username, dataset_id)) is False:
+        return abort(403)   
     try:
         dataset_id = request.args.get('ds-id')
         new_name = request.args.get('ds-name')
@@ -158,7 +212,10 @@ def update_dataset_metadata():
 
 
 @api.route('/api/datasets/<int:dataset_id>/update-metadata', methods=['PUT'])
+@auth_required
 def update_table_metadata(dataset_id):
+    if (data_loader.has_access(current_user.username, dataset_id)) is False:
+        return abort(403)
     try:
         old_table_name = request.args.get('t-old-name')
         new_table_name = request.args.get('t-name')
@@ -172,11 +229,18 @@ def update_table_metadata(dataset_id):
 
 
 @api.route('/api/datasets/<int:dataset_id>/tables/<string:table_name>/impute-missing-data', methods=['PUT'])
+@auth_required
 def impute_missing_data(dataset_id, table_name):
+    if (data_loader.has_access(current_user.username, dataset_id)) is False:
+        return abort(403)
     try:
         column_name = request.args.get('col-name')
         function = request.args.get('function')
-        data_transformer.impute_missing_data(dataset_id, table_name, column_name, function)
+        if function == "CUSTOM":
+            custom_value = request.args.get('custom-value')
+            data_transformer.impute_missing_data(dataset_id, table_name, column_name, function, custom_value)
+        else:
+            data_transformer.impute_missing_data(dataset_id, table_name, column_name, function)
         flash(u"Missing data has been filled.", 'success')
         return jsonify({'success': True}), 200
     except Exception:
@@ -184,7 +248,10 @@ def impute_missing_data(dataset_id, table_name):
         return jsonify({'error': True}), 400
 
 @api.route('/api/datasets/<int:dataset_id>/tables/<string:table_name>/export', methods=['PUT'])
+@auth_required
 def export_table(dataset_id, table_name):
+    if (data_loader.has_access(current_user.username, dataset_id)) is False:
+        return abort(403)
     # Maybe later we might add other types, but for now this is hardcoded to export as CSV
     try:
         filename = table_name + ".csv"
@@ -203,12 +270,16 @@ def export_table(dataset_id, table_name):
         return jsonify({'error': True}), 400
 
 @api.route('/api/download/<string:filename>', methods=['GET'])
+@auth_required
 def download_file(filename):
     return send_from_directory(UPLOAD_FOLDER, filename, as_attachment=True)
 
 
 @api.route('/api/datasets/<int:dataset_id>/tables/<string:table_name>/show-raw-data', methods=['GET'])
+@auth_required
 def show_raw_data(dataset_id, table_name):
+    if (data_loader.has_access(current_user.username, dataset_id)) is False:
+        return abort(403)
     start = request.args.get('start')
     length = request.args.get('length')
     order_column = int(request.args.get('order[0][column]'))
@@ -224,7 +295,10 @@ def show_raw_data(dataset_id, table_name):
 
 
 @api.route('/api/datasets/<int:dataset_id>/tables/<string:table_name>/find-and-replace', methods=['PUT'])
+@auth_required
 def find_and_replace(dataset_id, table_name):
+    if (data_loader.has_access(current_user.username, dataset_id)) is False:
+        return abort(403)
     try:
         colomn = request.args.get('col-name')
         replacement_function = request.args.get('replacement-function')
@@ -246,7 +320,10 @@ def find_and_replace(dataset_id, table_name):
 
 
 @api.route('/api/datasets/<int:dataset_id>/tables/<string:table_name>/normalize', methods=['PUT'])
+@auth_required
 def normalize(dataset_id, table_name):
+    if (data_loader.has_access(current_user.username, dataset_id)) is False:
+        return abort(403)
     try:
         column_name = request.args.get('col-name')
         numerical_transformer.normalize(dataset_id, table_name, column_name)
@@ -257,7 +334,10 @@ def normalize(dataset_id, table_name):
         return jsonify({'error': True}), 400
 
 @api.route('/api/datasets/<int:dataset_id>/tables/<string:table_name>/discretize', methods=['PUT'])
+@auth_required
 def discretize(dataset_id, table_name):
+    if (data_loader.has_access(current_user.username, dataset_id)) is False:
+        return abort(403)
     column_name = request.args.get('col-name')
     discretization = request.args.get('discretization')
     try:
@@ -282,7 +362,10 @@ def discretize(dataset_id, table_name):
 
 
 @api.route('/api/datasets/<int:dataset_id>/tables/<string:table_name>/outliers', methods=['PUT'])
+@auth_required
 def outliers(dataset_id, table_name):
+    if (data_loader.has_access(current_user.username, dataset_id)) is False:
+        return abort(403)
     try:
         column_name = request.args.get('col-name')
         option = request.args.get('option') == 'less-than'
@@ -296,7 +379,10 @@ def outliers(dataset_id, table_name):
 
 
 @api.route('/api/datasets/<int:dataset_id>/tables/<string:table_name>/rename-column', methods=['PUT'])
+@auth_required
 def rename_column(dataset_id, table_name):
+    if (data_loader.has_access(current_user.username, dataset_id)) is False:
+        return abort(403)
     try:
         to_rename = request.args.get('col-name')
         new_name = request.args.get('new-name')
@@ -308,7 +394,10 @@ def rename_column(dataset_id, table_name):
         return jsonify({'error': True}), 400
 
 @api.route('/api/datasets/<int:dataset_id>/tables/<string:table_name>/chart', methods=['GET'])
+@auth_required
 def chart(dataset_id, table_name):
+    if (data_loader.has_access(current_user.username, dataset_id)) is False:
+        return abort(403)
     try:
         column_name = request.args.get('col-name')
         column_type = request.args.get('col-type')
@@ -321,8 +410,12 @@ def chart(dataset_id, table_name):
         flash(u"Charts couldn't be produced.", 'danger')
         return jsonify({'error': True}), 400
 
+      
 @api.route('/api/datasets/<int:dataset_id>/tables/<string:table_name>/one-hot-encode-column', methods=['PUT'])
+@auth_required
 def one_hot_encode(dataset_id, table_name):
+    if (data_loader.has_access(current_user.username, dataset_id)) is False:
+        return abort(403)
     try:
         column_name = request.args.get('col-name')
         one_hot_encoder.encode(dataset_id, table_name, column_name)
@@ -340,3 +433,59 @@ def get_active_users(dataset_id, table_name):
         return jsonify(data=active_users)
     except Exception:
         return jsonify({'error': True}), 400
+
+      
+@api.route('/api/datasets/<int:dataset_id>/tables/<string:table_name>/create-backup', methods=['PUT'])
+@auth_required
+def create_backup(dataset_id, table_name):
+    if (data_loader.has_access(current_user.username, dataset_id)) is False:
+        return abort(403)
+    try:
+        note = request.args.get('backup-note')
+        data_loader.make_backup(dataset_id, table_name, note)
+        flash(u"Succesfully created backup.", 'success')
+        return jsonify({'success': True}), 200
+    except Exception:
+        flash(u"Failed to create backup.", 'danger')
+        return jsonify({'error': True}), 400
+
+@api.route('/api/datasets/<int:dataset_id>/tables/<string:table_name>/restore-backup', methods=['GET'])
+@auth_required
+def restore_backup(dataset_id, table_name):
+    if (data_loader.has_access(current_user.username, dataset_id)) is False:
+        return abort(403)
+    try:
+        backup_ts = request.args.get('backup-timestamp')
+        if backup_ts == "DEFAULT":
+            return jsonify({'error': True}), 400
+        data_loader.restore_backup(dataset_id, table_name, backup_ts)
+        flash(u"Succesfully restored backup.", 'succes')
+        return jsonify({'success': True}), 200
+    except Exception:
+        flash(u"Failed to restore backup.", 'danger')
+        return jsonify({'error': True}), 400
+
+@api.route('/api/datasets/<int:dataset_id>/tables/<string:table_name>/delete-backup/<string:timestamp>', methods=['DELETE'])
+@auth_required
+def delete_backup(dataset_id, table_name, timestamp):
+    if (data_loader.has_access(current_user.username, dataset_id)) is False:
+        return abort(403)
+    try:
+        data_loader.delete_backup(dataset_id, table_name, timestamp)
+        return jsonify({'success': True}), 200
+    except Exception:
+        return jsonify({'error': True}), 400
+
+@api.route('/api/datasets/<int:dataset_id>/tables/<string:table_name>/get-backup-info/<string:timestamp>', methods=['GET'])
+@auth_required
+def get_backup_info(dataset_id, table_name, timestamp):
+
+    if (data_loader.has_access(current_user.username, dataset_id)) is False:
+        return abort(403)
+    try:
+        if timestamp == "DEFAULT":
+            return "Select backup to display note..."
+        note = data_loader.get_backup_info(dataset_id, table_name, timestamp)
+        return note
+    except Exception:
+        return ""

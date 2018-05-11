@@ -66,3 +66,13 @@ CREATE TABLE Active_In_Table (
   FOREIGN KEY (id_user) REFERENCES Member(Username)  ON DELETE CASCADE,
   PRIMARY KEY (id_dataset, id_user, last_active)
 );
+
+CREATE TABLE Backups (
+  id_dataset VARCHAR(255),
+  table_name VARCHAR(255),
+  backup_name VARCHAR(255),
+  timestamp TIMESTAMP,
+  note VARCHAR(255),
+  FOREIGN KEY (id_dataset) REFERENCES Dataset(id) ON DELETE CASCADE,
+  PRIMARY KEY (id_dataset, table_name, timestamp)
+);

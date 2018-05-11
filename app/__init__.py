@@ -37,6 +37,7 @@ numerical_transformer = NumericalTransformations()
 table_joiner = TableJoiner(data_loader)
 one_hot_encoder = OneHotEncode(data_loader)
 
+
 @login.user_loader
 def load_user(user_id):
     user = None

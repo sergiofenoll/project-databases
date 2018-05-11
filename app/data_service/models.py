@@ -60,7 +60,7 @@ class ActiveUserHandler:
     def __init__(self):
         pass
 
-    def remove_unactive_users_in_tables(self):
+    def remove_inactive_users_in_tables(self):
         """ remove all the users who aren't active in a table from the list"""
         try:
             db.engine.execute(
@@ -114,7 +114,7 @@ class ActiveUserHandler:
     def get_active_users_in_table(self, schema_id, table_name, user_id):
         """ give the names of active users in table"""
         try:
-            self.remove_unactive_users_in_tables()
+            self.remove_inactive_users_in_tables()
             schema_name = "schema-" + str(schema_id)
             rows = db.engine.execute(
                 'SELECT DISTINCT id_user FROM Active_In_Table WHERE id_dataset = {} AND id_table = {} AND id_user <> {};'
@@ -134,7 +134,7 @@ class ActiveUserHandler:
         """ give the amount of active users in a table without the requesting user"""
         try:
             schema_name = "schema-" + str(schema_id)
-            self.remove_unactive_users_in_tables()
+            self.remove_inactive_users_in_tables()
             count = db.engine.execute(
                 'SELECT COUNT( DISTINCT id_user) FROM Active_In_Table WHERE id_dataset = {} AND id_table = {} and id_user <> {};'
                     .format(*_cv(schema_name, table_name, user_id)))
@@ -148,7 +148,7 @@ class ActiveUserHandler:
         """ give the amount of active users in a dataset without the requesting user"""
         try:
             schema_name = "schema-" + str(schema_id)
-            self.remove_unactive_users_in_tables()
+            self.remove_inactive_users_in_tables()
             count = db.engine.execute(
                 'SELECT COUNT(DISTINCT id_user) FROM Active_In_Table WHERE id_dataset = {} and id_user <> {};'
                     .format(*_cv(schema_name, user_id)))

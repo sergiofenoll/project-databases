@@ -32,6 +32,9 @@ class Dataset:
         self.moderators = moderators or []
         self.id = id
 
+    def __eq__(self, other):
+        return self.name == other.name and self.desc == other.desc and self.owner == other.owner and self.id == other.id
+
 
 class Column:
     def __init__(self, name, type):
@@ -45,6 +48,9 @@ class Table:
         self.desc = desc
         self.rows = rows or []
         self.columns = columns or []
+
+    def __eq__(self, other):
+        return self.name == other.name and self.desc == other.desc
 
 
 class DataLoader:
@@ -84,7 +90,7 @@ class DataLoader:
         except Exception as e:
             app.logger.error("[ERROR] Failed to created schema '" + name + "'")
             app.logger.exception(e)
-            raise e
+            raise Exception
 
         # Add schema to dataset table
         try:
@@ -96,10 +102,11 @@ class DataLoader:
             db.engine.execute(
                 'INSERT INTO Access(id_dataset, id_user, role) VALUES({}, {}, {});'.format(
                     *_cv(schema_name, owner_id, 'owner')))
+
         except Exception as e:
             app.logger.error("[ERROR] Failed to insert dataset '" + name + "' into the database")
             app.logger.exception(e)
-            raise e
+            raise Exception
 
     def delete_dataset(self, schema_id):
         """
@@ -121,18 +128,11 @@ class DataLoader:
             if count == 0:
                 db.engine.execute('TRUNCATE Available_Schema;')
 
+            db.engine.execute('DROP SCHEMA IF EXISTS {} CASCADE;'.format(_ci(schema_id)))
+
         except Exception as e:
             app.logger.error("[ERROR] Failed to properly remove dataset '" + schema_id + "'")
             app.logger.exception(e)
-            raise e
-
-        # Delete schema
-        try:
-            db.engine.execute('DROP SCHEMA IF EXISTS {} CASCADE;'.format(_ci(schema_id)))
-        except Exception as e:
-            app.logger.error("[ERROR] Failed to delete schema '" + schema_id + "'")
-            app.logger.exception(e)
-            raise e
 
     def get_dataset_id(self, name):
         """
@@ -207,29 +207,38 @@ class DataLoader:
             raise e
 
     def delete_table(self, name, schema_id):
+        connection = db.engine.connect()
+        transaction = connection.begin()
         try:
-            db.engine.execute('DROP TABLE {}.{};'.format(*_ci(schema_id, name)))
-            db.engine.execute('DROP TABLE IF EXISTS {}.{};'.format(*_ci(schema_id, "_raw_" + name)))
+            # Delete table
+            table_query = 'DROP TABLE {}.{};'.format(*_ci(schema_id, name))
+            raw_table_query = 'DROP TABLE IF EXISTS {}.{};'.format(*_ci(schema_id, "_raw_" + name))
+            connection.execute(table_query)
+            connection.execute(raw_table_query)
+
+            # Delete metadata
+            metadata_query = 'DELETE FROM metadata WHERE id_table = {};'.format(_cv(name))
+            connection.execute(metadata_query)
+
+            # Delete history
+            schema_name = 'schema-' + str(schema_id)
+            history_query = 'DELETE FROM HISTORY WHERE id_dataset={} AND id_table={};'.format(*_cv(schema_name, name))
+            connection.execute(history_query)
+
+            transaction.commit()
         except Exception as e:
+            transaction.rollback()
             app.logger.error("[ERROR] Failed to delete table '" + name + "'")
             app.logger.exception(e)
             raise e
 
-        # Delete metadata
+    def copy_table(self, name, schema_id, copy_name):
+        """ Copies the content of table 'name' to a new table 'copy_name' in the same schema"""
+        schema_name = 'schema-' + str(schema_id)
         try:
-            db.engine.execute('DELETE FROM metadata WHERE id_table = {};'.format(_cv(name)))
+            db.engine.execute('CREATE TABLE {0}.{1} AS SELECT * FROM {0}.{2}'.format(_ci(schema_name), _ci(copy_name), _ci(name)))
         except Exception as e:
-            app.logger.error("[ERROR] Failed to delete metadata for table '" + name + "'")
-            app.logger.exception(e)
-            raise e
-
-        # Delete history
-        try:
-            schema_name = 'schema-' + str(schema_id)
-            db.engine.execute(
-                'DELETE FROM HISTORY WHERE id_dataset={} AND id_table={};'.format(*_cv(schema_name, name)))
-        except Exception as e:
-            app.logger.error("[ERROR] Failed to delete metadata for table '" + name + "'")
+            app.logger.error("[ERROR] Unable to create copy of table {}".format(name))
             app.logger.exception(e)
             raise e
 
@@ -282,8 +291,6 @@ class DataLoader:
             self.delete_row(schema_id, table_name, to_delete, False)
 
             history.log_action(schema_id, table_name, datetime.now(), 'Deleted rows on predicate')
-
-
         except Exception as e:
             app.logger.error('[ERROR] Unable to fetch rows to delete from ' + table_name)
             app.logger.exception(e)
@@ -344,6 +351,8 @@ class DataLoader:
     def rename_column(self, schema_id, table_name, column_name, new_column_name):
         schema_name = 'schema-' + str(schema_id)
         try:
+            if not new_column_name or new_column_name.isspace():
+                raise Exception("Can't rename column to empty string")
             db.engine.execute(
                 'ALTER TABLE {0}.{1} RENAME {2} TO {3}'.format(
                     *_ci(schema_name, table_name, column_name, new_column_name)))
@@ -352,6 +361,7 @@ class DataLoader:
                 "[ERROR] Unable to rename column '{0}' to '{1}' in table '{2}'".format(column_name, new_column_name,
                                                                                        table_name))
             app.logger.exception(e)
+            raise e
 
     def update_column_type(self, schema_id, table_name, column_name, column_type):
         schema_name = 'schema-' + str(schema_id)
@@ -395,7 +405,7 @@ class DataLoader:
             for line in csv:
                 if not append:
                     columns = line.strip().split(',')
-                    self.create_table(tablename, schema_id, columns, True)
+                    self.create_table(tablename, schema_id, columns, raw=True)
                 break
 
         df = pd.read_csv(file)
@@ -408,7 +418,8 @@ class DataLoader:
          The name of the CSV file will be used as table name. If a table with the same name is found
          the data will be appended
         """
-
+        connection = db.engine.connect()
+        transaction = connection.begin()
         try:
 
             with ZipFile(file) as archive:
@@ -432,8 +443,10 @@ class DataLoader:
 
                 # Clean up temp folder
                 shutil.rmtree("../output/temp")
+                transaction.commit()
 
         except Exception as e:
+            transaction.rollback()
             app.logger.error("[ERROR] Failed to load from .zip archive '" + file + "'")
             app.logger.exception(e)
 
@@ -443,40 +456,49 @@ class DataLoader:
             raise e
 
     def process_dump(self, file, schema_id):
+
         """
          This method takes a SQL dump file and processes the INSERT statements,
          either by creating tables and filling them or by filling pre-existing tables.
          All other statements (DELETE, DROP, ...) won't be executed.
         """
+        connection = db.engine.connect()
+        transaction = connection.begin()
+        try:
+            with open(file, 'r') as dump:
+                # Read the file as a string, split on ';' and check each statement individually
+                for statement in dump.read().strip().split(';'):
+                    if len(statement.split()) and statement.split()[0] == 'INSERT':  # Only handle INSERT statements
+                        # NOTE: An INSERT statement looks like this:
+                        # INSERT INTO table_name (column1, column2, column3, ...) VALUES (value1, value2, value3, ...);
 
-        with open(file, 'r') as dump:
-            # Read the file as a string, split on ';' and check each statement individually
-            for statement in dump.read().strip().split(';'):
-                if len(statement.split()) and statement.split()[0] == 'INSERT':  # Only handle INSERT statements
-                    # NOTE: An INSERT statement looks like this:
-                    # INSERT INTO table_name (column1, column2, column3, ...) VALUES (value1, value2, value3, ...);
+                        tablename = statement.split()[2]
+                        values_list = list()
+                        for values_tuple in re.findall(r'\(.*?\)', statement[statement.find('VALUES'):]):
+                            # Tuple is any match of the above regex, e.g. (values1, values2, values3, ...)
+                            # after VALUES, i.e. the column names (if they're given) aren't matched
+                            values_list.append(re.sub(r'\s|\(|\)', '', values_tuple).split(','))
 
-                    tablename = statement.split()[2]
-                    values_list = list()
-                    for values_tuple in re.findall(r'\(.*?\)', statement[statement.find('VALUES'):]):
-                        # Tuple is any match of the above regex, e.g. (values1, values2, values3, ...)
-                        # after VALUES, i.e. the column names (if they're given) aren't matched
-                        values_list.append(re.sub(r'\s|\(|\)', '', values_tuple).split(','))
+                        if re.search(r'{}\s\(.*?\)\sVALUES'.format(tablename), statement):
+                            # Matches 'table_name (column1, column2, column3, ...) VALUES', \s stands for whitespace
+                            columns = re.sub(r'\s|\(|\)', '',
+                                             re.findall(r'\(.*?\)', statement[:statement.find('VALUES')])[0]).split(',')
+                        else:
+                            columns = ['col' + str(i) for i in range(1, len(values_list[0]) + 1)]
 
-                    if re.search(r'{}\s\(.*?\)\sVALUES'.format(tablename), statement):
-                        # Matches 'table_name (column1, column2, column3, ...) VALUES', \s stands for whitespace
-                        columns = re.sub(r'\s|\(|\)', '',
-                                         re.findall(r'\(.*?\)', statement[:statement.find('VALUES')])[0]).split(',')
-                    else:
-                        columns = ['col' + str(i) for i in range(1, len(values_list[0]) + 1)]
+                        if not self.table_exists(tablename, schema_id):
+                            self.create_table(tablename, schema_id, columns, True)
+                        for values in values_list:
+                            val_dict = dict()
+                            for c_ix in range(len(columns)):
+                                val_dict[columns[c_ix]] = values[c_ix]
+                            self.insert_row(tablename, schema_id, columns, val_dict, False)
+            transaction.commit()
 
-                    if not self.table_exists(tablename, schema_id):
-                        self.create_table(tablename, schema_id, columns, True)
-                    for values in values_list:
-                        val_dict = dict()
-                        for c_ix in range(len(columns)):
-                            val_dict[columns[c_ix]] = values[c_ix]
-                        self.insert_row(tablename, schema_id, columns, val_dict, False)
+        except Exception as e:
+            transaction.rollback()
+            app.logger.error("[ERROR] Failed to load from sql dump")
+            app.logger.exception(e)
 
     # Data access handling
     def get_user_datasets(self, user_id):
@@ -508,9 +530,7 @@ class DataLoader:
                     schema_id = ds_id.split('-')[1]
                     result.append(Dataset(schema_id, row['nickname'], row['metadata'], owner, moderators))
                 except Exception as e:
-                    # TODO: Why is this a warning instead of an error? If we can't find the owner of a dataset,
-                    # TODO: i.e. that user has been deleted but his dataset remains, shouldn't that be an error?
-                    app.logger.warning("[WARNING] Failed to find owner of dataset '" + row['nickname'] + "'")
+                    app.logger.warning("[ERROR] Failed to find owner of dataset '" + row['nickname'] + "'")
                     app.logger.exception(e)
                     continue
 
@@ -519,7 +539,6 @@ class DataLoader:
         except Exception as e:
             app.logger.error("[ERROR] Failed to fetch available datasets for user '" + user_id + "'.")
             app.logger.exception(e)
-            raise e
 
     def get_dataset_access(self, schema_id, offset=0, limit='ALL', ordering=None, search=None):
         """
@@ -527,7 +546,6 @@ class DataLoader:
         """
 
         try:
-            # TODO: Stole this cheeky bit from another method so if we decide to fix it there, don't forget to fix this too
             ordering_query = ''
             if ordering is not None:
                 # ordering tuple is of the form (columns, asc|desc)
@@ -557,7 +575,7 @@ class DataLoader:
             app.logger.exception(e)
             raise e
 
-    def grant_access(self, user_id, schema_id, role='contributer'):
+    def grant_access(self, user_id, schema_id, role='contributor'):
 
         try:
             schema_id = 'schema-' + str(schema_id);
@@ -734,18 +752,21 @@ class DataLoader:
     def update_dataset_metadata(self, schema_id, new_name, new_desc):
         schema_name = "schema-" + str(schema_id)
         try:
+            if not new_name or new_name.isspace():
+                raise Exception("Can't rename table to empty string")
             db.engine.execute('UPDATE dataset SET (metadata, nickname) = ({} , {}) WHERE id={}'.format(
                 *_cv(new_desc, new_name, schema_name, )))
 
         except Exception as e:
             app.logger.error("[ERROR] Couldn't update dataset metadata.")
             app.logger.exception(e)
-            self.dbconnect.rollback()
             raise e
 
     def update_table_metadata(self, schema_id, old_table_name, new_table_name, new_desc):
         schema_name = "schema-" + str(schema_id)
         try:
+            if not new_table_name or new_table_name.isspace():
+                raise Exception("Can't rename table to empty string")
             db.engine.execute(
                 'UPDATE metadata SET (id_table, metadata) = ({}, {}) WHERE id_dataset={} AND id_table={}'.format(
                     *_cv(new_table_name, new_desc, schema_name, old_table_name)))
@@ -797,6 +818,7 @@ class DataLoader:
 
         return filename
 
+    # Statistics
     def get_numerical_statistic(self, schema_id, table_name, column, function):
 
         """" calculate average of column """
@@ -830,7 +852,7 @@ class DataLoader:
             return value
 
         except Exception as e:
-            app.logger.error("[ERROR] Unable to calculate most commen value for column {}".format(column))
+            app.logger.error("[ERROR] Unable to calculate most common value for column {}".format(column))
             app.logger.exception(e)
             raise e
 
@@ -847,7 +869,7 @@ class DataLoader:
             return value
 
         except Exception as e:
-            app.logger.error("[ERROR] Unable to calculate most commen value for column {}".format(column))
+            app.logger.error("[ERROR] Unable to calculate most amount of empty elements for column {}".format(column))
             app.logger.exception(e)
             raise e
 
@@ -878,6 +900,7 @@ class DataLoader:
             stats.append([column.name, self.get_statistics_for_column(schema_id, table_name, column.name, numerical)])
         return stats
 
+    # Raw data & backups
     def revert_back_to_raw_data(self, schema_id, table_name):
         schema_name = "schema-" + str(schema_id)
         try:
@@ -900,6 +923,115 @@ class DataLoader:
             app.logger.error("[ERROR] Couldn't convert back to raw data")
             app.logger.exception(e)
             raise e
+
+    def make_backup(self, schema_id, table_name, note=""):
+        """ Makes a backup of the table in its current state.
+            Backups are given the name '_<table_name>_backup_<timestamp>'
+        """
+        schema_name = "schema-" + str(schema_id)
+        connection = db.engine.connect()
+        transaction = connection.begin()
+        try:
+            timestamp = datetime.now()
+            # Format time to leave out microseconds
+            timestamp = timestamp.replace(microsecond=0)
+            backup_name = '_{}_backup_{}'.format(table_name, timestamp)
+            self.copy_table(table_name, schema_id, backup_name)
+
+            backup_query = 'INSERT INTO Backups VALUES ({}, {}, {}, {}, {})'.format(*_cv(schema_name, table_name, backup_name, timestamp, note))
+
+            connection.execute(backup_query)
+
+            history.log_action(schema_id, table_name, datetime.now(), "Created backup.")
+
+            transaction.commit()
+
+        except Exception as e:
+            transaction.rollback()
+            app.logger.error("[ERROR] Couldn't make backup of table {}".format(table_name))
+            app.logger.exception(e)
+            raise e
+
+    def get_backups(self, schema_id, table_name):
+        """ Returns list with timestamps (as strings) for available backups for given table.
+            (This info is fetched from the 'Backups' table)
+        """
+        schema_name = "schema-" + str(schema_id)
+        try:
+            query = 'SELECT timestamp::VARCHAR FROM Backups WHERE id_dataset = {} AND table_name = {}'.format(*_cv(schema_name, table_name))
+            rows = db.engine.execute(query)
+
+            timestamps = [str(ts[0]) for ts in rows]
+            return timestamps
+        except Exception as e:
+            app.logger.error("[ERROR] Couldn't fetch backups for table '{}'".format(table_name))
+            app.logger.exception(e)
+            raise e
+
+    def restore_backup(self, schema_id, table_name, timestamp):
+        """ Restores a backup given a table & a timestamp """
+        schema_name = "schema-" + str(schema_id)
+        connection = db.engine.connect()
+        transaction = connection.begin()
+        try:
+            connection.execute('DROP TABLE {}.{};'.format(*_ci(schema_name, table_name)))
+        except Exception as e:
+            transaction.rollback()
+            app.logger.error("[ERROR] Couldn't convert back to raw data")
+            app.logger.exception(e)
+            raise e
+
+        try:
+            backup_name = '_{}_backup_{}'.format(table_name, timestamp)
+            connection.execute(
+                'CREATE TABLE {}.{} AS TABLE {}.{}'.format(*_ci(schema_name, table_name, schema_name, backup_name)))
+
+            # Log action to history
+            history.log_action(schema_id, table_name, datetime.now(), 'Restored backup from {}'.format(timestamp))
+
+            transaction.commit()
+        except Exception as e:
+            transaction.rollback()
+            app.logger.error("[ERROR] Couldn't restore backup for table '{}'".format(table_name))
+            app.logger.exception(e)
+            raise e
+
+    def delete_backup(self, schema_id, table_name, timestamp):
+        """ Deletes the approriate backup table from the dataset """
+        schema_name = "schema-" + str(schema_id)
+        connection = db.engine.connect()
+        transaction = connection.begin()
+        try:
+            backup_name = '_{}_backup_{}'.format(table_name, timestamp)
+            query = 'DELETE FROM Backups WHERE id_dataset = {} AND backup_name = {}'.format(*_cv(schema_name, backup_name))
+            connection.execute(query)
+            history.log_action(schema_id, table_name, datetime.now(), "Deleted backup {}.".format(timestamp))
+            transaction.commit()
+        except Exception as e:
+            transaction.rollback()
+            app.logger.error("[ERROR] Couldn't delete backup.")
+            app.logger.exception(e)
+            raise e
+
+
+    def get_backup_info(self, schema_id, table_name, timestamp):
+        """ Returns the info (the note) for a given backup """
+        schema_name = "schema-" + str(schema_id)
+        try:
+            backup_name = '_{}_backup_{}'.format(table_name, timestamp)
+            query = 'SELECT note FROM Backups WHERE id_dataset = {} AND backup_name = {}'.format(*_cv(schema_name, backup_name))
+            result = db.engine.execute(query)
+            note = ""
+            for row in result:
+                if row[0] is not None:
+                    note = row[0]
+            return note
+        except Exception as e:
+            app.logger.error("[ERROR] Couldn't get info for backup.")
+            app.logger.exception(e)
+            raise e
+
+
 
 
 class TableJoinPair:
@@ -1147,8 +1279,6 @@ class TableJoiner:
             app.logger.error("[ERROR] Failed to add unique id to table '" + table_name + "'")
             app.log_exception(e)
             raise e
-        except:
-            print("lel")
 
         # Reorder columns
         try:

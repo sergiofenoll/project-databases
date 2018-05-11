@@ -12,4 +12,4 @@ install:
 before_script:
   - ./setup.sh
 script:
-  - pytest
+  - python3 -m unittest discover -s app

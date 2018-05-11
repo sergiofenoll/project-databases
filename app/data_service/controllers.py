@@ -1,6 +1,6 @@
 import os
 
-from flask import Blueprint, request, render_template, redirect, url_for, abort, jsonify
+from flask import Blueprint, request, render_template, redirect, url_for, abort, jsonify, flash
 from flask_login import login_required, current_user
 from werkzeug.utils import secure_filename
 
@@ -10,7 +10,6 @@ from app.data_service.models import TableJoinPair
 data_service = Blueprint('data_service', __name__)
 
 
-# TODO: Find a better way to do this, e.g. wrap it in models, this is ugly
 def allowed_file(filename):
     return '.' in filename and \
            filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
@@ -29,7 +28,10 @@ def add_dataset():
     name = request.form.get('ds-name')
     meta = request.form.get('ds-meta')
     owner_id = current_user.username
-    data_loader.create_dataset(name, owner_id, meta)
+    try:
+        data_loader.create_dataset(name, owner_id, meta)
+    except Exception:
+        flash(u"Something went wrong while creating your dataset.", 'danger')
     return render_template('data_service/datasets.html',
                            datasets=data_loader.get_user_datasets(current_user.username))
 
@@ -48,9 +50,9 @@ def get_dataset(dataset_id):
     current_user.active_schema = dataset_id
 
     columns = list()
+
     if len(tables) != 0:
         columns = data_loader.get_column_names(dataset_id, tables[0].name)
-        columns.remove('id')
 
     return render_template('data_service/dataset-view.html', ds=dataset, tables=tables, columns=columns,
                            access_permission=access_permission, users_with_access=users_with_access)
@@ -61,7 +63,11 @@ def delete_dataset(dataset_id):
     if (data_loader.has_access(current_user.username, dataset_id)) is False:
         return abort(403)
     schema_name = "schema-" + str(dataset_id)
-    data_loader.delete_dataset(schema_name)
+    try:
+        data_loader.delete_dataset(schema_name)
+        flash(u"Dataset has been deleted.", 'success')
+    except Exception:
+        flash(u"Something went wrong while deleting your dataset.", 'danger')
     return redirect(url_for('data_service.get_datasets'), code=303)
 
 
@@ -92,6 +98,7 @@ def add_table(dataset_id):
             app.logger.exception(e)
             file.close()
             os.remove(path)
+            flash(u"Failed to upload file.", 'danger')
             return get_dataset(dataset_id)
 
         current_user.active_schema = dataset_id
@@ -108,9 +115,12 @@ def add_table(dataset_id):
                     data_loader.process_csv(path, dataset_id, True)
             else:
                 data_loader.process_dump(path, dataset_id)
+
+            flash(u"Data has been imported.", 'success')
         except Exception as e:
             app.logger.error("[ERROR] Failed to process file '" + filename + "'")
             app.logger.exception(e)
+            flash(u"Data couldn't be imported.", 'danger')
             return get_dataset(dataset_id)
 
         file.close()
@@ -120,39 +130,47 @@ def add_table(dataset_id):
 
 @data_service.route('/datasets/<int:dataset_id>/tables/<string:table_name>', methods=['GET'])
 def get_table(dataset_id, table_name):
-    # TODO: Why is the method called get_table() if it returns a list of rows (a list of pseudo dictionaries/lists)?
-    # TODO: In fact, why does get_table() return a list of rows instead of a Table object containing the data?
-    # TODO: Why *doesn't* a Table object contain any data?
     if (data_loader.has_access(current_user.username, dataset_id)) is False:
         return abort(403)
-    table = data_loader.get_table(dataset_id, table_name)
-    statistics = data_loader.get_statistics_for_all_columns(dataset_id, table_name, table.columns)
-    time_date_transformations = date_time_transformer.get_transformations()
+    try:
+        table = data_loader.get_table(dataset_id, table_name)
+        statistics = data_loader.get_statistics_for_all_columns(dataset_id, table_name, table.columns)
+        time_date_transformations = date_time_transformer.get_transformations()
+        backups = data_loader.get_backups(dataset_id, table_name)
 
-    raw_table_name = "_raw_" + table_name
-    raw_table_exists = data_loader.table_exists(raw_table_name, "schema-" + str(dataset_id))
-    current_user.active_schema = dataset_id
-    return render_template('data_service/table-view.html', table=table,
-                           time_date_transformations=time_date_transformations,
-                           statistics=statistics, raw_table_exists=raw_table_exists)
-  
+        raw_table_name = "_raw_" + table_name
+        raw_table_exists = data_loader.table_exists(raw_table_name, "schema-" + str(dataset_id))
+        current_user.active_schema = dataset_id
+        return render_template('data_service/table-view.html', table=table,
+                               time_date_transformations=time_date_transformations,
+                               statistics=statistics, raw_table_exists=raw_table_exists, backups=backups)
+    except Exception:
+        flash(u"Table couldn't be shown.", 'danger')
+        return redirect(url_for('data_service.get_dataset', dataset_id=dataset_id), code=303)
+
 
 @data_service.route('/datasets/<int:dataset_id>/tables/<string:table_name>/delete', methods=['POST'])
 def delete_table(dataset_id, table_name):
     if (data_loader.has_access(current_user.username, dataset_id)) is False:
         return abort(403)
     schema_name = "schema-" + str(dataset_id)
-    data_loader.delete_table(table_name, schema_name)
+    try:
+        data_loader.delete_table(table_name, schema_name)
+        flash(u"Table has been removed.", 'success')
+    except Exception:
+        flash(u"Table couldn't be removed.", 'danger')
     return redirect(url_for('data_service.get_dataset', dataset_id=dataset_id), code=303)
 
 
 @data_service.route('/datasets/<int:dataset_id>/share', methods=['POST'])
 def grant_dataset_access(dataset_id):
-    # TEMP
     username = request.form.get('ds-share-name')
     role = request.form.get('ds-share-role')
-
-    data_loader.grant_access(username, dataset_id, role)
+    try:
+        data_loader.grant_access(username, dataset_id, role)
+        flash(u"Access has been granted.", 'success')
+    except Exception:
+        flash(u"Access couldn't be granted.", 'danger')
 
     return redirect(url_for('data_service.get_dataset', dataset_id=dataset_id))
 
@@ -160,7 +178,11 @@ def grant_dataset_access(dataset_id):
 @data_service.route('/datasets/<int:dataset_id>/share/delete', methods=['POST'])
 def delete_dataset_access(dataset_id):
     username = request.form.get('ds-delete-user-select')
-    data_loader.remove_access(username, dataset_id)
+    try:
+        data_loader.remove_access(username, dataset_id)
+        flash(u"Access has been revoked.", 'success')
+    except Exception:
+        flash(u"Access couldn't be revoked.", 'danger')
 
     if username == current_user.username:
         return redirect(url_for('data_service.get_datasets'))
@@ -169,7 +191,11 @@ def delete_dataset_access(dataset_id):
 
 @data_service.route('/datasets/<int:dataset_id>/tables/<string:table_name>/revert-to-raw-data', methods=['PUT'])
 def revert_to_raw_data(dataset_id, table_name):
-    data_loader.revert_back_to_raw_data(dataset_id, table_name)
+    try:
+        data_loader.revert_back_to_raw_data(dataset_id, table_name)
+        flash(u"Your data has been reverted to its raw state.", 'success')
+    except Exception:
+        flash(u"Your data couldn't be reverted to its raw state.", 'danger')
     return redirect(url_for('data_service.get_table', dataset_id=dataset_id, table_name=table_name), code=303)
 
 
@@ -180,24 +206,32 @@ def show_raw_data(dataset_id, table_name):
     raw_table_name = "_raw_" + table_name
     raw_table_exists = data_loader.table_exists(raw_table_name, "schema-" + str(dataset_id))
     if not raw_table_exists:
+        flash(u"Raw data does not exist.", 'warning')
         return redirect(url_for('data_service.get_table', dataset_id=dataset_id, table_name=table_name))
+    try:
+        table = data_loader.get_table(dataset_id, raw_table_name)
+        title = "Raw data for " + table_name
+        return render_template('data_service/raw-table-view.html', table=table, title=title)
+    except Exception:
+        flash(u"Raw data couldn't be shown.", 'danger')
+        return redirect(url_for('data_service.get_table', dataset_id=dataset_id, table_name=table_name), code=303)
 
-    table = data_loader.get_table(dataset_id, raw_table_name)
-    title="Raw data for " + table_name
-    return render_template('data_service/raw-table-view.html', table=table, title=title)
 
 @data_service.route('/datasets/<int:dataset_id>/tables/<string:table_name>/remove-rows', methods=['POST'])
 def remove_rows_predicate(dataset_id, table_name):
-
     predicates = list()
     for entry in request.form.keys():
         if entry.startswith('join'):
             p = request.form.getlist(entry)
             predicates.append(p)
+    try:
+        data_loader.delete_row_predicate(dataset_id, table_name, predicates)
+        flash(u"Removal of rows by predicate was successful.", 'success')
+    except Exception:
+        flash(u"Removal of rows by predicate was unsuccessful.", 'warning')
 
-    data_loader.delete_row_predicate(dataset_id, table_name, predicates)
-  
     return redirect(url_for('data_service.get_table', dataset_id=dataset_id, table_name=table_name))
+
 
 @data_service.route('/datasets/<int:dataset_id>/join-tables/<string:table_name>', methods=['GET'])
 @login_required
@@ -206,9 +240,10 @@ def get_join_column_names(dataset_id, table_name):
         return abort(403)
 
     column_names = data_loader.get_column_names(dataset_id, table_name)
-    column_names.remove('id')
+    #column_names.remove('id')
 
     return jsonify(column_names)
+
 
 @data_service.route('/datasets/<int:dataset_id>/join-tables', methods=['POST'])
 @login_required
@@ -227,21 +262,23 @@ def join_tables(dataset_id):
         # Iterate over all keys in form starting with join, each join<number> represents a join_pair
         for key in f.keys():
             if key.startswith("join"):
-                join_pair_row =  f.getlist(key)
+                join_pair_row = f.getlist(key)
                 t1 = join_pair_row[0]
                 t2 = join_pair_row[1]
                 t1_column = join_pair_row[2]
                 t2_column = join_pair_row[4]
                 relation_operator = join_pair_row[3]
 
-                join_pair = TableJoinPair(table1_name=t1, table2_name=t2, table1_column=t1_column, table2_column=t2_column, relation_operator=relation_operator)
+                join_pair = TableJoinPair(table1_name=t1, table2_name=t2, table1_column=t1_column,
+                                          table2_column=t2_column, relation_operator=relation_operator)
                 join_pairs.append(join_pair)
             else:
                 continue
 
         table_joiner.join_multiple_tables(dataset_id, name, meta, join_pairs)
-
-    except Exception as e:
-        return redirect(url_for('data_service.get_dataset', dataset_id=dataset_id))
-
+        flash(u"Join of tables was successful.", 'success')
+    except Exception:
+        flash(u"Join of tables was unsuccessful.", 'danger')
     return redirect(url_for('data_service.get_dataset', dataset_id=dataset_id))
+
+

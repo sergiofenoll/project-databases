@@ -1,356 +1,381 @@
 {% extends "base.html" %}
 {% block content %}
-	<div class="row">
-		<div>
-			<h1>{{ ds.name }}</h1>
-			<p>{{ ds.desc }}</p>
-		</div>
-	</div>
-	<div class="row">
-		<div class="col-sm-2">
-			<div class="panel-group" id="accordion">
-				<div class="panel panel-default">
-					<div class="panel-heading">
-						<a data-toggle="collapse" data-parent="#accordion"
-							 class="btn btn-dark panel-button" href="#collapseOne"><i
-										class="fas fa-plus-square"></i> Add data</a>
-					</div>
-					<div id="collapseOne" class="panel-collapse collapse in">
-						<div class="panel-body">
-							<table class="table">
-								<tr>
-									<td><a class="btn btn-light panel-button" data-toggle="modal" data-target="#uploadFileModal"
-												 href="#uploadFileModal"><i class="fas fa-upload"></i>
-										Upload file</a></td>
-								</tr>
-								{% if access_permission or (current_user.username == ds.owner) %}
-								<tr>
-									<td><a class="btn btn-light panel-button" data-toggle="modal" data-target="#joinTablesModal"
-												 href="#joinTablesModal"><i class="fas fa-upload"></i>
-										Join tables</a></td>
-								</tr>
-								{% endif %}
-							</table>
-						</div>
-					</div>
-				</div>
+    <div class="row">
+        <div>
+            <h1>{{ ds.name }}</h1>
+            <p>{{ ds.desc }}</p>
+        </div>
+    </div>
+    {% for message in get_flashed_messages(with_categories=True) %}
+        <div class="alert alert-{{ message[0] }}">
+            <button type="button" class="close" data-dismiss="alert">&times;</button>
+            {{ message[1] }}
+        </div>
+    {% endfor %}
+    <div class="row">
+        <div class="col-sm-2">
+            <div class="panel-group" id="accordion">
+                <div class="panel panel-default">
+                    <div class="panel-heading">
+                        <a data-toggle="collapse" data-parent="#accordion"
+                           class="btn btn-dark panel-button" href="#collapseOne"><i
+                                class="fas fa-plus-square"></i> Add data</a>
+                    </div>
+                    <div id="collapseOne" class="panel-collapse collapse in">
+                        <div class="panel-body">
+                            <table class="table">
+                                <tr>
+                                    <td><a class="btn btn-light panel-button" data-toggle="modal"
+                                           data-target="#uploadFileModal"
+                                           href="#uploadFileModal"><i class="fas fa-upload"></i>
+                                        Upload file</a></td>
+                                </tr>
+                                {% if access_permission or (current_user.username == ds.owner) %}
+                                    <tr>
+                                        <td><a class="btn btn-light panel-button" data-toggle="modal"
+                                               data-target="#joinTablesModal"
+                                               href="#joinTablesModal"><i class="fas fa-upload"></i>
+                                            Join tables</a></td>
+                                    </tr>
+                                {% endif %}
+                            </table>
+                        </div>
+                    </div>
+                </div>
 
-				{% if access_permission or (current_user.username == ds.owner) %}
-					<div class="panel panel-default">
-						<div class="panel-heading">
-							<a data-toggle="collapse" data-parent="#accordion"
-								 class="btn btn-dark panel-button" href="#collapseTwo"><i
-											class="fas fa-share-square"></i>
-								Access</a>
-						</div>
-						<div id="collapseTwo" class="panel-collapse collapse">
-							<div class="panel-body">
-								<table class="table">
-									<tr>
-										<td>
-											<a class="btn btn-light panel-button" data-toggle="modal" data-target="#addAccessModal"
-												 href="#addAccessModal"><i class="fas fa-user-plus"></i> Add user</a>
-										</td>
-									</tr>
-									<tr>
-										<td>
-											<a class="btn btn-light panel-button" data-toggle="modal" data-target="#removeAccessModal"
-												 href="#removeAccessModal"><i class="fas fa-user-times"></i> Delete user</a>
-										</td>
-									</tr>
-								</table>
-							</div>
-						</div>
-					</div>
-				{% endif %}
-			</div>
-		</div>
-		<div class="col-sm-10">
-			{% if tables|length > 0 %}
-				<table id="tablesOverview" class="display table table-striped table-bordered table-responsive-sm"
-							 cellspacing="0" width="100%" style="text-align: center;">
-					<thead>
-					<tr>
-						<th>Table</th>
-						<th>Description</th>
-						<th>Edit</th>
-						<th>Remove</th>
-					</tr>
-					</thead>
-					<tbody>
-					{% for t in tables %}
-						<tr>
-							<td><a href="/datasets/{{ ds.id }}/tables/{{ t.name }}">{{ t.name }}</a></td>
-							<td> {{ t.desc }}</td>
-							<td>
-								<button id="metadata-button" data-toggle="modal" data-target="#metadata"
-												class="btn btn-xs btn-primary metadataEditButton"
-												data-old-name="{{ t.name }}"
-												data-desc="{{ t.desc }}">
-									Edit
-								</button>
-							</td>
-							<td style="text-align: center;">
-								<form action="/datasets/{{ ds.id }}/tables/{{ t.name }}/delete" method="post">
-									<button type="submit" class="btn btn-xs btn-danger">&times;
-									</button>
-								</form>
-							</td>
-						</tr>
-					{% endfor %}
-					</tbody>
-				</table>
-			{% endif %}
-			<div class="modal" tabindex="-1" role="dialog" aria-hidden="true" id="metadata">
-				<div class="modal-dialog" role="document">
-					<div class="modal-content">
-						<form class="form-group" id="formMetadata">
-							<div class="modal-header">
-								<h5 class="modal-title">Change name and/or description</h5>
-								<button type="button" class="close" data-dismiss="modal" aria-label="Close">
-									<span aria-hidden="true">&times;</span>
-								</button>
-							</div>
-							<div class="modal-body">
-								<label for="t-name">Name</label>
-								<br>
-								<input type="text" name="t-name" value="" id="t-name"><br>
+                {% if access_permission or (current_user.username == ds.owner) %}
+                    <div class="panel panel-default">
+                        <div class="panel-heading">
+                            <a data-toggle="collapse" data-parent="#accordion"
+                               class="btn btn-dark panel-button" href="#collapseTwo"><i
+                                    class="fas fa-share-square"></i>
+                                Access</a>
+                        </div>
+                        <div id="collapseTwo" class="panel-collapse collapse">
+                            <div class="panel-body">
+                                <table class="table">
+                                    <tr>
+                                        <td>
+                                            <a class="btn btn-light panel-button" data-toggle="modal"
+                                               data-target="#addAccessModal"
+                                               href="#addAccessModal"><i class="fas fa-user-plus"></i> Add user</a>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td>
+                                            <a class="btn btn-light panel-button" data-toggle="modal"
+                                               data-target="#removeAccessModal"
+                                               href="#removeAccessModal"><i class="fas fa-user-times"></i> Delete
+                                                user</a>
+                                        </td>
+                                    </tr>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+        <div class="col-sm-10">
+            {% if tables|length > 0 %}
+                <table id="tablesOverview" class="display table table-striped table-bordered table-responsive-sm"
+                       cellspacing="0" width="100%" style="text-align: center;">
+                    <thead>
+                    <tr>
+                        <th>Table</th>
+                        <th>Description</th>
+                        <th>Edit</th>
+                        <th>Remove</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    {% for t in tables %}
+                        <tr>
+                            <td><a href="/datasets/{{ ds.id }}/tables/{{ t.name }}">{{ t.name }}</a></td>
+                            <td> {{ t.desc }}</td>
+                            <td>
+                                <button id="metadata-button" data-toggle="modal" data-target="#metadata"
+                                        class="btn btn-xs btn-primary metadataEditButton"
+                                        data-old-name="{{ t.name }}"
+                                        data-desc="{{ t.desc }}">
+                                    Edit
+                                </button>
+                            </td>
+                            <td style="text-align: center;">
+                                <form action="/datasets/{{ ds.id }}/tables/{{ t.name }}/delete" method="post">
+                                    <button type="submit" class="btn btn-xs btn-danger">&times;
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            {% endif %}
+            <div class="modal" tabindex="-1" role="dialog" aria-hidden="true" id="metadata">
+                <div class="modal-dialog" role="document">
+                    <div class="modal-content">
+                        <form class="form-group" id="formMetadata">
+                            <div class="modal-header">
+                                <h5 class="modal-title">Change name and/or description</h5>
+                                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                                    <span aria-hidden="true">&times;</span>
+                                </button>
+                            </div>
+                            <div class="modal-body">
+                                <label for="t-name">Name</label>
+                                <br>
+                                <input type="text" name="t-name" value="" id="t-name" required><br>
 
-								<label for="t-desc">Description</label>
-								<br>
-								<textarea type="text" name="t-desc" id="t-desc"></textarea>
+                                <label for="t-desc">Description</label>
+                                <br>
+                                <textarea type="text" name="t-desc" id="t-desc" required></textarea>
 
-								<input type="hidden" id="t-old-name" name="t-old-name">
+                                <input type="hidden" id="t-old-name" name="t-old-name">
 
-							</div>
-							<div class="modal-footer">
-								<button type="submit" class="btn btn-primary">Save changes
-								</button>
-								<button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
-							</div>
-						</form>
-					</div>
-				</div>
-			</div>
-		</div>
-	</div>
-	<div class="row" style="margin-top: 10px;">
-		<div class="modal fade" id="uploadFileModal" tabindex="-1" role="dialog">
-			<div class="modal-dialog" role="document">
-				<div class="modal-content">
-					<form action="/datasets/{{ ds.id }}" method="post" enctype=multipart/form-data>
-						<div class="modal-header">
-							<h5 class="modal-title">Upload data</h5>
-							<button type="button" class="close" data-dismiss="modal" aria-label="Close">
-								<span aria-hidden="true">&times;</span>
-							</button>
-						</div>
-						<div class="modal-body">
-							<label for="ds-files">Supported extensions: CSV, ZIP, DUMP</label>
-							<input type="file" class="form-control-file" name="file" id="ds-files"
-										 accept=".csv,.zip,.dump">
-						</div>
-						<div class="modal-footer">
-							<button type="submit" class="btn btn-primary">Upload</button>
-							<button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
-						</div>
-					</form>
-				</div>
-			</div>
-		</div>
-		{% if access_permission or (current_user.username == ds.owner) %}
-			<div class="modal fade" id="addAccessModal" tabindex="-1" role="dialog"
-					 aria-labelledby="modalLabel"
-					 aria-hidden="true">
-				<div class="modal-dialog modal-lg" role="document">
-					<div class="modal-content">
-						<form class="form-control" action="/datasets/{{ ds.id }}/share" method="post">
-							<div class="modal-header">
-								<h5 class="modal-title" id="modalLabel">Add access</h5>
-								<button type="button" class="close" data-dismiss="modal" aria-label="Close">
-									<span aria-hidden="true">&times;</span>
-								</button>
-							</div>
-							<div class="modal-body">
-								<div class="form-group">
-									<label for="ds-share-name">Username</label>
-									<input type="text" class="form-control" id="ds-share-name"
-												 name="ds-share-name" placeholder="Username"
-												 required>
-								</div>
-								<div class="form-group">
-									<label for="ds-share-role">Status</label>
-									<select type="role" class="form-control" id="ds-share-role"
-													name="ds-share-role" required>
-										<option value="moderator">Moderator</option>
-										<option value="contributor">Contributor</option>
-									</select>
-								</div>
-							</div>
-							<div class="modal-footer">
-								<button type="submit" class="btn btn-primary" id="submit">Add</button>
-								<button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
-							</div>
-						</form>
-					</div>
-				</div>
-			</div>
-			<div class="modal fade" id="removeAccessModal" tabindex="-1" role="dialog"
-					 aria-labelledby="modalLabel"
-					 aria-hidden="true">
-				<div class="modal-dialog modal-lg" role="document">
-					<div class="modal-content">
-						<form class="form-control" action="/datasets/{{ ds.id }}/share/delete" method="post">
-							<div class="modal-header">
-								<h5 class="modal-title" id="modalLabel">Remove access</h5>
-								<button type="button" class="close" data-dismiss="modal" aria-label="Close">
-									<span aria-hidden="true">&times;</span>
-								</button>
-							</div>
-							<div class="modal-body">
-								<div class="form-group">
-									<label for="ds-delete-user-select">Username</label>
-									<select type="role" class="form-control" id="ds-delete-user-select"
-													name="ds-delete-user-select" required>
-										{% for user in users_with_access %}
-											{% if user[0] != ds.owner %}
-												<option value="{{ user[0] }}">{{ user[0] }} with
-													role {{ user[1] }}</option>
-											{% endif %}
-										{% endfor %}
-									</select>
-								</div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="submit" class="btn btn-primary">Save changes
+                                </button>
+                                <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="row" style="margin-top: 10px;">
+        <div class="modal fade" id="uploadFileModal" tabindex="-1" role="dialog">
+            <div class="modal-dialog" role="document">
+                <div class="modal-content">
+                    <form action="/datasets/{{ ds.id }}" method="post" enctype=multipart/form-data>
+                        <div class="modal-header">
+                            <h5 class="modal-title">Upload data</h5>
+                            <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                                <span aria-hidden="true">&times;</span>
+                            </button>
+                        </div>
+                        <div class="modal-body">
+                            <label for="ds-files">Supported extensions: CSV, ZIP, DUMP</label>
+                            <input type="file" class="form-control-file" name="file" id="ds-files"
+                                   accept=".csv,.zip,.dump">
+                        </div>
+                        <div class="modal-footer">
+                            <button type="submit" class="btn btn-primary">Upload</button>
+                            <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        {% if access_permission or (current_user.username == ds.owner) %}
+            <div class="modal fade" id="addAccessModal" tabindex="-1" role="dialog"
+                 aria-labelledby="modalLabel"
+                 aria-hidden="true">
+                <div class="modal-dialog modal-lg" role="document">
+                    <div class="modal-content">
+                        <form class="form-control" action="/datasets/{{ ds.id }}/share" method="post">
+                            <div class="modal-header">
+                                <h5 class="modal-title" id="modalLabel">Add access</h5>
+                                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                                    <span aria-hidden="true">&times;</span>
+                                </button>
+                            </div>
+                            <div class="modal-body">
+                                <div class="form-group">
+                                    <label for="ds-share-name">Username</label>
+                                    <input type="text" class="form-control" id="ds-share-name"
+                                           name="ds-share-name" placeholder="Username"
+                                           required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="ds-share-role">Status</label>
+                                    <select type="role" class="form-control" id="ds-share-role"
+                                            name="ds-share-role" required>
+                                        <option value="moderator">Moderator</option>
+                                        <option value="contributor">Contributor</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="submit" class="btn btn-primary" id="submit">Add</button>
+                                <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+            <div class="modal fade" id="removeAccessModal" tabindex="-1" role="dialog"
+                 aria-labelledby="modalLabel"
+                 aria-hidden="true">
+                <div class="modal-dialog modal-lg" role="document">
+                    <div class="modal-content">
+                        <form class="form-control" action="/datasets/{{ ds.id }}/share/delete" method="post">
+                            <div class="modal-header">
+                                <h5 class="modal-title" id="modalLabel">Remove access</h5>
+                                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                                    <span aria-hidden="true">&times;</span>
+                                </button>
+                            </div>
+                            <div class="modal-body">
+                                <div class="form-group">
+                                    <label for="ds-delete-user-select">Username</label>
+                                    <select type="role" class="form-control" id="ds-delete-user-select"
+                                            name="ds-delete-user-select" required>
+                                        {% for user in users_with_access %}
+                                            {% if user[0] != ds.owner %}
+                                                <option value="{{ user[0] }}">{{ user[0] }} with
+                                                    role {{ user[1] }}</option>
+                                            {% endif %}
+                                        {% endfor %}
+                                    </select>
+                                </div>
 
-							</div>
-							<div class="modal-footer">
-								<button type="submit" class="btn btn-primary" id="submit">Delete</button>
-								<button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
-							</div>
-						</form>
-					</div>
-				</div>
-			</div>
-			<div class="modal fade" id="joinTablesModal" tabindex="-1" role="dialog">
-			<div class="modal-dialog modal-lg" role="document">
-				<div class="modal-content">
-					<form action="/datasets/{{ ds.id }}/join-tables" method="post" id="join-tables">
-						<div class="modal-header">
-							<h5 class="modal-title">Join tables</h5>
-							<button type="button" class="close" data-dismiss="modal" aria-label="Close">
-									<span aria-hidden="true">&times;</span>
-							</button>
-						</div>
-						<div class="modal-body">
-							<label for="ds-files">Raw data stored will come from the selected tables, not from the 'raw' data of these tables</label>
-							<label for="ds-files">Select table1, table2, table1.column, relation and table2.column</label>
-							<div data-dynamic-form>
-								<div data-dynamic-form-template="multi">
-									<label>
-										<!--Table 1-->
-										<select class="join_table" onchange="update_selection(this.id, this.value)" form="join-tables" name="join[ID]" data-dynamic-form-input-id-template="ID" id="join[ID]-table1">
-											<{% for t in tables %}
-											<option value="{{t.name}}">{{t.name}}</option>
-											{% endfor %}
-										</select>
-										<!--Table 2-->
-										<select class="join_table" onchange="update_selection(this.id, this.value)" form="join-tables" name="join[ID]" data-dynamic-form-input-id-template="ID" id="join[ID]-table2">
-											<{% for t in tables %}
-											<option value="{{t.name}}">{{t.name}}</option>
-											{% endfor %}
-										</select>
-										<!--Column 1-->
-										 <select form="join-tables" name="join[ID]" data-dynamic-form-input-id-template="ID" id="join[ID]-table1-columns">
-											<{% for c in columns %}
-											<option value="{{c}}">{{c}}</option>
-											{% endfor %}
-										 </select>
-										<!--Relation-->
-										<select form="join-tables" name="join[ID]" data-dynamic-form-input-id-template="ID" id="join[ID]-relation">
-											<option value="<">less than</option>
-											<option value="<=">less or equals</option>
-											<option value=">">more than</option>
-											<option value=">=">more or equals </option>
-											<option value="=">equals</option>
-											<option value="<>">not equals</option>
-										</select>
-										<!--Column 2-->
-										<select form="join-tables" name="join[ID]" data-dynamic-form-input-id-template="ID" id="join[ID]-table2-columns">
-											<{% for c in columns %}
-											<option value="{{c}}">{{c}}</option>
-											{% endfor %}
-										</select>
-										<button type="button" data-dynamic-form-remove>Remove</button>
-										<button type="button" data-dynamic-form-add>Add</button>
-									</label>
-								</div>
-							</div>
-							<div class="form-group">
-									<span>Name</span>
-									<input type="text" class="form-control" id="table-name" name="table-name" placeholder="Table name"
-										   required>
-							</div>
-							<div class="form-group">
-									<span>Description</span>
-									<input type="text" class="form-control" id="table-meta" name="table-meta"
-										   placeholder="Table description" required>
-							</div>
-						</div>
-						<div class="modal-footer">
-							<button type="submit" class="btn btn-primary">Upload</button>
-							<button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
-						</div>
-					</form>
-				</div>
-			</div>
-		</div>
-		{% endif %}
-	</div>
-	<script type="text/javascript" charset="utf-8">
-		$(document).ready(function () {
-		    var dynamicForms = new DynamicForms();
-			dynamicForms.automaticallySetupForm();
+                            </div>
+                            <div class="modal-footer">
+                                <button type="submit" class="btn btn-primary" id="submit">Delete</button>
+                                <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+            <div class="modal fade" id="joinTablesModal" tabindex="-1" role="dialog">
+                <div class="modal-dialog modal-lg" role="document">
+                    <div class="modal-content">
+                        <form action="/datasets/{{ ds.id }}/join-tables" method="post" id="join-tables">
+                            <div class="modal-header">
+                                <h5 class="modal-title">Join tables</h5>
+                                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                                    <span aria-hidden="true">&times;</span>
+                                </button>
+                            </div>
+                            <div class="modal-body">
+                                <label for="ds-files">Raw data stored will come from the selected tables, not from the
+                                    'raw' data of these tables</label>
+                                <label for="ds-files">Select table1, table2, table1.column, relation and
+                                    table2.column</label>
+                                <div data-dynamic-form>
+                                    <div data-dynamic-form-template="multi">
+                                        <label>
+                                            <!--Table 1-->
+                                            <select class="join_table" onchange="update_selection(this.id, this.value)"
+                                                    form="join-tables" name="join[ID]"
+                                                    data-dynamic-form-input-id-template="ID" id="join[ID]-table1">
+                                                <{% for t in tables %}
+                                                <option value="{{ t.name }}">{{ t.name }}</option>
+                                            {% endfor %}
+                                            </select>
+                                            <!--Table 2-->
+                                            <select class="join_table" onchange="update_selection(this.id, this.value)"
+                                                    form="join-tables" name="join[ID]"
+                                                    data-dynamic-form-input-id-template="ID" id="join[ID]-table2">
+                                                <{% for t in tables %}
+                                                <option value="{{ t.name }}">{{ t.name }}</option>
+                                            {% endfor %}
+                                            </select>
+                                            <!--Column 1-->
+                                            <select form="join-tables" name="join[ID]"
+                                                    data-dynamic-form-input-id-template="ID"
+                                                    id="join[ID]-table1-columns">
+                                                <{% for c in columns %}
+                                                <option value="{{ c }}">{{ c }}</option>
+                                            {% endfor %}
+                                            </select>
+                                            <!--Relation-->
+                                            <select form="join-tables" name="join[ID]"
+                                                    data-dynamic-form-input-id-template="ID" id="join[ID]-relation">
+                                                <option value="<">less than</option>
+                                                <option value="<=">less or equals</option>
+                                                <option value=">">more than</option>
+                                                <option value=">=">more or equals</option>
+                                                <option value="=">equals</option>
+                                                <option value="<>">not equals</option>
+                                            </select>
+                                            <!--Column 2-->
+                                            <select form="join-tables" name="join[ID]"
+                                                    data-dynamic-form-input-id-template="ID"
+                                                    id="join[ID]-table2-columns">
+                                                <{% for c in columns %}
+                                                <option value="{{ c }}">{{ c }}</option>
+                                            {% endfor %}
+                                            </select>
+                                            <button type="button" data-dynamic-form-remove>Remove</button>
+                                            <button type="button" data-dynamic-form-add>Add</button>
+                                        </label>
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <span>Name</span>
+                                    <input type="text" class="form-control" id="table-name" name="table-name"
+                                           placeholder="Table name"
+                                           required>
+                                </div>
+                                <div class="form-group">
+                                    <span>Description</span>
+                                    <input type="text" class="form-control" id="table-meta" name="table-meta"
+                                           placeholder="Table description" required>
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="submit" class="btn btn-primary">Upload</button>
+                                <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        {% endif %}
+    </div>
+    <script type="text/javascript" charset="utf-8">
+        $(document).ready(function () {
+            var dynamicForms = new DynamicForms();
+            dynamicForms.automaticallySetupForm();
 
-			$('.metadataEditButton').click(function (e) { // .stuff wijst op een klasse
-				e.preventDefault();
-				$('#t-name').val($(this).attr('data-old-name'));
-				$('#t-desc').val($(this).attr('data-desc'));
-				$('#t-old-name').val($(this).attr('data-old-name'));
+            $('.metadataEditButton').click(function (e) { // .stuff wijst op een klasse
+                e.preventDefault();
+                $('#t-name').val($(this).attr('data-old-name'));
+                $('#t-desc').val($(this).attr('data-desc'));
+                $('#t-old-name').val($(this).attr('data-old-name'));
 
-				$('#metadata').show();
-			});
+                $('#metadata').show();
+            });
 
 
-			$('#formMetadata').submit(function (e) {
-				e.preventDefault();
-				$.ajax({
-					type: 'PUT',
-					url: '/api' + window.location.pathname + '/update-metadata?' + $('#formMetadata').serialize(),
-					success: function () {
-						window.location.reload();
-					}
-				});
-				$('#metadata').modal('hide');
-			});
-		});
+            $('#formMetadata').submit(function (e) {
+                e.preventDefault();
+                $.ajax({
+                    type: 'PUT',
+                    url: '/api' + window.location.pathname + '/update-metadata?' + $('#formMetadata').serialize(),
+                    success: function () {
+                        window.location.reload();
+                    },
+                    error: function () {
+                        window.location.reload();
+                    }
+                });
+                $('#metadata').modal('hide');
+            });
+        });
 
-		function update_selection(changed_name, changed_value) {
-			var dropdown_box_to_change = changed_name + "-columns";
+        function update_selection(changed_name, changed_value) {
+            var dropdown_box_to_change = changed_name + "-columns";
 
-			$.ajax({
-				type: 'GET',
-				url: window.location.pathname + '/join-tables/' + changed_value,
-				async: true,
-				dataType: 'json',
-				success: function (data) {
-					var new_select_options = "";
+            $.ajax({
+                type: 'GET',
+                url: window.location.pathname + '/join-tables/' + changed_value,
+                async: true,
+                dataType: 'json',
+                success: function (data) {
+                    var new_select_options = "";
 
-					for (var column in data)
-					{
-						new_select_options += "<option value=" + data[column] + ">" + data[column] + "</option>";
-					}
-					document.getElementById(dropdown_box_to_change).innerHTML = new_select_options;
-				}
-			});
-		}
-	</script>
+                    for (var column in data) {
+                        new_select_options += "<option value=" + data[column] + ">" + data[column] + "</option>";
+                    }
+                    document.getElementById(dropdown_box_to_change).innerHTML = new_select_options;
+                }
+            });
+        }
+    </script>
 {% endblock %}

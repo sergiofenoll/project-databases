@@ -112,6 +112,7 @@ class ActiveUserHandler:
             raise e
 
     def get_active_users_in_table(self, schema_id, table_name):
+        """ give the names of active users in table"""
         try:
             self.remove_unactive_users_in_tables()
             schema_name = "schema-" + str(schema_id)
@@ -130,6 +131,7 @@ class ActiveUserHandler:
             raise e
 
     def active_users_in_table_count_excluding_requesting_user(self, schema_id, table_name, user_id):
+        """ give the amount of active users in a table without the requesting user"""
         try:
             schema_name = "schema-" + str(schema_id)
             self.remove_unactive_users_in_tables()
@@ -143,6 +145,7 @@ class ActiveUserHandler:
             raise e
 
     def active_users_in_dataset_count_excluding_requesting_user(self, schema_id, user_id):
+        """ give the amount of active users in a dataset without the requesting user"""
         try:
             schema_name = "schema-" + str(schema_id)
             self.remove_unactive_users_in_tables()
@@ -152,6 +155,16 @@ class ActiveUserHandler:
             return count.first()[0]
         except Exception as e:
             app.logger.error("[ERROR] Unable to get count of active users in dataset")
+            app.logger.exception(e)
+            raise e
+
+    def remove_active_states_of_user(self, user_id):
+        """ remove all the users who aren't active in a table from the list"""
+        try:
+            db.engine.execute(
+                'DELETE FROM Active_In_Table WHERE id_user = {};'.format(_cv(user_id)))
+        except Exception as e:
+            app.logger.error("[ERROR] Unable to remove active states of user {}".format(user_id))
             app.logger.exception(e)
             raise e
 

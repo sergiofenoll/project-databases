@@ -2,7 +2,7 @@ from flask import Blueprint, request, render_template, url_for, redirect, abort,
 from flask_login import login_required, current_user, login_user, logout_user
 from passlib.hash import sha256_crypt
 
-from app import app, data_loader, login, user_data_access
+from app import app, data_loader, login, user_data_access, active_user_handler
 from app.user_service.models import User
 
 user_service = Blueprint('user_service', __name__)
@@ -68,6 +68,7 @@ def register():
 @login_required
 def logout():
     logout_user()
+    active_user_handler.remove_active_states_of_user(current_user.username)
     flash(u"Successfully logged out!", 'success')
     return redirect(url_for('main.index'))
 

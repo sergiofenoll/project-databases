@@ -34,7 +34,7 @@ class TestDataService(unittest.TestCase):
 
         try:
             data_loader.create_dataset(name, owner_id)
-            self.assertEqual(dataset, data_loader.get_dataset(schema_id))
+            self.assertEqual(dataset, data_loader.get_dataset(schema_id, owner_id))
         finally:
             data_loader.delete_dataset('schema-' + str(schema_id))
 

@@ -4,7 +4,7 @@ from flask import Blueprint, request, render_template, redirect, url_for, abort,
 from flask_login import login_required, current_user
 from werkzeug.utils import secure_filename
 
-from app import app, data_loader, table_joiner, date_time_transformer, ALLOWED_EXTENSIONS, UPLOAD_FOLDER
+from app import app, data_loader, table_joiner, date_time_transformer, active_user_handler, ALLOWED_EXTENSIONS, UPLOAD_FOLDER
 from app.data_service.models import TableJoinPair
 
 data_service = Blueprint('data_service', __name__)
@@ -41,8 +41,8 @@ def get_dataset(dataset_id):
     if (data_loader.has_access(current_user.username, dataset_id)) is False:
         return abort(403)
 
-    dataset = data_loader.get_dataset(dataset_id)
-    tables = data_loader.get_tables(dataset_id)
+    dataset = data_loader.get_dataset(dataset_id, current_user.username)
+    tables = data_loader.get_tables(dataset_id, current_user.username)
 
     users_with_access = data_loader.get_dataset_access(dataset_id).rows
     access_permission = current_user.username in dataset.moderators
@@ -53,7 +53,7 @@ def get_dataset(dataset_id):
 
     if len(tables) != 0:
         columns = data_loader.get_column_names(dataset_id, tables[0].name)
-
+    active_user_handler.make_user_active_in_dataset(dataset_id, current_user.username)
     return render_template('data_service/dataset-view.html', ds=dataset, tables=tables, columns=columns,
                            access_permission=access_permission, users_with_access=users_with_access)
 
@@ -141,6 +141,7 @@ def get_table(dataset_id, table_name):
         raw_table_name = "_raw_" + table_name
         raw_table_exists = data_loader.table_exists(raw_table_name, "schema-" + str(dataset_id))
         current_user.active_schema = dataset_id
+        active_user_handler.make_user_active_in_table(dataset_id, table_name, current_user.username)
         return render_template('data_service/table-view.html', table=table,
                                time_date_transformations=time_date_transformations,
                                statistics=statistics, raw_table_exists=raw_table_exists, backups=backups)
@@ -156,6 +157,7 @@ def delete_table(dataset_id, table_name):
     schema_name = "schema-" + str(dataset_id)
     try:
         data_loader.delete_table(table_name, schema_name)
+        active_user_handler.make_user_active_in_dataset(dataset_id, current_user.username)
         flash(u"Table has been removed.", 'success')
     except Exception:
         flash(u"Table couldn't be removed.", 'danger')
@@ -168,6 +170,7 @@ def grant_dataset_access(dataset_id):
     role = request.form.get('ds-share-role')
     try:
         data_loader.grant_access(username, dataset_id, role)
+        active_user_handler.make_user_active_in_dataset(dataset_id, current_user.username)
         flash(u"Access has been granted.", 'success')
     except Exception:
         flash(u"Access couldn't be granted.", 'danger')
@@ -180,6 +183,7 @@ def delete_dataset_access(dataset_id):
     username = request.form.get('ds-delete-user-select')
     try:
         data_loader.remove_access(username, dataset_id)
+        active_user_handler.make_user_active_in_dataset(dataset_id, current_user.username)
         flash(u"Access has been revoked.", 'success')
     except Exception:
         flash(u"Access couldn't be revoked.", 'danger')
@@ -193,6 +197,7 @@ def delete_dataset_access(dataset_id):
 def revert_to_raw_data(dataset_id, table_name):
     try:
         data_loader.revert_back_to_raw_data(dataset_id, table_name)
+        active_user_handler.make_user_active_in_table(dataset_id, table_name, current_user.username)
         flash(u"Your data has been reverted to its raw state.", 'success')
     except Exception:
         flash(u"Your data couldn't be reverted to its raw state.", 'danger')
@@ -203,12 +208,14 @@ def revert_to_raw_data(dataset_id, table_name):
 def show_raw_data(dataset_id, table_name):
     if (data_loader.has_access(current_user.username, dataset_id)) is False:
         return abort(403)
+
     raw_table_name = "_raw_" + table_name
     raw_table_exists = data_loader.table_exists(raw_table_name, "schema-" + str(dataset_id))
     if not raw_table_exists:
         flash(u"Raw data does not exist.", 'warning')
         return redirect(url_for('data_service.get_table', dataset_id=dataset_id, table_name=table_name))
     try:
+        active_user_handler.make_user_active_in_table(dataset_id, table_name, current_user.username)
         table = data_loader.get_table(dataset_id, raw_table_name)
         title = "Raw data for " + table_name
         return render_template('data_service/raw-table-view.html', table=table, title=title)
@@ -225,6 +232,7 @@ def remove_rows_predicate(dataset_id, table_name):
             p = request.form.getlist(entry)
             predicates.append(p)
     try:
+        active_user_handler.make_user_active_in_table(dataset_id, table_name, current_user.username)
         data_loader.delete_row_predicate(dataset_id, table_name, predicates)
         flash(u"Removal of rows by predicate was successful.", 'success')
     except Exception:
@@ -240,7 +248,6 @@ def get_join_column_names(dataset_id, table_name):
         return abort(403)
 
     column_names = data_loader.get_column_names(dataset_id, table_name)
-    #column_names.remove('id')
 
     return jsonify(column_names)
 
@@ -254,6 +261,8 @@ def join_tables(dataset_id):
     join_pairs = list()
 
     try:
+        active_user_handler.make_user_active_in_dataset(dataset_id, current_user.username)
+
         name = request.form.get('table-name')
         meta = request.form.get('table-meta')
 

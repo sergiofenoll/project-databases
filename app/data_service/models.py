@@ -6,10 +6,11 @@ from zipfile import ZipFile
 
 from psycopg2 import IntegrityError
 
-from app import app, database as db
+from app import app, database as db, ACTIVE_USER_TIME_SECONDS
 from app.history.models import History
 
 history = History()
+
 
 
 def _ci(*args: str):
@@ -25,12 +26,13 @@ def _cv(*args: str):
 
 
 class Dataset:
-    def __init__(self, id, name, desc, owner, moderators=None):
+    def __init__(self, id, name, desc, owner, moderators=None, active_users_count=0):
         self.name = name
         self.desc = desc
         self.owner = owner
         self.moderators = moderators or []
         self.id = id
+        self.active_users_count = active_users_count
 
     def __eq__(self, other):
         return self.name == other.name and self.desc == other.desc and self.owner == other.owner and self.id == other.id
@@ -43,14 +45,128 @@ class Column:
 
 
 class Table:
-    def __init__(self, name, desc, rows=None, columns=None):
+    def __init__(self, name, desc, rows=None, columns=None, active_users_count=0):
         self.name = name
         self.desc = desc
         self.rows = rows or []
         self.columns = columns or []
+        self.active_users_count = active_users_count
 
     def __eq__(self, other):
         return self.name == other.name and self.desc == other.desc
+
+
+class ActiveUserHandler:
+    def __init__(self):
+        pass
+
+    def remove_unactive_users_in_tables(self):
+        """ remove all the users who aren't active in a table from the list"""
+        try:
+            db.engine.execute(
+                'DELETE FROM Active_In_Table WHERE EXTRACT(EPOCH FROM (now() - last_active)) > {};'.format(ACTIVE_USER_TIME_SECONDS))
+        except Exception as e:
+            app.logger.error("[ERROR] Unable to remove all the users who aren't active in a table from the list")
+            app.logger.exception(e)
+            raise e
+
+    def make_user_active_in_table(self, schema_id, table_name, user_id):
+        """" make a user active in a table """
+        try:
+            schema_name = "schema-" + str(schema_id)
+            exists = db.engine.execute(
+                'SELECT EXISTS(SELECT 1 FROM Active_In_Table WHERE id_dataset = {} AND id_table = {} and id_user = {});'
+                    .format(*_cv(schema_name, table_name, user_id)))
+            if exists.first()[0]:
+                db.engine.execute(
+                    'UPDATE Active_In_Table VALUES SET last_active=NOW() '
+                    'WHERE id_dataset = {} AND id_table = {} and id_user = {}'.format(
+                        *_cv(schema_name, table_name, user_id)))
+            else:
+                db.engine.execute(
+                    'INSERT INTO Active_In_Table VALUES ({},{},{},NOW());'.format(*_cv(schema_name, table_name, user_id)))
+        except Exception as e:
+            app.logger.error("[ERROR] Unable to make a user active in dataset {}".format(table_name))
+            app.logger.exception(e)
+            raise e
+
+    def make_user_active_in_dataset(self, schema_id, user_id):
+        """" make a user active in a table """
+        try:
+            schema_name = "schema-" + str(schema_id)
+            ex = db.engine.execute(
+                'SELECT EXISTS(SELECT 1 FROM Active_In_Table WHERE id_dataset = {} AND id_table IS NULL and id_user = {});'
+                    .format(*_cv(schema_name, user_id)))
+            exists = ex.first()[0]
+            if exists:
+                db.engine.execute(
+                    'UPDATE Active_In_Table VALUES SET last_active=NOW() '
+                    'WHERE id_dataset = {} AND id_table IS NULL and id_user = {}'.format(
+                        *_cv(schema_name, user_id)))
+            else:
+                db.engine.execute(
+                    'INSERT INTO Active_In_Table VALUES ({},NULL,{},NOW());'.format(*_cv(schema_name, user_id)))
+        except Exception as e:
+            app.logger.error("[ERROR] Unable to make a user active in dataset")
+            app.logger.exception(e)
+            raise e
+
+    def get_active_users_in_table(self, schema_id, table_name):
+        """ give the names of active users in table"""
+        try:
+            self.remove_unactive_users_in_tables()
+            schema_name = "schema-" + str(schema_id)
+            rows = db.engine.execute(
+                'SELECT DISTINCT id_user FROM Active_In_Table WHERE id_dataset = {} AND id_table = {};'
+                    .format(*_cv(schema_name, table_name)))
+
+            active_users = list()
+            for row in rows:
+                active_users.append(row["id_user"])
+            return active_users
+
+        except Exception as e:
+            app.logger.error("[ERROR] Unable to get active users in table {}".format(table_name))
+            app.logger.exception(e)
+            raise e
+
+    def active_users_in_table_count_excluding_requesting_user(self, schema_id, table_name, user_id):
+        """ give the amount of active users in a table without the requesting user"""
+        try:
+            schema_name = "schema-" + str(schema_id)
+            self.remove_unactive_users_in_tables()
+            count = db.engine.execute(
+                'SELECT COUNT( DISTINCT id_user) FROM Active_In_Table WHERE id_dataset = {} AND id_table = {} and id_user <> {};'
+                    .format(*_cv(schema_name, table_name, user_id)))
+            return count.first()[0]
+        except Exception as e:
+            app.logger.error("[ERROR] Unable to get count of active users in table {}".format(table_name))
+            app.logger.exception(e)
+            raise e
+
+    def active_users_in_dataset_count_excluding_requesting_user(self, schema_id, user_id):
+        """ give the amount of active users in a dataset without the requesting user"""
+        try:
+            schema_name = "schema-" + str(schema_id)
+            self.remove_unactive_users_in_tables()
+            count = db.engine.execute(
+                'SELECT COUNT(DISTINCT id_user) FROM Active_In_Table WHERE id_dataset = {} and id_user <> {};'
+                    .format(*_cv(schema_name, user_id)))
+            return count.first()[0]
+        except Exception as e:
+            app.logger.error("[ERROR] Unable to get count of active users in dataset")
+            app.logger.exception(e)
+            raise e
+
+    def remove_active_states_of_user(self, user_id):
+        """ remove all the users who aren't active in a table from the list"""
+        try:
+            db.engine.execute(
+                'DELETE FROM Active_In_Table WHERE id_user = {};'.format(_cv(user_id)))
+        except Exception as e:
+            app.logger.error("[ERROR] Unable to remove active states of user {}".format(user_id))
+            app.logger.exception(e)
+            raise e
 
 
 class DataLoader:
@@ -528,7 +644,11 @@ class DataLoader:
                     moderators = [x for x in rows]
 
                     schema_id = ds_id.split('-')[1]
-                    result.append(Dataset(schema_id, row['nickname'], row['metadata'], owner, moderators))
+
+                    # Find active users in this dataset
+                    active_users = ActiveUserHandler().active_users_in_dataset_count_excluding_requesting_user(schema_id, user_id)
+
+                    result.append(Dataset(schema_id, row['nickname'], row['metadata'], owner, moderators, active_users))
                 except Exception as e:
                     app.logger.warning("[ERROR] Failed to find owner of dataset '" + row['nickname'] + "'")
                     app.logger.exception(e)
@@ -616,7 +736,7 @@ class DataLoader:
             app.logger.exception(e)
             raise e
 
-    def get_dataset(self, id):
+    def get_dataset(self, id, user_id=None):
         """
          This method returns a 'Dataset' object according to the requested id
         """
@@ -638,13 +758,17 @@ class DataLoader:
                     _cv(schema_id)))
             moderators = [x[0] for x in rows]
 
+            # Find active users in this dataset
+            if user_id:
+                active_users = ActiveUserHandler().active_users_in_dataset_count_excluding_requesting_user(id, user_id)
+                return Dataset(id, ds['nickname'], ds['metadata'], owner, moderators, active_users)
             return Dataset(id, ds['nickname'], ds['metadata'], owner, moderators)
         except Exception as e:
             app.logger.error("[ERROR] Couldn't fetch data for dataset.")
             app.logger.exception(e)
             raise e
 
-    def get_tables(self, schema_id):
+    def get_tables(self, schema_id, user_id):
         """
          This method returns a list of 'Table' objects associated with the requested dataset
         """
@@ -656,7 +780,8 @@ class DataLoader:
 
             tables = list()
             for row in rows:
-                t = Table(row['id_table'], row['metadata'])
+                active_users = ActiveUserHandler().active_users_in_table_count_excluding_requesting_user(schema_id, row['id_table'], user_id)
+                t = Table(row['id_table'], row['metadata'], active_users_count=active_users)
                 tables.append(t)
 
             return tables
@@ -691,8 +816,11 @@ class DataLoader:
             rows = db.engine.execute(
                 'SELECT * FROM {}.{} {} {} LIMIT {} OFFSET {};'.format(*_ci(schema_name, table_name), search_query,
                                                                        ordering_query, limit, offset))
+
+
+
             table = Table(table_name, '',
-                          columns=self.get_column_names_and_types(schema_id, table_name))  # Hack-n-slash
+                          columns=self.get_column_names_and_types(schema_id, table_name))
             for row in rows:
                 table.rows.append(list(row))
             return table

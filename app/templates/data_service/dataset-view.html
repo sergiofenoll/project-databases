@@ -84,6 +84,7 @@
                     <tr>
                         <th>Table</th>
                         <th>Description</th>
+                        <th>Active Users</th>
                         <th>Edit</th>
                         <th>Remove</th>
                     </tr>
@@ -93,6 +94,7 @@
                         <tr>
                             <td><a href="/datasets/{{ ds.id }}/tables/{{ t.name }}">{{ t.name }}</a></td>
                             <td> {{ t.desc }}</td>
+                            <td> {{ t.active_users_count }} </td>
                             <td>
                                 <button id="metadata-button" data-toggle="modal" data-target="#metadata"
                                         class="btn btn-xs btn-primary metadataEditButton"

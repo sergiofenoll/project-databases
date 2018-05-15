@@ -270,10 +270,11 @@ class DataLoader:
         """
          This method returns a bool representing whether the given table exists
         """
+        schema_name = 'schema-' + str(schema_id)
         try:
             rows = db.engine.execute(
                 'SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE  table_schema = {} AND table_name = {});'.format(
-                    *_cv(str(schema_id), name)))
+                    *_cv(schema_name, name)))
             row = rows.first()
 
             return row[0]

@@ -41,9 +41,10 @@ def get_table(dataset_id, table_name):
     active_user_handler.make_user_active_in_table(dataset_id, table_name, current_user.username)
     start = request.args.get('start')
     length = request.args.get('length')
-    order_column = int(request.args.get('order[0][column]'))
+    order_column_idx = int(request.args.get('order[0][column]'))
+    order_column_name = request.args.get('columns[{}][data]'.format(order_column_idx))
     order_direction = request.args.get('order[0][dir]')
-    ordering = (data_loader.get_column_names(dataset_id, table_name)[order_column], order_direction)
+    ordering = (order_column_name, order_direction)
     search = request.args.get('search[value]')
 
     table = data_loader.get_table(dataset_id, table_name, offset=start, limit=length, ordering=ordering, search=search)

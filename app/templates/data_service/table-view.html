@@ -201,6 +201,10 @@
                     var dynamicForms = new DynamicForms();
                     dynamicForms.automaticallySetupForm();
                     var table = $('#dataTable').DataTable({
+                        colReorder: true,
+                        colReorder: {
+                            fixedColumnsLeft: 1
+                        },
                         scrollX: "auto",
                         scrollY: "50vh",
                         scrollCollapse: true,
@@ -214,10 +218,15 @@
                             searchable: false,
                             orderable: false,
                             width: '1%', // min width
-                            render: function (data) {
+                             render: function (data) {
                                 return '<input type="checkbox" class="form-check" name="row-' + data + '" id="row-' + data + '">';
                             }
-                        }]
+                        }],
+                        columns: [
+                        {% for column in table.columns %}
+                             { data: "{{ column.name}}" }{{ "," if not loop.last}}
+                        {% endfor %}
+                        ]
                     });
                     $('#removeRow').click(function () {
                         $.ajax({

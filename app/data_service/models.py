@@ -45,12 +45,13 @@ class Column:
 
 
 class Table:
-    def __init__(self, name, desc, rows=None, columns=None, active_users_count=0):
+    def __init__(self, name, desc, rows=None, columns=None, active_users_count=0, total_size=0):
         self.name = name
         self.desc = desc
         self.rows = rows or []
         self.columns = columns or []
         self.active_users_count = active_users_count
+        self.total_size = total_size
 
     def __eq__(self, other):
         return self.name == other.name and self.desc == other.desc
@@ -813,10 +814,13 @@ class DataLoader:
                 'SELECT * FROM {}.{} {} {} LIMIT {} OFFSET {};'.format(*_ci(schema_name, table_name), search_query,
                                                                        ordering_query, limit, offset))
 
-
+            # Get total size (of unfiltered table)
+            size_query = 'SELECT count(*) FROM {}.{}'.format(*_ci(schema_name, table_name))
+            size_result = db.engine.execute(size_query)
+            table_size = [r[0] for r in size_result][0]
 
             table = Table(table_name, '',
-                          columns=self.get_column_names_and_types(schema_id, table_name))
+                          columns=self.get_column_names_and_types(schema_id, table_name), total_size=table_size)
             for row in rows:
                 table.rows.append(list(row))
             return table

@@ -1,9 +1,9 @@
 import csv
 import re
 import shutil
+import pandas as pd
 from datetime import datetime
 from zipfile import ZipFile
-
 from psycopg2 import IntegrityError
 
 from app import app, database as db, ACTIVE_USER_TIME_SECONDS, BACKUP_LIMIT
@@ -512,9 +512,6 @@ class DataLoader:
             app.logger.error("[ERROR] Cannot overwrite existing table.")
             return
 
-        import pandas as pd
-
-        # TODO: Test if this works
         raw_tablename = '_raw_' + tablename
         schema_name = 'schema-' + str(schema_id)
 
@@ -530,6 +527,9 @@ class DataLoader:
                 break
 
         df = pd.read_csv(file)
+        for column in df.columns:
+            if pd.api.types.is_string_dtype(df[column]):
+                df[column] = pd.to_datetime(df[column], errors='ignore')
         df.index.name = 'id'
         df.to_sql(name=tablename, con=db.engine, schema=schema_name, index=type_deduction, if_exists='append')
         df.to_sql(name=raw_tablename, con=db.engine, schema=schema_name, index=type_deduction, if_exists='append')

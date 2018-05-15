@@ -105,20 +105,18 @@ def add_table(dataset_id):
 
         try:
             type_deduction = (request.form.get('ds-type-deduction') is not None) # Unchecked returns None
-            print("Type deduction: ", type_deduction)
+            table_name = request.form.get('ds-table-name') or filename.rsplit('.')[0]
+            table_desc = request.form.get('ds-table-desc') or 'Default description'
             if filename[-3:] == "zip":
                 data_loader.process_zip(path, dataset_id, type_deduction=type_deduction)
             elif filename[-3:] == "csv":
-                tablename = request.form.get('ds-table-name') or filename.split('.csv')[0]
-                description = request.form.get('ds-table-desc') or 'Default description'
-                create_new = not data_loader.table_exists(tablename, dataset_id)
+                create_new = not data_loader.table_exists(table_name, dataset_id)
                 if create_new:
-                    data_loader.process_csv(path, dataset_id, tablename, table_description=description, type_deduction=type_deduction)
+                    data_loader.process_csv(path, dataset_id, table_name, table_description=table_desc, type_deduction=type_deduction)
                 else:
-                    data_loader.process_csv(path, dataset_id, True, table_description=description, type_deduction=type_deduction)
+                    data_loader.process_csv(path, dataset_id, True, table_description=table_desc, type_deduction=type_deduction)
             else:
-                data_loader.process_dump(path, dataset_id, table_name=table_name, table_description=description,)
-
+                data_loader.process_dump(path, dataset_id, table_name=table_name, table_description=table_desc)
             flash(u"Data has been imported.", 'success')
         except Exception as e:
             app.logger.error("[ERROR] Failed to process file '" + filename + "'")

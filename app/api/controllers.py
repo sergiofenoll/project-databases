@@ -358,7 +358,6 @@ def discretize(dataset_id, table_name):
     try:
         active_user_handler.make_user_active_in_table(dataset_id, table_name, current_user.username)
         if discretization == 'eq-width':
-            print('porque zo dom iedereen?')
             num_intervals = int(request.args.get('num-intervals'))
             numerical_transformer.equal_width_interval(dataset_id, table_name, column_name, num_intervals)
         elif discretization == 'eq-freq':

@@ -151,7 +151,7 @@
         <div class="modal fade" id="uploadFileModal" tabindex="-1" role="dialog">
             <div class="modal-dialog" role="document">
                 <div class="modal-content">
-                    <form action="/datasets/{{ ds.id }}" method="post" enctype=multipart/form-data>
+                    <form class="form-group" action="/datasets/{{ ds.id }}" method="post" enctype=multipart/form-data>
                         <div class="modal-header">
                             <h5 class="modal-title">Upload data</h5>
                             <button type="button" class="close" data-dismiss="modal" aria-label="Close">
@@ -162,6 +162,14 @@
                             <label for="ds-files">Supported extensions: CSV, ZIP, DUMP</label>
                             <input type="file" class="form-control-file" name="file" id="ds-files"
                                    accept=".csv,.zip,.dump">
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="checkbox" name="ds-type-deduction" id="ds-type-deduction" data-user="ds-type-deduction">
+                                <label class="form-check-label">Automatic type deduction</label>
+                            </div>
+                            <input type="text" name="ds-table-name" id="ds-table-name" class="form-control" placeholder="If no name is given, the filename will be used" required>
+                            <textarea name="ds-table-desc" id="ds-table-desc" class="form-control" value="Default description" required>Default description</textarea>
+                            <small class="form-text text-muted">
+                            If a zip file is uploaded, the default description will be used for every individual table.</small>
                         </div>
                         <div class="modal-footer">
                             <button type="submit" class="btn btn-primary">Upload</button>

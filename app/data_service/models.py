@@ -283,33 +283,34 @@ class DataLoader:
             app.logger.exception(e)
             raise e
 
-    def create_table(self, name, schema_id, columns, desc="Default description", raw=False):
+    def create_table(self, name, schema_id, columns, desc="Default description", raw=False, metadata_only=False):
         """
          This method takes a schema, name and a list of columns and creates the corresponding table
         """
         schema_name = 'schema-' + str(schema_id)
 
-        query = 'CREATE TABLE {}.{} ('
+        if not metadata_only:
+            query = 'CREATE TABLE {}.{} ('
 
-        query += 'id serial primary key'  # Since we don't know what the actual primary key should be, just assign an id
+            query += 'id serial primary key'  # Since we don't know what the actual primary key should be, just assign an id
 
-        for column in columns:
-            query = query + ', \n\"' + column + '\" varchar(255)'
-        query += '\n);'
+            for column in columns:
+                query = query + ', \n\"' + column + '\" varchar(255)'
+            query += '\n);'
 
-        raw_table_name = "_raw_" + name
-        raw_table_query = query.format(*_ci(schema_name, raw_table_name))
+            raw_table_name = "_raw_" + name
+            raw_table_query = query.format(*_ci(schema_name, raw_table_name))
 
-        query = query.format(*_ci(schema_name, name))
+            query = query.format(*_ci(schema_name, name))
 
-        try:
-            db.engine.execute(query)
-            if raw:
-                db.engine.execute(raw_table_query)
-        except Exception as e:
-            app.logger.error("[ERROR] Failed to create table '" + name + "'")
-            app.logger.exception(e)
-            raise e
+            try:
+                db.engine.execute(query)
+                if raw:
+                    db.engine.execute(raw_table_query)
+            except Exception as e:
+                app.logger.error("[ERROR] Failed to create table '" + name + "'")
+                app.logger.exception(e)
+                raise e
 
         # Log action to history
         history.log_action(schema_id, name, datetime.now(), 'Created table')
@@ -496,7 +497,7 @@ class DataLoader:
                            'Updated column ' + column_name + ' to have type ' + column_type)
 
     # Data uploading handling
-    def process_csv(self, file, schema_id, tablename, append=False):
+    def process_csv(self, file, schema_id, tablename, table_description='Default description', append=False, type_deduction=False):
         """
          This method takes a filename for a CSV file and processes it into a table.
          A table name should be provided by the user / caller of this method.
@@ -521,14 +522,19 @@ class DataLoader:
             for line in csv:
                 if not append:
                     columns = line.strip().split(',')
-                    self.create_table(tablename, schema_id, columns, raw=True)
+                    if not type_deduction:
+                        self.create_table(tablename, schema_id, columns, desc=table_description, raw=True)
+                    else:
+                        # Fancy
+                        self.create_table(tablename, schema_id, columns, desc=table_description, metadata_only=True)
                 break
 
         df = pd.read_csv(file)
-        df.to_sql(name=tablename, con=db.engine, schema=schema_name, index=False, if_exists='append')
-        df.to_sql(name=raw_tablename, con=db.engine, schema=schema_name, index=False, if_exists='append')
+        df.index.name = 'id'
+        df.to_sql(name=tablename, con=db.engine, schema=schema_name, index=type_deduction, if_exists='append')
+        df.to_sql(name=raw_tablename, con=db.engine, schema=schema_name, index=type_deduction, if_exists='append')
 
-    def process_zip(self, file, schema_id):
+    def process_zip(self, file, schema_id, type_deduction=False):
         """
          This method takes a ZIP archive filled with CSV files, and processes them individually
          The name of the CSV file will be used as table name. If a table with the same name is found
@@ -553,9 +559,9 @@ class DataLoader:
                     create_new = not self.table_exists(tablename, schema_id)
 
                     if create_new:
-                        self.process_csv(csv, schema_id, tablename)
+                        self.process_csv(csv, schema_id, tablename, type_deduction=type_deduction)
                     else:
-                        self.process_csv(csv, schema_id, tablename, True)
+                        self.process_csv(csv, schema_id, tablename, True, type_deduction=type_deduction)
 
                 # Clean up temp folder
                 shutil.rmtree("../output/temp")
@@ -571,7 +577,7 @@ class DataLoader:
 
             raise e
 
-    def process_dump(self, file, schema_id):
+    def process_dump(self, file, schema_id, table_name, table_description='Default description',):
 
         """
          This method takes a SQL dump file and processes the INSERT statements,
@@ -588,7 +594,7 @@ class DataLoader:
                         # NOTE: An INSERT statement looks like this:
                         # INSERT INTO table_name (column1, column2, column3, ...) VALUES (value1, value2, value3, ...);
 
-                        tablename = statement.split()[2]
+                        tablename = statement.split()[2] or table_name
                         values_list = list()
                         for values_tuple in re.findall(r'\(.*?\)', statement[statement.find('VALUES'):]):
                             # Tuple is any match of the above regex, e.g. (values1, values2, values3, ...)
@@ -603,7 +609,7 @@ class DataLoader:
                             columns = ['col' + str(i) for i in range(1, len(values_list[0]) + 1)]
 
                         if not self.table_exists(tablename, schema_id):
-                            self.create_table(tablename, schema_id, columns, True)
+                            self.create_table(tablename, schema_id, columns, True, desc=table_description)
                         for values in values_list:
                             val_dict = dict()
                             for c_ix in range(len(columns)):

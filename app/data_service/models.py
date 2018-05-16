@@ -342,6 +342,13 @@ class DataLoader:
             # Delete history
             schema_name = 'schema-' + str(schema_id)
             history_query = 'DELETE FROM HISTORY WHERE id_dataset={} AND id_table={};'.format(*_cv(schema_name, name))
+
+            # Delete backups
+            id = schema_id.split("-")[1]
+            backups = self.get_backups(id, name)
+            for backup in backups:
+                self.delete_backup(id, name, backup)
+
             connection.execute(history_query)
 
             transaction.commit()
@@ -1103,7 +1110,7 @@ class DataLoader:
         """
         schema_name = "schema-" + str(schema_id)
         try:
-            query = 'SELECT timestamp::VARCHAR FROM Backups WHERE id_dataset = {} AND table_name = {}'.format(*_cv(schema_name, table_name))
+            query = 'SELECT timestamp FROM Backups WHERE id_dataset = {} AND table_name = {}'.format(*_cv(schema_name, table_name))
             rows = db.engine.execute(query)
 
             timestamps = [str(ts[0]) for ts in rows]
@@ -1148,9 +1155,13 @@ class DataLoader:
         transaction = connection.begin()
         try:
             backup_name = '_{}_backup_{}'.format(table_name, timestamp)
-            query = 'DELETE FROM Backups WHERE id_dataset = {} AND backup_name = {}'.format(*_cv(schema_name, backup_name))
+            query = 'DELETE FROM Backups WHERE id_dataset = {} AND backup_name = {};'.format(*_cv(schema_name, backup_name))
             connection.execute(query)
             history.log_action(schema_id, table_name, datetime.now(), "Deleted backup {}.".format(timestamp))
+
+            query = 'DROP TABLE IF EXISTS {}.{};'.format(
+                *_ci(schema_name, backup_name))
+            connection.execute(query)
             transaction.commit()
         except Exception as e:
             transaction.rollback()

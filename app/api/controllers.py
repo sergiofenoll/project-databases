@@ -41,38 +41,25 @@ def get_table(dataset_id, table_name):
     active_user_handler.make_user_active_in_table(dataset_id, table_name, current_user.username)
     start = request.args.get('start')
     length = request.args.get('length')
-    order_column = int(request.args.get('order[0][column]'))
+    order_column_idx = int(request.args.get('order[0][column]'))
+    order_column_name = request.args.get('columns[{}][data]'.format(order_column_idx))
     order_direction = request.args.get('order[0][dir]')
-    ordering = (data_loader.get_column_names(dataset_id, table_name)[order_column], order_direction)
+    ordering = (order_column_name, order_direction)
     search = request.args.get('search[value]')
 
     table = data_loader.get_table(dataset_id, table_name, offset=start, limit=length, ordering=ordering, search=search)
-    _table = data_loader.get_table(dataset_id, table_name)
-    return jsonify(draw=int(request.args.get('draw')),
-                   recordsTotal=len(_table.rows),
-                   recordsFiltered=len(_table.rows),
-                   data=table.rows)
-
-
-@api.route('/api/datasets/<int:dataset_id>/share', methods=['GET'])
-@auth_required
-def get_access_table(dataset_id):
-    if (data_loader.has_access(current_user.username, dataset_id)) is False:
-        return abort(403)
-    active_user_handler.make_user_active_in_dataset(dataset_id, current_user.username)
-    start = request.args.get('start')
-    length = request.args.get('length')
-    access_table_columns = ['id_user', 'role']
-    ordering = (access_table_columns[int(request.args.get('order[0][column]'))], request.args.get('order[0][dir]'))
-    search = request.args.get('search[value]')
-
-    table = data_loader.get_dataset_access(dataset_id, offset=start, limit=length, ordering=ordering, search=search)
-    _table = data_loader.get_dataset_access(dataset_id)
+    # Make proper data dict out of table rows
+    data = list()
+    for r_ix in range(len(table.rows)):
+        r = dict()
+        for c_ix in range(len(table.columns)):
+            r[table.columns[c_ix].name] = table.rows[r_ix][c_ix]
+        data.append(r)
 
     return jsonify(draw=int(request.args.get('draw')),
-                   recordsTotal=len(_table.rows),
-                   recordsFiltered=len(_table.rows),
-                   data=table.rows)
+                   recordsTotal=table.total_size,
+                   recordsFiltered=table.total_size,
+                   data=data) # table.rows
 
 
 @api.route('/api/datasets/<int:dataset_id>/tables/<string:table_name>/history', methods=['GET'])

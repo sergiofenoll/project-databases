@@ -111,7 +111,8 @@ class UserDataAccess:
             query = 'SELECT id FROM dataset WHERE owner = {}'.format(_cv(username))
             rows = db.engine.execute(query)
             for dataset_id in rows:
-                data_loader.delete_dataset(dataset_id[0])
+                schema_id = dataset_id[0].split('-')[1]
+                data_loader.delete_dataset(schema_id)
             db.engine.execute('DELETE FROM Member WHERE username = {}'.format(_cv(username)))
             return True
         except Exception as e:

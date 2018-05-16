@@ -232,20 +232,18 @@ class DataLoader:
 
         # Clean up the access & dataset tables
         try:
-            id = schema_id.split('-')[1]
-            db.engine.execute('INSERT INTO Available_Schema (id) VALUES ({})'.format(_cv(id)))
+            schema_name = "schema-" + str(schema_id)
+            db.engine.execute('INSERT INTO Available_Schema (id) VALUES ({})'.format(_cv(schema_id)))
 
-            db.engine.execute('DELETE FROM Dataset WHERE id = {};'.format(_cv(str(schema_id))))
+            db.engine.execute('DELETE FROM Dataset WHERE id = {};'.format(_cv(schema_name)))
 
-            db.engine.execute('DROP SCHEMA IF EXISTS {} CASCADE;'.format(_ci(schema_id)))
+            db.engine.execute('DROP SCHEMA IF EXISTS {} CASCADE;'.format(_ci(schema_name)))
 
             # check if there are datasets. If not, clean available_schema
             rows = db.engine.execute('SELECT COUNT(*) FROM Dataset;')
             count = rows.first()[0]  # Amount of already existing schemas
             if count == 0:
                 db.engine.execute('TRUNCATE Available_Schema;')
-
-            db.engine.execute('DROP SCHEMA IF EXISTS {} CASCADE;'.format(_ci(schema_id)))
 
         except Exception as e:
             app.logger.error("[ERROR] Failed to properly remove dataset '" + schema_id + "'")

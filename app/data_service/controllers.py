@@ -62,9 +62,8 @@ def get_dataset(dataset_id):
 def delete_dataset(dataset_id):
     if (data_loader.has_access(current_user.username, dataset_id)) is False:
         return abort(403)
-    schema_name = "schema-" + str(dataset_id)
     try:
-        data_loader.delete_dataset(schema_name)
+        data_loader.delete_dataset(dataset_id)
         flash(u"Dataset has been deleted.", 'success')
     except Exception:
         flash(u"Something went wrong while deleting your dataset.", 'danger')

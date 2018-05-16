@@ -36,7 +36,7 @@ class TestDataService(unittest.TestCase):
             data_loader.create_dataset(name, owner_id)
             self.assertEqual(dataset, data_loader.get_dataset(schema_id, owner_id))
         finally:
-            data_loader.delete_dataset('schema-' + str(schema_id))
+            data_loader.delete_dataset(schema_id)
 
     def test_delete_dataset(self):
         name = 'test_dataset'
@@ -46,7 +46,7 @@ class TestDataService(unittest.TestCase):
         try:
             data_loader.create_dataset(name, owner_id)
         finally:
-            data_loader.delete_dataset('schema-' + str(schema_id))
+            data_loader.delete_dataset(schema_id)
 
     def test_get_dataset_id(self):
         name = 'test_dataset'
@@ -58,7 +58,7 @@ class TestDataService(unittest.TestCase):
             gotten_id = int(data_loader.get_dataset_id(name)[0].split('-')[1])
             self.assertEqual(0, gotten_id)
         finally:
-            data_loader.delete_dataset('schema-' + str(schema_id))
+            data_loader.delete_dataset(schema_id)
 
     def test_create_table(self):
         schema_name = 'test-schema'
@@ -72,7 +72,7 @@ class TestDataService(unittest.TestCase):
             self.assertEqual(table, data_loader.get_table(schema_id, table_name))
         finally:
             data_loader.delete_table(table_name, schema_id)
-            data_loader.delete_dataset('schema-' + str(schema_id))
+            data_loader.delete_dataset(schema_id)
 
     def test_delete_table(self):
         schema_name = 'test-schema'
@@ -84,7 +84,7 @@ class TestDataService(unittest.TestCase):
             data_loader.create_table(table_name, schema_id, [])
         finally:
             data_loader.delete_table(table_name, schema_id)
-            data_loader.delete_dataset('schema-' + str(schema_id))
+            data_loader.delete_dataset(schema_id)
 
     def test_get_table(self):
         schema_name = 'test-schema'
@@ -98,7 +98,7 @@ class TestDataService(unittest.TestCase):
             self.assertEqual(table, data_loader.get_table(schema_id, table_name))
         finally:
             data_loader.delete_table(table_name, schema_id)
-            data_loader.delete_dataset('schema-' + str(schema_id))
+            data_loader.delete_dataset(schema_id)
 
     def test_table_exists(self):
         schema_name = 'test-schema'
@@ -110,7 +110,7 @@ class TestDataService(unittest.TestCase):
             data_loader.table_exists(table_name, schema_id)
         finally:
             data_loader.delete_table(table_name, schema_id)
-            data_loader.delete_dataset('schema-' + str(schema_id))
+            data_loader.delete_dataset(schema_id)
 
     def test_create_row(self):
         schema_name = 'test-schema'
@@ -124,7 +124,7 @@ class TestDataService(unittest.TestCase):
             data_loader.insert_row(table_name, schema_id, columns, values)
         finally:
             data_loader.delete_table(table_name, schema_id)
-            data_loader.delete_dataset('schema-' + str(schema_id))
+            data_loader.delete_dataset(schema_id)
 
     def test_delete_row(self):
         schema_name = 'test-schema'
@@ -139,7 +139,7 @@ class TestDataService(unittest.TestCase):
         finally:
             data_loader.delete_row(schema_id, table_name, [0])
             data_loader.delete_table(table_name, schema_id)
-            data_loader.delete_dataset('schema-' + str(schema_id))
+            data_loader.delete_dataset(schema_id)
 
     def test_create_column(self):
         schema_name = 'test-schema'
@@ -153,7 +153,7 @@ class TestDataService(unittest.TestCase):
             data_loader.insert_column(schema_id, table_name, new_column, new_column_type)
         finally:
             data_loader.delete_table(table_name, schema_id)
-            data_loader.delete_dataset('schema-' + str(schema_id))
+            data_loader.delete_dataset(schema_id)
 
     def test_delete_column(self):
         schema_name = 'test-schema'
@@ -168,7 +168,7 @@ class TestDataService(unittest.TestCase):
         finally:
             data_loader.delete_column(schema_id, table_name, new_column)
             data_loader.delete_table(table_name,schema_id)
-            data_loader.delete_dataset('schema-' + str(schema_id))
+            data_loader.delete_dataset(schema_id)
 
     def test_rename_column(self):
         schema_name = 'test-schema'
@@ -182,7 +182,7 @@ class TestDataService(unittest.TestCase):
             data_loader.rename_column(schema_id, table_name, column_name, new_column_name)
         finally:
             data_loader.delete_table(table_name, schema_id)
-            data_loader.delete_dataset('schema-' + str(schema_id))
+            data_loader.delete_dataset(schema_id)
 
     def test_update_column_type(self):
         schema_name = 'test-schema'
@@ -196,7 +196,7 @@ class TestDataService(unittest.TestCase):
             data_loader.update_column_type(schema_id, table_name, column_name, column_type)
         finally:
             data_loader.delete_table(table_name, schema_id)
-            data_loader.delete_dataset('schema-' + str(schema_id))
+            data_loader.delete_dataset(schema_id)
 
     def test_grant_access(self):
         contrib_username = "contrib_test_username"
@@ -219,7 +219,7 @@ class TestDataService(unittest.TestCase):
             self.assertTrue(data_loader.has_access(contrib_username, schema_id))
         finally:
             user_data_access.delete_user(data_loader, contrib_username)
-            data_loader.delete_dataset('schema-' + str(schema_id))
+            data_loader.delete_dataset(schema_id)
 
     def test_remove_access(self):
         contrib_username = "contrib_test_username"
@@ -243,7 +243,7 @@ class TestDataService(unittest.TestCase):
         finally:
             user_data_access.delete_user(data_loader, contrib_username)
             data_loader.remove_access(contrib_username, schema_id)
-            data_loader.delete_dataset('schema-' + str(schema_id))
+            data_loader.delete_dataset(schema_id)
 
     def test_has_access(self):
         contrib_username = "contrib_test_username"
@@ -266,7 +266,7 @@ class TestDataService(unittest.TestCase):
             data_loader.remove_access(contrib_username, schema_id)
         finally:
             user_data_access.delete_user(data_loader, contrib_username)
-            data_loader.delete_dataset('schema-' + str(schema_id))
+            data_loader.delete_dataset(schema_id)
 
 
 if __name__ == '__main__':

@@ -29,7 +29,7 @@ class TestDataTransform(unittest.TestCase):
 
     @classmethod
     def tearDownClass(cls):
-        data_loader.delete_dataset('schema-0')
+        data_loader.delete_dataset(0)
         user_data_access.delete_user(data_loader, username)
 
     def test_impute_missing_data_on_average(self):

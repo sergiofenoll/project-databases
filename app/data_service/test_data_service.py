@@ -71,7 +71,7 @@ class TestDataService(unittest.TestCase):
             data_loader.create_table(table_name, schema_id, [])
             self.assertEqual(table, data_loader.get_table(schema_id, table_name))
         finally:
-            data_loader.delete_table(table_name, 'schema-' + str(schema_id))
+            data_loader.delete_table(table_name, schema_id)
             data_loader.delete_dataset('schema-' + str(schema_id))
 
     def test_delete_table(self):
@@ -83,7 +83,7 @@ class TestDataService(unittest.TestCase):
             data_loader.create_dataset(schema_name, username)
             data_loader.create_table(table_name, schema_id, [])
         finally:
-            data_loader.delete_table(table_name, 'schema-' + str(schema_id))
+            data_loader.delete_table(table_name, schema_id)
             data_loader.delete_dataset('schema-' + str(schema_id))
 
     def test_get_table(self):
@@ -97,7 +97,7 @@ class TestDataService(unittest.TestCase):
             data_loader.create_table(table_name, schema_id, [])
             self.assertEqual(table, data_loader.get_table(schema_id, table_name))
         finally:
-            data_loader.delete_table(table_name, 'schema-' + str(schema_id))
+            data_loader.delete_table(table_name, schema_id)
             data_loader.delete_dataset('schema-' + str(schema_id))
 
     def test_table_exists(self):
@@ -109,7 +109,7 @@ class TestDataService(unittest.TestCase):
             data_loader.create_table(table_name, schema_id, [])
             data_loader.table_exists(table_name, schema_id)
         finally:
-            data_loader.delete_table(table_name, 'schema-' + str(schema_id))
+            data_loader.delete_table(table_name, schema_id)
             data_loader.delete_dataset('schema-' + str(schema_id))
 
     def test_create_row(self):
@@ -123,7 +123,7 @@ class TestDataService(unittest.TestCase):
             data_loader.create_table(table_name, schema_id, columns)
             data_loader.insert_row(table_name, schema_id, columns, values)
         finally:
-            data_loader.delete_table(table_name, 'schema-' + str(schema_id))
+            data_loader.delete_table(table_name, schema_id)
             data_loader.delete_dataset('schema-' + str(schema_id))
 
     def test_delete_row(self):
@@ -138,7 +138,7 @@ class TestDataService(unittest.TestCase):
             data_loader.insert_row(table_name, schema_id, columns, values)
         finally:
             data_loader.delete_row(schema_id, table_name, [0])
-            data_loader.delete_table(table_name, 'schema-' + str(schema_id))
+            data_loader.delete_table(table_name, schema_id)
             data_loader.delete_dataset('schema-' + str(schema_id))
 
     def test_create_column(self):
@@ -152,7 +152,7 @@ class TestDataService(unittest.TestCase):
             data_loader.create_table(table_name, schema_id, [])
             data_loader.insert_column(schema_id, table_name, new_column, new_column_type)
         finally:
-            data_loader.delete_table(table_name, 'schema-' + str(schema_id))
+            data_loader.delete_table(table_name, schema_id)
             data_loader.delete_dataset('schema-' + str(schema_id))
 
     def test_delete_column(self):
@@ -167,7 +167,7 @@ class TestDataService(unittest.TestCase):
             data_loader.insert_column(schema_id, table_name, new_column, new_column_type)
         finally:
             data_loader.delete_column(schema_id, table_name, new_column)
-            data_loader.delete_table(table_name, 'schema-' + str(schema_id))
+            data_loader.delete_table(table_name,schema_id)
             data_loader.delete_dataset('schema-' + str(schema_id))
 
     def test_rename_column(self):
@@ -181,7 +181,7 @@ class TestDataService(unittest.TestCase):
             data_loader.create_table(table_name, schema_id, [column_name])
             data_loader.rename_column(schema_id, table_name, column_name, new_column_name)
         finally:
-            data_loader.delete_table(table_name, 'schema-' + str(schema_id))
+            data_loader.delete_table(table_name, schema_id)
             data_loader.delete_dataset('schema-' + str(schema_id))
 
     def test_update_column_type(self):
@@ -195,7 +195,7 @@ class TestDataService(unittest.TestCase):
             data_loader.create_table(table_name, schema_id, [column_name])
             data_loader.update_column_type(schema_id, table_name, column_name, column_type)
         finally:
-            data_loader.delete_table(table_name, 'schema-' + str(schema_id))
+            data_loader.delete_table(table_name, schema_id)
             data_loader.delete_dataset('schema-' + str(schema_id))
 
     def test_grant_access(self):

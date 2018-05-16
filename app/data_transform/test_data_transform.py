@@ -61,7 +61,7 @@ class TestDataTransform(unittest.TestCase):
             self.assertEqual(table.rows[2][2], 6)
             self.assertEqual(table.rows[3][2], 3)
         finally:
-            data_loader.delete_table('test-table', 'schema-0')
+            data_loader.delete_table('test-table', 0)
 
     def test_impute_missing_data_on_median(self):
         # Table
@@ -93,7 +93,7 @@ class TestDataTransform(unittest.TestCase):
             self.assertEqual(table.rows[3][2], 8)
             self.assertEqual(table.rows[4][2],  4)
         finally:
-            data_loader.delete_table('test-table', 'schema-0')
+            data_loader.delete_table('test-table', 0)
 
     def test_find_and_replace(self):
         # Table
@@ -120,7 +120,7 @@ class TestDataTransform(unittest.TestCase):
             self.assertEqual(table.rows[0][1], 'banaanpel')
             self.assertEqual(table.rows[1][1], 'druif')
         finally:
-            data_loader.delete_table('test-table', 'schema-0')
+            data_loader.delete_table('test-table', 0)
 
     def test_find_and_replace_by_regex(self):
         # Table
@@ -143,5 +143,5 @@ class TestDataTransform(unittest.TestCase):
             self.assertEqual(table.rows[0][1], 'banaan')
             self.assertEqual(table.rows[1][1], 'citroen')
         finally:
-            data_loader.delete_table('test-table', 'schema-0')
+            data_loader.delete_table('test-table', 0)
 

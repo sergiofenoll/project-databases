@@ -329,9 +329,10 @@ class DataLoader:
         connection = db.engine.connect()
         transaction = connection.begin()
         try:
+            schema_name = 'schema-' + str(schema_id)
             # Delete table
-            table_query = 'DROP TABLE {}.{};'.format(*_ci(schema_id, name))
-            raw_table_query = 'DROP TABLE IF EXISTS {}.{};'.format(*_ci(schema_id, "_raw_" + name))
+            table_query = 'DROP TABLE {}.{};'.format(*_ci(schema_name, name))
+            raw_table_query = 'DROP TABLE IF EXISTS {}.{};'.format(*_ci(schema_name, "_raw_" + name))
             connection.execute(table_query)
             connection.execute(raw_table_query)
 
@@ -340,14 +341,12 @@ class DataLoader:
             connection.execute(metadata_query)
 
             # Delete history
-            schema_name = 'schema-' + str(schema_id)
             history_query = 'DELETE FROM HISTORY WHERE id_dataset={} AND id_table={};'.format(*_cv(schema_name, name))
 
             # Delete backups
-            id = schema_id.split("-")[1]
-            backups = self.get_backups(id, name)
+            backups = self.get_backups(schema_id, name)
             for backup in backups:
-                self.delete_backup(id, name, backup)
+                self.delete_backup(schema_id, name, backup)
 
             connection.execute(history_query)
 

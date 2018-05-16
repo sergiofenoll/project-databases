@@ -2,6 +2,8 @@ from datetime import datetime
 from statistics import median
 
 import pandas as pd
+import recordlinkage
+from recordlinkage.datasets import load_febrl1
 
 from app import app, database as db
 from app.data_service.models import DataLoader
@@ -398,3 +400,76 @@ class DataDeduplicator:
             app.logger.error("[ERROR] Could not create view for \'identical\' rows for table '{}'".format(table_name))
             app.logger.exception(e)
             raise e
+
+    def remove_cluster(self, schema_id, table_name, cluster_id):
+        """ Remove the given cluster (group of rows grouped on 'cluster_id' from _dedup_'table_name' """
+        schema_name = "schema-" + str(schema_id)
+        dedup_table_name = "_dedup_" + table_name
+
+        try:
+            query = "DELETE FROM {}.{} WHERE "
+            cluster_id
+            "={}".format(*_ci(schema_name, dedup_table_name), _cv(cluster_id))
+
+            db.engine.execute(query)
+        except Exception as e:
+            app.logger.error("[ERROR] Unable to remove cluster from table '{}'".format(dedup_table_name))
+            app.logger.exception(e)
+            raise e
+
+    def delete_dedup_table(self, schema_id, table_name):
+        """ Remove the given cluster (group of rows grouped on 'cluster_id' from _dedup_'table_name' """
+        schema_name = "schema-" + str(schema_id)
+        dedup_table_name = "_dedup_" + table_name
+
+        try:
+            query = "DROP TABLE {}.{}".format(*_ci(schema_name, dedup_table_name))
+
+            db.engine.execute(query)
+        except Exception as e:
+            app.logger.error("[ERROR] Unable to delete dedup table '{}'".format(dedup_table_name))
+            app.logger.exception(e)
+            raise e
+
+    def remove_rows_from_table(self, schema_id, table_name, row_ids):
+        """ Delete given rows from the table """
+
+        self.dataloader.delete_row(schema_id, table_name, row_ids)
+
+    def get_ammount_of_cluster(self, schema_id, table_name):
+        """ Get ammount of clusters remaining in _dedup_table_name' """
+        schema_name = "schema-" + str(schema_id)
+        dedup_table_name = "_dedup_" + table_name
+
+        try:
+            query = "SELECT COUNT(\"cluster_id\") FROM {}.{} GROUP BY \"cluster_id\"".format(
+                *_ci(schema_name, dedup_table_name))
+
+            result = db.engine.execute(query)
+
+            return result[0]
+
+        except Exception as e:
+            app.logger.error("[ERROR] Unable to get ammount of clusters from table '{}'".format(dedup_table_name))
+            app.logger.exception(e)
+            raise e
+
+    def collect_identical_rows_alg(self, schema_id, table_name, fixed_column_names, var_column_name, alg):
+
+        schema_name = 'schema-' + str(schema_id)
+        dedup_table_name = '_dedup_' + table_name
+
+        try:
+            '''
+            # SELECT * FROM "schema_name"."table";
+            data_query = 'SELECT * FROM {}.{}'.format(*_ci(schema_name, table_name))
+
+            # Read table into dataFrame
+            df = pd.read_sql(data_query, con=db.engine)
+            df.head()
+            '''
+
+            df =
+            # Create indexer blocks
+            indexer = recordlinkage.BlockIndex(on=fixed_column_names)
+            pairs = indexer.index(df);

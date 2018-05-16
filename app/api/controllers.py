@@ -384,3 +384,24 @@ def show_dedup_data(dataset_id, table_name):
     except Exception:
         flash(u"Duplicate rows could't be shown.", 'danger')
         return jsonify({'error': True}), 400
+
+def dedup_get_cluster(dataset_id, table_name):
+    try:
+        start = request.args.get('start')
+        length = request.args.get('length')
+        order_column = int(request.args.get('order[0][column]'))
+        order_direction = request.args.get('order[0][dir]')
+        dedup_table_name = "_dedup_" + table_name
+        ordering = (data_loader.get_column_names(dataset_id, dedup_table_name)[order_column], order_direction)
+        table = data_loader.get_table(dataset_id, dedup_table_name, offset=start, limit=length, ordering=ordering)
+        _table = data_loader.get_table(dataset_id, dedup_table_name)
+
+        #TODO Get remaining ammount of clusters
+        remaining_clusters = 9999
+        return jsonify(draw=int(request.args.get('draw')),
+                       recordsTotal=len(_table.rows),
+                       recordsFiltered=len(_table.rows),
+                       data=table.rows, remaining_clusters=remaining_clusters)
+    except Exception:
+        flash(u"Cluster of duplicate rows could't be shown.", 'danger')
+        return jsonify({'error': True}), 400

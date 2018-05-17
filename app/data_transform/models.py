@@ -369,6 +369,9 @@ class DataDeduplicator:
             app.logger.exception(e)
             raise e
 
+    def levenshtein(self, string1, string2, distance):
+        return True
+
     def collect_identical_rows_on_distance(self, schema_id, table_name, column_names, selected_column, distance):
         """ create view of identical rows from table based on given distance of words in column"""
 
@@ -376,13 +379,13 @@ class DataDeduplicator:
         dedup_table_name = '_dedup_' + table_name
         try:
             # Retrieve id's and 'column_name' value for identical rows
-            '''
             identical_rows_query = "SELECT t1.id, t1.{2}, t2.id, t2.{2} FROM {0}.{1} as t1, {0}.{1} as t2 WHERE t1.id > t2.id".format(
                 *_ci(schema_name, table_name, selected_column))
-            '''
 
+            '''
             identical_rows_query = "SELECT t1.id FROM {0}.{1} as t1, {0}.{1} as t2 WHERE t1.id <> t2.id".format(
                 *_ci(schema_name, table_name))
+            '''
 
             for column_name in column_names:
                 # Skip 'id' and 'column_name'
@@ -390,10 +393,20 @@ class DataDeduplicator:
                     continue
                 identical_rows_query += " AND t1.{0} = t2.{0}".format(_ci(column_name))
 
-            # Create a view if 'identical' rows
+            identical_row_pairs = db.engine.execute(identical_rows_query)
+
+            duplicate_row_ids = list()
+
+            # For each pair, use levenshtein to check if truly duplicate pair
+            for row in identical_row_pairs:
+                if self.levenshtein(row[1], row[3], distance):
+                    duplicate_row_ids.append(row[0])
+                    duplicate_row_ids.append(row[2])
+
+            # Create a view for 'identical' row id's
             create_view_query = "CREATE OR REPLACE VIEW {}.{} AS ".format(*_ci(schema_name, dedup_table_name))
-            create_view_query += "SELECT * FROM {}.{} WHERE id IN ({});".format(*_ci(schema_name, table_name),
-                                                                                identical_rows_query)
+            create_view_query += "SELECT * FROM {}.{} WHERE id IN {};".format(*_ci(schema_name, table_name),
+                                                                                tuple(duplicate_row_ids))
 
             db.engine.execute(create_view_query)
         except Exception as e:
@@ -469,7 +482,13 @@ class DataDeduplicator:
             df.head()
             '''
 
-            df =
+            df = 0
             # Create indexer blocks
             indexer = recordlinkage.BlockIndex(on=fixed_column_names)
             pairs = indexer.index(df);
+
+        except Exception as e:
+            app.logger.error(
+                "[ERROR] Unable to generate clusters of duplicate rows from table '{}'".format(dedup_table_name))
+            app.logger.exception(e)
+            raise e

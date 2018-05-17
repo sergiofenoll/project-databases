@@ -10,22 +10,23 @@
 			<div class="modal-body">
 				<form id="formRemoveIdenticalRowsOnDistance">
 					<div class="form-group">
-						<h5>Columns to check on</h5>
-                        <label for="col-type">Columns to check on</label>
+                        <h5>Select columns on which rows have to have exact matches</h5>
                         <ul class="list-unstyled">
                             <li><input type="checkbox" class="parent" data-group=".removeIdenticalRows" checked> Select All</li>
                             {% for column in table.columns[1:] %}
                                 <li><input type="checkbox" class="removeIdenticalRows" name="col-names" value="{{ column.name }}"> {{ column.name }}</li>
                             {% endfor %}
+                            <h5> Choose which column to use the comparing function on</h5>
                             <li>
+
                                 <select form="formRemoveIdenticalRowsOnDistance" name="selected-col-name">
                                     <{% for column in table.columns[1:] %}
                                         <option value="{{ column.name }}">{{ column.name }}</option>
                                     {% endfor %}
                                 </select>
                             </li>
+                            <h5>Choose how much the words must look alike [0.5-1]</h5>
                             <li>
-                                <span> Lookalike percentage [0.5-1]</span>
                                 <input type="number" name="distance" min="0.5" max="1" value="0.75" step="0.01">
                             </li>
                         </ul>

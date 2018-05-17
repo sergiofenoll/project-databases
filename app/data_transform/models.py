@@ -4,6 +4,7 @@ from statistics import median
 import pandas as pd
 import recordlinkage
 from recordlinkage.datasets import load_febrl1
+import edit_distance
 
 from app import app, database as db
 from app.data_service.models import DataLoader
@@ -370,7 +371,8 @@ class DataDeduplicator:
             raise e
 
     def levenshtein(self, string1, string2, distance):
-        return True
+        sm = edit_distance.SequenceMatcher(string1, string2)
+        return sm.ratio() <= distance
 
     def collect_identical_rows_on_distance(self, schema_id, table_name, column_names, selected_column, distance):
         """ create view of identical rows from table based on given distance of words in column"""
@@ -378,14 +380,14 @@ class DataDeduplicator:
         schema_name = 'schema-' + str(schema_id)
         dedup_table_name = '_dedup_' + table_name
         try:
+            # Drop _dedup_table if exists
+            #TODO
+            drop_dedup_query = "DROP VIEW IF EXISTS {}.{};".format(*_ci(schema_name, dedup_table_name))
+            db.engine.execute(drop_dedup_query)
+
             # Retrieve id's and 'column_name' value for identical rows
             identical_rows_query = "SELECT t1.id, t1.{2}, t2.id, t2.{2} FROM {0}.{1} as t1, {0}.{1} as t2 WHERE t1.id > t2.id".format(
                 *_ci(schema_name, table_name, selected_column))
-
-            '''
-            identical_rows_query = "SELECT t1.id FROM {0}.{1} as t1, {0}.{1} as t2 WHERE t1.id <> t2.id".format(
-                *_ci(schema_name, table_name))
-            '''
 
             for column_name in column_names:
                 # Skip 'id' and 'column_name'
@@ -403,12 +405,17 @@ class DataDeduplicator:
                     duplicate_row_ids.append(row[0])
                     duplicate_row_ids.append(row[2])
 
+            if len(duplicate_row_ids) == 0:
+                return False
+
             # Create a view for 'identical' row id's
             create_view_query = "CREATE OR REPLACE VIEW {}.{} AS ".format(*_ci(schema_name, dedup_table_name))
             create_view_query += "SELECT * FROM {}.{} WHERE id IN {};".format(*_ci(schema_name, table_name),
                                                                                 tuple(duplicate_row_ids))
 
             db.engine.execute(create_view_query)
+
+            return True
         except Exception as e:
             app.logger.error("[ERROR] Could not create view for \'identical\' rows for table '{}'".format(table_name))
             app.logger.exception(e)
@@ -471,6 +478,9 @@ class DataDeduplicator:
 
         schema_name = 'schema-' + str(schema_id)
         dedup_table_name = '_dedup_' + table_name
+
+        #TODO When user selects rows to remove, collect in table.
+        # Afterwards when finished selecting rows of all clusters, delete those rows (UNDO)
 
         try:
             '''

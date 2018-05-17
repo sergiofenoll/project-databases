@@ -357,9 +357,14 @@ def collect_identical_rows_on_distance(dataset_id, table_name):
     try:
         column_names = request.args.getlist('col-names')
         selected_column = request.args.get('selected-col-name')
-        distance = int(request.args.get('distance'))
-        data_deduplicator.collect_identical_rows_on_distance(dataset_id, table_name, column_names, selected_column,
-                                                             distance)
+        distance = float(request.args.get('distance'))
+        duplicates_found = data_deduplicator.collect_identical_rows_on_distance(dataset_id, table_name, column_names, selected_column,
+                                                                     distance)
+
+        if not duplicates_found:
+            flash(u"No identical rows could be found", 'danger')
+            return jsonify({'error': True}), 400
+
         return jsonify({'success': True}), 200
     except Exception:
         flash(u"Couldn't collect identical rows", 'danger')

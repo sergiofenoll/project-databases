@@ -13,7 +13,7 @@
 						<h5>Columns to check on</h5>
                         <label for="col-type">Columns to check on</label>
                         <ul class="list-unstyled">
-                            <li><input type="checkbox" class="parent" data-group=".removeIdenticalRows"> Select All</li>
+                            <li><input type="checkbox" class="parent" data-group=".removeIdenticalRows" checked> Select All</li>
                             {% for column in table.columns[1:] %}
                                 <li><input type="checkbox" class="removeIdenticalRows" name="col-names" value="{{ column.name }}"> {{ column.name }}</li>
                             {% endfor %}
@@ -24,7 +24,10 @@
                                     {% endfor %}
                                 </select>
                             </li>
-                            <li><input type="number" name="distance" value="0"></li>
+                            <li>
+                                <span> Lookalike percentage [0.5-1]</span>
+                                <input type="number" name="distance" min="0.5" max="1" value="0.75" step="0.01">
+                            </li>
                         </ul>
 						<button type="submit" class="btn btn-primary">Collect duplicate rows
 						</button>

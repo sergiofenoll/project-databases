@@ -232,20 +232,18 @@ class DataLoader:
 
         # Clean up the access & dataset tables
         try:
-            id = schema_id.split('-')[1]
-            db.engine.execute('INSERT INTO Available_Schema (id) VALUES ({})'.format(_cv(id)))
+            schema_name = "schema-" + str(schema_id)
+            db.engine.execute('INSERT INTO Available_Schema (id) VALUES ({})'.format(_cv(schema_id)))
 
-            db.engine.execute('DELETE FROM Dataset WHERE id = {};'.format(_cv(str(schema_id))))
+            db.engine.execute('DELETE FROM Dataset WHERE id = {};'.format(_cv(schema_name)))
 
-            db.engine.execute('DROP SCHEMA IF EXISTS {} CASCADE;'.format(_ci(schema_id)))
+            db.engine.execute('DROP SCHEMA IF EXISTS {} CASCADE;'.format(_ci(schema_name)))
 
             # check if there are datasets. If not, clean available_schema
             rows = db.engine.execute('SELECT COUNT(*) FROM Dataset;')
             count = rows.first()[0]  # Amount of already existing schemas
             if count == 0:
                 db.engine.execute('TRUNCATE Available_Schema;')
-
-            db.engine.execute('DROP SCHEMA IF EXISTS {} CASCADE;'.format(_ci(schema_id)))
 
         except Exception as e:
             app.logger.error("[ERROR] Failed to properly remove dataset '" + schema_id + "'")
@@ -329,9 +327,10 @@ class DataLoader:
         connection = db.engine.connect()
         transaction = connection.begin()
         try:
+            schema_name = 'schema-' + str(schema_id)
             # Delete table
-            table_query = 'DROP TABLE {}.{};'.format(*_ci(schema_id, name))
-            raw_table_query = 'DROP TABLE IF EXISTS {}.{};'.format(*_ci(schema_id, "_raw_" + name))
+            table_query = 'DROP TABLE {}.{};'.format(*_ci(schema_name, name))
+            raw_table_query = 'DROP TABLE IF EXISTS {}.{};'.format(*_ci(schema_name, "_raw_" + name))
             connection.execute(table_query)
             connection.execute(raw_table_query)
 
@@ -340,8 +339,13 @@ class DataLoader:
             connection.execute(metadata_query)
 
             # Delete history
-            schema_name = 'schema-' + str(schema_id)
             history_query = 'DELETE FROM HISTORY WHERE id_dataset={} AND id_table={};'.format(*_cv(schema_name, name))
+
+            # Delete backups
+            backups = self.get_backups(schema_id, name)
+            for backup in backups:
+                self.delete_backup(schema_id, name, backup)
+
             connection.execute(history_query)
 
             transaction.commit()
@@ -1103,7 +1107,7 @@ class DataLoader:
         """
         schema_name = "schema-" + str(schema_id)
         try:
-            query = 'SELECT timestamp::VARCHAR FROM Backups WHERE id_dataset = {} AND table_name = {}'.format(*_cv(schema_name, table_name))
+            query = 'SELECT timestamp FROM Backups WHERE id_dataset = {} AND table_name = {}'.format(*_cv(schema_name, table_name))
             rows = db.engine.execute(query)
 
             timestamps = [str(ts[0]) for ts in rows]
@@ -1148,9 +1152,13 @@ class DataLoader:
         transaction = connection.begin()
         try:
             backup_name = '_{}_backup_{}'.format(table_name, timestamp)
-            query = 'DELETE FROM Backups WHERE id_dataset = {} AND backup_name = {}'.format(*_cv(schema_name, backup_name))
+            query = 'DELETE FROM Backups WHERE id_dataset = {} AND backup_name = {};'.format(*_cv(schema_name, backup_name))
             connection.execute(query)
             history.log_action(schema_id, table_name, datetime.now(), "Deleted backup {}.".format(timestamp))
+
+            query = 'DROP TABLE IF EXISTS {}.{};'.format(
+                *_ci(schema_name, backup_name))
+            connection.execute(query)
             transaction.commit()
         except Exception as e:
             transaction.rollback()

@@ -106,6 +106,8 @@ def add_table(dataset_id):
             type_deduction = (request.form.get('ds-type-deduction') is not None) # Unchecked returns None
             table_name = request.form.get('ds-table-name') or filename.rsplit('.')[0]
             table_desc = request.form.get('ds-table-desc') or 'Default description'
+            if table_name.isspace():
+                table_name = filename.rsplit('.')[0]
             if filename[-3:] == "zip":
                 data_loader.process_zip(path, dataset_id, type_deduction=type_deduction)
             elif filename[-3:] == "csv":

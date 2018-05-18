@@ -22,7 +22,7 @@ CSRF_SESSION_KEY = 'NotSoSecret'
 
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 SECRET_KEY = '*^*(*&)(*)(*afafafaSDD47j\3yX R~X@H!jmM]Lwf/,?KT'
-ALLOWED_EXTENSIONS = ['zip', 'csv', 'dump']
+ALLOWED_EXTENSIONS = ['zip', 'csv', 'dump', 'sql']
 UPLOAD_FOLDER = os.path.join(BASE_DIR, 'input')
 ACTIVE_USER_TIME_SECONDS = 300
 BACKUP_LIMIT = 10

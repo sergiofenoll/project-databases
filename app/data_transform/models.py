@@ -3,7 +3,7 @@ from statistics import median
 
 import pandas as pd
 import recordlinkage
-from recordlinkage.datasets import load_febrl1
+from recordlinkage.preprocessing import clean
 import edit_distance
 
 from app import app, database as db
@@ -326,7 +326,7 @@ class OneHotEncode:
 
         if is_categorical:
             try:
-                # SELECT id, 'column' FROM "schema_name"."table";
+                # SELECT * FROM "schema_name"."table";
                 data_query = 'SELECT * FROM {}.{}'.format(*_ci(schema_name, table_name))
 
                 df = pd.read_sql(data_query, con=db.engine)
@@ -381,7 +381,7 @@ class DataDeduplicator:
         dedup_table_name = '_dedup_' + table_name
         try:
             # Drop _dedup_table if exists
-            #TODO
+            # TODO
             drop_dedup_query = "DROP VIEW IF EXISTS {}.{};".format(*_ci(schema_name, dedup_table_name))
             db.engine.execute(drop_dedup_query)
 
@@ -411,7 +411,7 @@ class DataDeduplicator:
             # Create a view for 'identical' row id's
             create_view_query = "CREATE OR REPLACE VIEW {}.{} AS ".format(*_ci(schema_name, dedup_table_name))
             create_view_query += "SELECT * FROM {}.{} WHERE id IN {};".format(*_ci(schema_name, table_name),
-                                                                                tuple(duplicate_row_ids))
+                                                                              tuple(duplicate_row_ids))
 
             db.engine.execute(create_view_query)
 
@@ -421,10 +421,12 @@ class DataDeduplicator:
             app.logger.exception(e)
             raise e
 
+    # More advanced dedup
+
     def remove_cluster(self, schema_id, table_name, cluster_id):
-        """ Remove the given cluster (group of rows grouped on 'cluster_id' from _dedup_'table_name' """
+        """ Remove the given cluster (group of rows grouped on 'cluster_id' from _dedup_'table_name'_groups' """
         schema_name = "schema-" + str(schema_id)
-        dedup_table_name = "_dedup_" + table_name
+        dedup_table_name = "_dedup_" + table_name + "_groups"
 
         try:
             query = "DELETE FROM {}.{} WHERE "
@@ -451,8 +453,25 @@ class DataDeduplicator:
             app.logger.exception(e)
             raise e
 
-    def remove_rows_from_table(self, schema_id, table_name, row_ids):
-        """ Delete given rows from the table """
+    def add_rows_to_delete(self, schema_id, table_name, row_ids):
+        schema_name = 'schema-' + str(schema_id)
+        dedup_rows_to_delete = '_dedup_' + table_name + "_to_delete"
+
+        query = ''
+        for row_id in row_ids:
+            query += "INSERT INTO {}.{}(\"row_id\") VALUES ({})".format(
+                *_ci(schema_name, dedup_rows_to_delete), row_id )
+
+        # Execute them inserts
+        db.engine.execute(query)
+
+    def remove_rows_from_table(self, schema_id, table_name):
+        """ Delete rows in _dedup_'table_name'_to_delete from the table """
+
+        schema_name = 'schema-' + str(schema_id)
+        dedup_rows_to_delete = '_dedup_' + table_name + "_to_delete"
+
+        row_ids = 'SELECT "row_ids" FROM {}.{}'.format(*_ci(schema_name, dedup_rows_to_delete))
 
         self.dataloader.delete_row(schema_id, table_name, row_ids)
 
@@ -474,31 +493,111 @@ class DataDeduplicator:
             app.logger.exception(e)
             raise e
 
-    def collect_identical_rows_alg(self, schema_id, table_name, fixed_column_names, var_column_name, alg):
+    def group_matches(self, matches):
+
+        groups = list()
+        join_made = False
+
+        for pair in matches:
+            if len(groups) == 0:
+                groups.append(set(pair))
+
+            else:
+                # Go over each group
+                    # join with group if not disjoint
+                # if not joined with group, create new group
+                inserted_into_group = False
+                for group in groups:
+                    if not group.isdisjoint(set(pair)):
+                        group.update(set(pair))
+                        inserted_into_group = True
+                        join_made = True
+                if not inserted_into_group:
+                    groups.append(set(pair))
+
+        if join_made:
+            return self.group_matches(groups)
+        else:
+            return groups
+
+    def collect_identical_rows_alg(self, schema_id, table_name, sorting_key, fixed_column_names, var_column_names, alg):
 
         schema_name = 'schema-' + str(schema_id)
-        dedup_table_name = '_dedup_' + table_name
+        dedup_table_name = '_dedup_' + table_name + "_groups"
 
-        #TODO When user selects rows to remove, collect in table.
+        # TODO When user selects rows to remove, collect in table.
         # Afterwards when finished selecting rows of all clusters, delete those rows (UNDO)
 
         try:
-            '''
-            # SELECT * FROM "schema_name"."table";
+
+            # SELECT id, 'column' FROM "schema_name"."table";
             data_query = 'SELECT * FROM {}.{}'.format(*_ci(schema_name, table_name))
-
-            # Read table into dataFrame
             df = pd.read_sql(data_query, con=db.engine)
-            df.head()
-            '''
 
-            df = 0
-            # Create indexer blocks
-            indexer = recordlinkage.BlockIndex(on=fixed_column_names)
-            pairs = indexer.index(df);
+            # Clean dataset
 
+            ## Remove leading whitespaces
+            df.columns = df.columns.to_series().apply(lambda x: x.strip())
+
+            ## Clean string values
+            for column_name in df.select_dtypes(include=['object']).columns:
+                df[column_name] = clean(df[column_name])
+
+            # Indexation step
+            indexer = recordlinkage.SortedNeighbourhoodIndex(on=sorting_key, window=3)
+            pairs = indexer.index(df)
+
+            # Comparison step
+            compare_cl = recordlinkage.Compare()
+
+            ## Exact matches
+            for column_name in fixed_column_names:
+                compare_cl.exact(column_name, column_name, label=column_name)
+
+            ## Variable matches calculated using an alg (levenshtein)
+            for column_name in var_column_names:
+                compare_cl.string(column_name, column_name, method=alg, threshold=0.75, label=column_name)
+
+            potential_pairs = compare_cl.compute(pairs, df)
+
+            # Classification step
+            kmeans = recordlinkage.KMeansClassifier()
+            kmeans.learn(potential_pairs)
+            matches = kmeans.predict(potential_pairs)
+
+            # Grouping step
+            ## Group matches (A,B), (B,C) into (A,B,C)
+            groups = self.group_matches(matches)
+
+            #TODO Create table _dedup_table_groups
+            # Insert groups as (row_id, group_id)
+            query = ''
+            for group_id in range(len(groups)):
+                for row_id in groups[group_id]:
+                    query += "INSERT INTO {}.{} (\"row_id\", \"group_id\") VALUES ({}, {})".format(*_ci(schema_name, dedup_table_name), row_id, group_id)
+
+            # Execute them inserts
+            db.engine.execute(query)
         except Exception as e:
             app.logger.error(
                 "[ERROR] Unable to generate clusters of duplicate rows from table '{}'".format(dedup_table_name))
             app.logger.exception(e)
             raise e
+
+if __name__ == "__main__":
+    data_loader = DataLoader()
+    data_dedup = DataDeduplicator(data_loader)
+
+    '''
+    sorting_key = 'given_name'
+    fixed_column_names = list({'given_name', 'date_of_birth', 'suburb', 'state'})
+    var_column_names = list({'surname', 'address_1'})
+    alg = 'damerau_levenshtein'
+
+    data_dedup.collect_identical_rows_alg(1, 'dedup', sorting_key, fixed_column_names, var_column_names, alg)
+    '''
+
+    matches = list([[0,1], [1,2], [3,4], [2,3], [4,5], [5,6], [6,500], [500,1], [7, 501], [7, 502], [8, 503], [502, 503]x   ])
+    groups = data_dedup.group_matches(matches)
+
+    print(groups)

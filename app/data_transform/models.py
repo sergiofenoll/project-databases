@@ -423,116 +423,66 @@ class DataDeduplicator:
 
     # More advanced dedup
 
-    def remove_cluster(self, schema_id, table_name, cluster_id):
-        """ Remove the given cluster (group of rows grouped on 'cluster_id' from _dedup_'table_name'_groups' """
-        schema_name = "schema-" + str(schema_id)
-        dedup_table_name = "_dedup_" + table_name + "_groups"
+    def create_duplicate_table(self, schema_id, table_name, groups):
+        """ Creates a table of (row_id, group_id)"""
+        schema_name = 'schema-' + str(schema_id)
+        dedup_table_name = '_dedup_' + table_name + "_grouped"
 
         try:
-            query = "DELETE FROM {}.{} WHERE "
-            cluster_id
-            "={}".format(*_ci(schema_name, dedup_table_name), _cv(cluster_id))
+            drop_dedup_query = "DROP TABLE IF EXISTS {}.{} CASCADE;".format(*_ci(schema_name, dedup_table_name))
+            db.engine.execute(drop_dedup_query)
+
+            query = 'CREATE TABLE {}.{} ('
+            query += '\n\"id\" integer,'
+            query += '\n\"group_id\" varchar(255)'
+            query += '\n);\n'
+            query = query.format(*_ci(schema_name, dedup_table_name))
+
+            for group_id in range(len(groups)):
+                for row_id in groups[group_id]:
+                    query += 'INSERT INTO {}.{} VALUES ({}, {});'.format(*_ci(schema_name, dedup_table_name), row_id,
+                                                                        _cv("group_" + str(group_id) + "_"))
 
             db.engine.execute(query)
         except Exception as e:
-            app.logger.error("[ERROR] Unable to remove cluster from table '{}'".format(dedup_table_name))
+            app.logger.error(
+                "[ERROR] Unable to create table for duplicate rows from table '{}'".format(dedup_table_name))
             app.logger.exception(e)
             raise e
 
-    def delete_dedup_table(self, schema_id, table_name):
-        """ Remove the given cluster (group of rows grouped on 'cluster_id' from _dedup_'table_name' """
-        schema_name = "schema-" + str(schema_id)
-        dedup_table_name = "_dedup_" + table_name
+    def create_duplicate_view(self, schema_id, table_name):
+        """ Creates a view of given table joined with duplicate table """
+        schema_name = 'schema-' + str(schema_id)
+        dedup_table_name = '_dedup_' + table_name + "_grouped"
+        dedup_view_name = '_dedup_' + table_name + "_view"
 
         try:
-            query = "DROP TABLE {}.{}".format(*_ci(schema_name, dedup_table_name))
+            drop_dedup_query = "DROP VIEW IF EXISTS {}.{};".format(*_ci(schema_name, dedup_view_name))
+            db.engine.execute(drop_dedup_query)
+
+            query = "CREATE OR REPLACE VIEW {}.{} AS ".format(*_ci(schema_name, dedup_view_name))
+            query += "SELECT t1.*, t2.\"group_id\" FROM {0}.{1} as t1, {0}.{2} as t2 WHERE t1.\"id\"=t2.\"id\" ;".format(
+                *_ci(schema_name, table_name, dedup_table_name))
 
             db.engine.execute(query)
         except Exception as e:
-            app.logger.error("[ERROR] Unable to delete dedup table '{}'".format(dedup_table_name))
+            app.logger.error("[ERROR] Could not create view for \'duplicate\' rows for table '{}'".format(table_name))
             app.logger.exception(e)
             raise e
-
-    def add_rows_to_delete(self, schema_id, table_name, row_ids):
-        schema_name = 'schema-' + str(schema_id)
-        dedup_rows_to_delete = '_dedup_' + table_name + "_to_delete"
-
-        query = ''
-        for row_id in row_ids:
-            query += "INSERT INTO {}.{}(\"row_id\") VALUES ({})".format(
-                *_ci(schema_name, dedup_rows_to_delete), row_id )
-
-        # Execute them inserts
-        db.engine.execute(query)
-
-    def remove_rows_from_table(self, schema_id, table_name):
-        """ Delete rows in _dedup_'table_name'_to_delete from the table """
-
-        schema_name = 'schema-' + str(schema_id)
-        dedup_rows_to_delete = '_dedup_' + table_name + "_to_delete"
-
-        row_ids = 'SELECT "row_ids" FROM {}.{}'.format(*_ci(schema_name, dedup_rows_to_delete))
-
-        self.dataloader.delete_row(schema_id, table_name, row_ids)
-
-    def get_ammount_of_cluster(self, schema_id, table_name):
-        """ Get ammount of clusters remaining in _dedup_table_name' """
-        schema_name = "schema-" + str(schema_id)
-        dedup_table_name = "_dedup_" + table_name
-
-        try:
-            query = "SELECT COUNT(\"cluster_id\") FROM {}.{} GROUP BY \"cluster_id\"".format(
-                *_ci(schema_name, dedup_table_name))
-
-            result = db.engine.execute(query)
-
-            return result[0]
-
-        except Exception as e:
-            app.logger.error("[ERROR] Unable to get ammount of clusters from table '{}'".format(dedup_table_name))
-            app.logger.exception(e)
-            raise e
-
-    def group_matches(self, matches):
-
-        groups = list()
-        join_made = False
-
-        for pair in matches:
-            if len(groups) == 0:
-                groups.append(set(pair))
-
-            else:
-                # Go over each group
-                    # join with group if not disjoint
-                # if not joined with group, create new group
-                inserted_into_group = False
-                for group in groups:
-                    if not group.isdisjoint(set(pair)):
-                        group.update(set(pair))
-                        inserted_into_group = True
-                        join_made = True
-                if not inserted_into_group:
-                    groups.append(set(pair))
-
-        if join_made:
-            return self.group_matches(groups)
-        else:
-            return groups
 
     def collect_identical_rows_alg(self, schema_id, table_name, sorting_key, fixed_column_names, var_column_names, alg):
 
         schema_name = 'schema-' + str(schema_id)
-        dedup_table_name = '_dedup_' + table_name + "_groups"
+        dedup_table_name = '_dedup_' + table_name + "_grouped"
 
         # TODO When user selects rows to remove, collect in table.
         # Afterwards when finished selecting rows of all clusters, delete those rows (UNDO)
 
         try:
-
             # SELECT id, 'column' FROM "schema_name"."table";
             data_query = 'SELECT * FROM {}.{}'.format(*_ci(schema_name, table_name))
             df = pd.read_sql(data_query, con=db.engine)
+            df = df.set_index('id')
 
             # Clean dataset
 
@@ -565,24 +515,150 @@ class DataDeduplicator:
             kmeans.learn(potential_pairs)
             matches = kmeans.predict(potential_pairs)
 
+            if len(matches) == 0:
+                return False
+
             # Grouping step
             ## Group matches (A,B), (B,C) into (A,B,C)
             groups = self.group_matches(matches)
 
-            #TODO Create table _dedup_table_groups
-            # Insert groups as (row_id, group_id)
-            query = ''
-            for group_id in range(len(groups)):
-                for row_id in groups[group_id]:
-                    query += "INSERT INTO {}.{} (\"row_id\", \"group_id\") VALUES ({}, {})".format(*_ci(schema_name, dedup_table_name), row_id, group_id)
 
-            # Execute them inserts
-            db.engine.execute(query)
+            #TODO Create table _dedup_table_groups
+            self.create_duplicate_table(schema_id, table_name, groups)
+            self.create_duplicate_view(schema_id, table_name)
+
+            return True
+
         except Exception as e:
             app.logger.error(
                 "[ERROR] Unable to generate clusters of duplicate rows from table '{}'".format(dedup_table_name))
             app.logger.exception(e)
             raise e
+
+    def group_matches(self, matches):
+        """ Group matches (A,B), (B,C), (D,F) into (A,B,C), (D,F) """
+        groups = list()
+        join_made = False
+
+        for pair in matches:
+            if len(groups) == 0:
+                groups.append(set(pair))
+
+            else:
+                # Go over each group
+                    # join with group if not disjoint
+                # if not joined with group, create new group
+                inserted_into_group = False
+                for group in groups:
+                    if not group.isdisjoint(set(pair)):
+                        group.update(set(pair))
+                        inserted_into_group = True
+                        join_made = True
+                if not inserted_into_group:
+                    groups.append(set(pair))
+
+        if join_made:
+            return self.group_matches(groups)
+        else:
+            return groups
+
+    def get_next_group_id(self, schema_id, table_name):
+        """ Get top most group_id"""
+        schema_name = "schema-" + str(schema_id)
+        dedup_table_name = "_dedup_" + table_name + "_grouped"
+
+        try:
+            query = "SELECT group_id FROM {}.{} ORDER BY \"group_id\" ASC;".format(*_ci(schema_name, dedup_table_name))
+
+            result = db.engine.execute(query)
+            return result.fetchone()[0]
+
+        except Exception as e:
+            app.logger.error(
+                "[ERROR] Unable to retrieve group_id from table '{}'".format(dedup_table_name))
+            app.logger.exception(e)
+            raise e
+
+    def get_amount_of_cluster(self, schema_id, table_name):
+        """ Get amount of clusters remaining in _dedup_table_name' """
+        schema_name = "schema-" + str(schema_id)
+        dedup_table_name = "_dedup_" + table_name + "_grouped"
+
+        try:
+            query = "SELECT COUNT(\"group_id\") FROM {}.{} GROUP BY \"group\"".format(
+                *_ci(schema_name, dedup_table_name))
+
+            result = db.engine.execute(query)
+
+            return result[0]
+
+        except Exception as e:
+            app.logger.error("[ERROR] Unable to get amount of clusters from table '{}'".format(dedup_table_name))
+            app.logger.exception(e)
+            raise e
+
+    def remove_cluster(self, schema_id, table_name, group_id):
+        """ Remove the given cluster (group of rows grouped on 'cluster_id' from _dedup_'table_name'_grouped' """
+        schema_name = "schema-" + str(schema_id)
+        dedup_table_name = "_dedup_" + table_name + "_grouped"
+
+        try:
+            query = "DELETE FROM {}.{} WHERE \"group_id\"={}".format(*_ci(schema_name, dedup_table_name), _cv(group_id))
+
+            db.engine.execute(query)
+        except Exception as e:
+            app.logger.error("[ERROR] Unable to remove cluster from table '{}'".format(dedup_table_name))
+            app.logger.exception(e)
+            raise e
+
+    def delete_dedup_table(self, schema_id, table_name):
+        """ Remove the given cluster (group of rows grouped on 'cluster_id') from _dedup_'table_name'_grouped """
+        schema_name = "schema-" + str(schema_id)
+        dedup_table_name = "_dedup_" + table_name + "_grouped"
+
+        try:
+            query = "DROP TABLE {}.{}".format(*_ci(schema_name, dedup_table_name))
+
+            db.engine.execute(query)
+        except Exception as e:
+            app.logger.error("[ERROR] Unable to delete dedup table '{}'".format(dedup_table_name))
+            app.logger.exception(e)
+            raise e
+
+    def add_rows_to_delete(self, schema_id, table_name, row_ids):
+        schema_name = 'schema-' + str(schema_id)
+        dedup_rows_to_delete = '_dedup_' + table_name + "_to_delete"
+
+        query = ''
+        for row_id in row_ids:
+            query += "INSERT INTO {}.{}(\"row_id\") VALUES ({})".format(
+                *_ci(schema_name, dedup_rows_to_delete), row_id )
+
+        # Execute them inserts
+        db.engine.execute(query)
+
+    def remove_rows_from_table(self, schema_id, table_name):
+        """ Delete rows in _dedup_'table_name'_to_delete from the table """
+        schema_name = 'schema-' + str(schema_id)
+        dedup_rows_to_delete = '_dedup_' + table_name + "_to_delete"
+
+        try:
+
+            rows = db.engine.execute('SELECT "row_ids" FROM {}.{}'.format(*_ci(schema_name, dedup_rows_to_delete)))
+
+            result = list()
+            for row in rows:
+                result.append(row[0])
+
+            self.dataloader.delete_row(schema_id, table_name, result)
+
+        except Exception as e:
+            app.logger.error("[ERROR] Could not remove \'duplicate\' rows for table '{}'".format(table_name))
+            app.logger.exception(e)
+            raise e
+
+
+
 
 if __name__ == "__main__":
     data_loader = DataLoader()
@@ -597,7 +673,8 @@ if __name__ == "__main__":
     data_dedup.collect_identical_rows_alg(1, 'dedup', sorting_key, fixed_column_names, var_column_names, alg)
     '''
 
-    matches = list([[0,1], [1,2], [3,4], [2,3], [4,5], [5,6], [6,500], [500,1], [7, 501], [7, 502], [8, 503], [502, 503]x   ])
+    matches = list([[0,1], [1,2], [3,4], [2,3], [4,5], [5,6], [6,500], [500,1], [7, 501], [7, 502], [8, 503], [502, 503]])
     groups = data_dedup.group_matches(matches)
 
     print(groups)
+

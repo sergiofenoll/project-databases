@@ -659,7 +659,6 @@ class DataLoader:
          This method returns a list of 'Table' objects associated with the requested dataset
         """
         try:
-
             columns = self.get_column_names(schema_id, table_name)
 
             schema_name = 'schema-' + str(schema_id)

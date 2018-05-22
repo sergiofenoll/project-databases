@@ -108,7 +108,6 @@ def admin_page():
     if current_user.status != 'admin':
         return abort(403)
     admins = user_data_access.get_admins()
-    print("Admins: ", admins)
     if request.method == 'GET':
         return render_template('user_service/admin-page.html', users=user_data_access.get_users(),
                                                                admins=admins)

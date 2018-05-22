@@ -670,7 +670,7 @@ class DataLoader:
 
             search_query = ''
             if search is not None and search != '':
-                search_query = "WHERE (";
+                search_query = "WHERE ("
                 # Fill in the search for every column except ID
                 for col in columns[1:]:
                     search_query += "{}::text LIKE '%%{}%%' OR ".format(_ci(col), search)

@@ -17,8 +17,16 @@
                 <div class="panel panel-default">
                     <div class="panel panel-default">
                         <div class="panel-heading">
-                            <a class="btn btn-dark panel-button" id="removeSelectedRows" href="#">
-                                <i class="fas fa-minus-circle"></i> Remove selected row(s)</a>
+                            <a class="btn btn-dark panel-button" id="removeSelectedRowsContinue" href="#">
+                                <i class="fas fa-minus-circle"></i> Mark selected row(s) for deletion and continue</a>
+                        </div>
+                        <div class="panel-heading">
+                            <a class="btn btn-dark panel-button" id="removeSelectedRowsExit" href="#">
+                                <i class="fas fa-minus-circle"></i> Delete marked/selected row(s) and exit</a>
+                        </div>
+                        <div class="panel-heading">
+                            <a class="btn btn-dark panel-button" id="removeSelectedRowsExit" href="#">
+                                <i class="fas fa-minus-circle"></i> Delete marked rows, remaining duplicates processed automatically and exit. (Warning: Selection of the 'correct' row is very experimental!) </a>
                         </div>
                     </div>
                 </div>
@@ -29,7 +37,7 @@
                 <thead>
                 <tr>
                     <th class="scrolling-disabled"></th>
-                    {% for column in table.columns[1:] %}
+                    {% for column in table.columns[1:-1] %}
 
                         <th>
                             {{ column.name|capitalize }}
@@ -61,26 +69,44 @@
                     }
                 }]
             });
-            $('#removeSelectedRows').click(function () {
+            $('#removeSelectedRowsContinue').click(function () {
                     $.ajax({
                         type: 'POST',
-                        url: window.location.pathname + '?' + $('input:checked').serialize(),
+                        url: window.location.pathname + '/ctu?' + $('input:checked').serialize(),
                         contentType: 'application/json;charset=UTF-8',
                         datatype: 'json',
                         success: function (data) {
                             if (data.reload) {
                                 window.location.reload()
                             } else {
-                                 window.location.href = data.url
+                                 window.location.assign(data.url);
                             }
                         },
-                        error: function ()
+                        error: function (data)
                         {
-                            window.location.href = data.url
+                            window.location.assign(data.url);
                         }
                     })
                 });
-
+            $('#removeSelectedRowsExit').click(function () {
+                    $.ajax({
+                        type: 'POST',
+                        url: window.location.pathname + '/exit?' + $('input:checked').serialize(),
+                        contentType: 'application/json;charset=UTF-8',
+                        datatype: 'json',
+                        success: function (data) {
+                            if (data.reload) {
+                                window.location.reload()
+                            } else {
+                                 window.location.assign(data.url);
+                            }
+                        },
+                        error: function (data)
+                        {
+                            window.location.assign(data.url);
+                        }
+                    })
+                });
         });
     </script>
 {% endblock %}

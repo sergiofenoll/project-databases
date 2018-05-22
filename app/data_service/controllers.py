@@ -231,36 +231,6 @@ def remove_rows_predicate(dataset_id, table_name):
     return redirect(url_for('data_service.get_table', dataset_id=dataset_id, table_name=table_name))
 
 
-@data_service.route('/datasets/<int:dataset_id>/tables/<string:table_name>/show-dedup-data', methods=['GET'])
-def show_dedup_data(dataset_id, table_name):
-    if (data_loader.has_access(current_user.username, dataset_id)) is False:
-        return abort(403)
-    dedup_table_name = "_dedup_" + table_name
-    dedup_table_exists = data_loader.table_exists(dedup_table_name, "schema-" + str(dataset_id))
-    if not dedup_table_exists:
-        flash(u"Dedup data does not exist.", 'warning')
-        return redirect(url_for('data_service.get_table', dataset_id=dataset_id, table_name=table_name))
-    try:
-        table = data_loader.get_table(dataset_id, dedup_table_name)
-        title = "Duplicate data for " + table_name
-        return render_template('data_service/dedup-data-view.html', table=table, title=title)
-    except Exception:
-        flash(u"Duplicate data couldn't be shown.", 'danger')
-        return redirect(url_for('data_service.get_table', dataset_id=dataset_id, table_name=table_name), code=303)
-
-
-@data_service.route('/datasets/<int:dataset_id>/tables/<string:table_name>/show-dedup-data', methods=['POST'])
-def remove_identical_rows_on_distance(dataset_id, table_name):
-    try:
-        row_ids = [key.split('-')[1] for key in request.args]
-        data_loader.delete_row(dataset_id, table_name, row_ids)
-        flash(u"Rows have been deleted.", 'success')
-    except Exception:
-        flash(u"Rows couldn't be deleted.", 'warning')
-
-    return url_for('data_service.get_table', dataset_id=dataset_id, table_name=table_name)
-
-
 @data_service.route('/datasets/<int:dataset_id>/tables/<string:table_name>/show-dedup-data-alg', methods=['GET'])
 def show_dedup_data_alg(dataset_id, table_name):
     if (data_loader.has_access(current_user.username, dataset_id)) is False:
@@ -268,19 +238,20 @@ def show_dedup_data_alg(dataset_id, table_name):
     dedup_table_name = "_dedup_" + table_name + "_view"
     dedup_table_exists = data_loader.table_exists(dedup_table_name, "schema-" + str(dataset_id))
     if not dedup_table_exists:
-        flash(u"Dedup data does not exist.", 'warning')
+        flash(u"Duplicate data does not exist.", 'warning')
         return redirect(url_for('data_service.get_table', dataset_id=dataset_id, table_name=table_name))
     try:
-        table = data_loader.get_table(dataset_id, dedup_table_name)
-        title = "Duplicate data for " + table_name
+        group_id = data_deduplicator.get_next_group_id(dataset_id, table_name)
+        table = data_deduplicator.get_cluster(dataset_id, dedup_table_name, group_id)
+        title = "Duplicate data for " + table_name + ": Group " + str(group_id)
         return render_template('data_service/dedup-cluster-view.html', table=table, title=title)
     except Exception:
         flash(u"Duplicate data couldn't be shown.", 'danger')
         return redirect(url_for('data_service.get_table', dataset_id=dataset_id, table_name=table_name), code=303)
 
 
-@data_service.route('/datasets/<int:dataset_id>/tables/<string:table_name>/show-dedup-data-alg', methods=['POST'])
-def remove_identical_rows_alg(dataset_id, table_name):
+@data_service.route('/datasets/<int:dataset_id>/tables/<string:table_name>/show-dedup-data-alg/ctu', methods=['POST'])
+def remove_or_mark_identical_rows_alg_ctu(dataset_id, table_name):
     try:
         row_ids = [key.split('-')[1] for key in request.args]
 
@@ -292,16 +263,40 @@ def remove_identical_rows_alg(dataset_id, table_name):
             # Clean dedup tables from db and remove the selected rows
             data_deduplicator.remove_rows_from_table(dataset_id, table_name)
             data_deduplicator.delete_dedup_table(dataset_id, table_name)
-            flash(u"Rows marked as 'to delete' have been deleted.", 'success')
+            flash(u"Marked rows have been deleted.", 'success')
             return jsonify({'success': True, 'reload': False, 'redirect': True, 'url': url_for('data_service.get_table', dataset_id=dataset_id, table_name=table_name)}), 200
         else:
-            flash(u"Rows have been marked as 'to deleted'.", 'success')
+            flash(u"Rows have been marked for deletion'.", 'success')
             return jsonify({'success': True, 'reload': True, 'redirect': False}), 200
 
     except Exception:
         # Clean dedup tables from db
         data_deduplicator.delete_dedup_table(dataset_id, table_name)
-        flash(u"Rows couldn't be marked as 'to delete'.", 'warning')
+        flash(u"Rows couldn't be marked for deletion.", 'warning')
+
+        return jsonify({'error': True, 'reload': False, 'redirect': True,
+                        'url': url_for('data_service.get_table', dataset_id=dataset_id, table_name=table_name)}), 400
+
+
+@data_service.route('/datasets/<int:dataset_id>/tables/<string:table_name>/show-dedup-data-alg/exit', methods=['POST'])
+def remove_or_mark_identical_rows_alg_exit(dataset_id, table_name):
+    try:
+        row_ids = [key.split('-')[1] for key in request.args]
+
+        # Mark given id's as 'to_delete' and remove associated cluster from dedup_table_grouped
+        data_deduplicator.add_rows_to_delete(dataset_id, table_name, row_ids)
+        data_deduplicator.remove_cluster(dataset_id, table_name, data_deduplicator.get_next_group_id(dataset_id, table_name))
+
+        # Clean dedup tables from db and remove the selected rows
+        data_deduplicator.remove_rows_from_table(dataset_id, table_name)
+        data_deduplicator.delete_dedup_table(dataset_id, table_name)
+        flash(u"Marked rows have been deleted.", 'success')
+        return jsonify({'success': True, 'reload': False, 'redirect': True, 'url': url_for('data_service.get_table', dataset_id=dataset_id, table_name=table_name)}), 200
+
+    except Exception:
+        # Clean dedup tables from db
+        data_deduplicator.delete_dedup_table(dataset_id, table_name)
+        flash(u"Rows couldn't be deleted.", 'warning')
 
         return jsonify({'error': True, 'reload': False, 'redirect': True,
                         'url': url_for('data_service.get_table', dataset_id=dataset_id, table_name=table_name)}), 400

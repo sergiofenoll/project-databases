@@ -352,53 +352,12 @@ def remove_identical_rows(dataset_id, table_name):
     return jsonify({'success': True}), 200
 
 
-@api.route('/api/datasets/<int:dataset_id>/tables/<string:table_name>/remove-identical-rows-on-distance',
-           methods=['PUT'])
-def collect_identical_rows_on_distance(dataset_id, table_name):
-    try:
-        column_names = request.args.getlist('col-names')
-        selected_column = request.args.get('selected-col-name')
-        distance = float(request.args.get('distance'))
-        duplicates_found = data_deduplicator.collect_identical_rows_on_distance(dataset_id, table_name, column_names,
-                                                                                selected_column,
-                                                                                distance)
-
-        if not duplicates_found:
-            flash(u"No identical rows could be found", 'danger')
-            return jsonify({'error': True}), 400
-
-        return jsonify({'success': True}), 200
-    except Exception:
-        flash(u"Couldn't collect identical rows", 'danger')
-        return jsonify({'error': True}), 400
-
-
-@api.route('/api/datasets/<int:dataset_id>/tables/<string:table_name>/show-dedup-data', methods=['GET'])
-def show_dedup_data(dataset_id, table_name):
-    try:
-        start = request.args.get('start')
-        length = request.args.get('length')
-        order_column = int(request.args.get('order[0][column]'))
-        order_direction = request.args.get('order[0][dir]')
-        dedup_table_name = "_dedup_" + table_name
-        ordering = (data_loader.get_column_names(dataset_id, dedup_table_name)[order_column], order_direction)
-        table = data_loader.get_table(dataset_id, dedup_table_name, offset=start, limit=length, ordering=ordering)
-        _table = data_loader.get_table(dataset_id, dedup_table_name)
-        return jsonify(draw=int(request.args.get('draw')),
-                       recordsTotal=len(_table.rows),
-                       recordsFiltered=len(_table.rows),
-                       data=table.rows)
-    except Exception:
-        flash(u"Duplicate rows could't be shown.", 'danger')
-        return jsonify({'error': True}), 400
-
-
 @api.route('/api/datasets/<int:dataset_id>/tables/<string:table_name>/remove-identical-rows-alg', methods=['PUT'])
 def collect_identical_rows_alg(dataset_id, table_name):
     try:
         sorting_key = request.args.get('selected-col-name')
         fixed_column_names = request.args.getlist('identical-col-names')
-        var_column_names = request.args.getlist('similair-col-names')
+        var_column_names = request.args.getlist('similar-col-names')
         duplicates_found = data_deduplicator.collect_identical_rows_alg(dataset_id, table_name, sorting_key,
                                                                         fixed_column_names, var_column_names,
                                                                         'damerau_levenshtein')
@@ -422,19 +381,21 @@ def get_duplicate_group(dataset_id, table_name):
         order_direction = request.args.get('order[0][dir]')
         dedup_table_name = "_dedup_" + table_name + "_view"
         ordering = (data_loader.get_column_names(dataset_id, dedup_table_name)[order_column], order_direction)
+        search = request.args.get('search[value]')
 
-        search = data_deduplicator.get_next_group_id(dataset_id, table_name)
+        group_id = data_deduplicator.get_next_group_id(dataset_id, table_name)
 
-        table = data_loader.get_table(dataset_id, dedup_table_name, offset=start, limit=length, ordering=ordering,
-                                      search=search)
-        _table = data_loader.get_table(dataset_id, dedup_table_name)
+        table = data_deduplicator.get_cluster(dataset_id, dedup_table_name, group_id=group_id, offset=start, limit=length,
+                                            ordering=ordering,
+                                            search=search)
+        _table = data_deduplicator.get_cluster(dataset_id, dedup_table_name, group_id=group_id)
 
         # TODO Get remaining ammount of clusters
         remaining_clusters = 9999
         return jsonify(draw=int(request.args.get('draw')),
                        recordsTotal=len(_table.rows),
                        recordsFiltered=len(_table.rows),
-                       data=table.rows, remaining_clusters=remaining_clusters)
+                       data=table.rows)
     except Exception:
         flash(u"Cluster of duplicate rows could't be shown.", 'danger')
         return jsonify({'error': True}), 400

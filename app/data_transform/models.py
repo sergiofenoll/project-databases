@@ -7,7 +7,7 @@ from recordlinkage.preprocessing import clean
 import edit_distance
 
 from app import app, database as db
-from app.data_service.models import DataLoader
+from app.data_service.models import DataLoader, Table
 from app.history.models import History
 
 
@@ -370,57 +370,6 @@ class DataDeduplicator:
             app.logger.exception(e)
             raise e
 
-    def levenshtein(self, string1, string2, distance):
-        sm = edit_distance.SequenceMatcher(string1, string2)
-        return sm.ratio() <= distance
-
-    def collect_identical_rows_on_distance(self, schema_id, table_name, column_names, selected_column, distance):
-        """ create view of identical rows from table based on given distance of words in column"""
-
-        schema_name = 'schema-' + str(schema_id)
-        dedup_table_name = '_dedup_' + table_name
-        try:
-            # Drop _dedup_table if exists
-            # TODO
-            drop_dedup_query = "DROP VIEW IF EXISTS {}.{};".format(*_ci(schema_name, dedup_table_name))
-            db.engine.execute(drop_dedup_query)
-
-            # Retrieve id's and 'column_name' value for identical rows
-            identical_rows_query = "SELECT t1.id, t1.{2}, t2.id, t2.{2} FROM {0}.{1} as t1, {0}.{1} as t2 WHERE t1.id > t2.id".format(
-                *_ci(schema_name, table_name, selected_column))
-
-            for column_name in column_names:
-                # Skip 'id' and 'column_name'
-                if column_name == 'id' or column_name == selected_column:
-                    continue
-                identical_rows_query += " AND t1.{0} = t2.{0}".format(_ci(column_name))
-
-            identical_row_pairs = db.engine.execute(identical_rows_query)
-
-            duplicate_row_ids = list()
-
-            # For each pair, use levenshtein to check if truly duplicate pair
-            for row in identical_row_pairs:
-                if self.levenshtein(row[1], row[3], distance):
-                    duplicate_row_ids.append(row[0])
-                    duplicate_row_ids.append(row[2])
-
-            if len(duplicate_row_ids) == 0:
-                return False
-
-            # Create a view for 'identical' row id's
-            create_view_query = "CREATE OR REPLACE VIEW {}.{} AS ".format(*_ci(schema_name, dedup_table_name))
-            create_view_query += "SELECT * FROM {}.{} WHERE id IN {};".format(*_ci(schema_name, table_name),
-                                                                              tuple(duplicate_row_ids))
-
-            db.engine.execute(create_view_query)
-
-            return True
-        except Exception as e:
-            app.logger.error("[ERROR] Could not create view for \'identical\' rows for table '{}'".format(table_name))
-            app.logger.exception(e)
-            raise e
-
     # More advanced dedup
 
     def create_duplicate_table(self, schema_id, table_name, groups):
@@ -434,7 +383,7 @@ class DataDeduplicator:
 
             query = 'CREATE TABLE {}.{} ('
             query += '\n\"id\" integer NOT NULL,'
-            query += '\n\"group_id\" varchar(255) NOT NULL,'
+            query += '\n\"group_id\" integer NOT NULL,'
             query += '\n\"delete\" BOOLEAN NOT NULL'
             query += '\n);\n'
             query = query.format(*_ci(schema_name, dedup_table_name))
@@ -442,7 +391,7 @@ class DataDeduplicator:
             for group_id in range(len(groups)):
                 for row_id in groups[group_id]:
                     query += 'INSERT INTO {}.{} VALUES ({}, {}, FALSE);'.format(*_ci(schema_name, dedup_table_name), row_id,
-                                                                        _cv("group_" + str(group_id) + "_"))
+                                                                        group_id+1)
 
             db.engine.execute(query)
         except Exception as e:
@@ -488,7 +437,7 @@ class DataDeduplicator:
             # Clean dataset
 
             ## Remove leading whitespaces
-            df.columns = df.columns.to_series().apply(lambda x: x.strip())
+            #df.columns = df.columns.to_series().apply(lambda x: x.strip())
 
             ## Clean string values
             for column_name in df.select_dtypes(include=['object']).columns:
@@ -623,7 +572,7 @@ class DataDeduplicator:
         dedup_table_name = "_dedup_" + table_name + "_grouped"
 
         try:
-            query = "DROP TABLE {}.{} CASCADE ".format(*_ci(schema_name, dedup_table_name))
+            query = "DROP TABLE IF EXISTS {}.{} CASCADE ".format(*_ci(schema_name, dedup_table_name))
 
             db.engine.execute(query)
         except Exception as e:
@@ -634,15 +583,21 @@ class DataDeduplicator:
     def add_rows_to_delete(self, schema_id, table_name, row_ids):
         """ Sets 'delete' column on true"""
         schema_name = 'schema-' + str(schema_id)
-        dedup_rows_to_delete = '_dedup_' + table_name + "_grouped"
+        dedup_table_grouped = '_dedup_' + table_name + "_grouped"
 
-        query = ''
-        for row_id in row_ids:
-            query += "UPDATE {}.{} SET \"delete\"=TRUE  WHERE \"id\"={};".format(
-                *_ci(schema_name, dedup_rows_to_delete), row_id)
+        try:
+            if len(row_ids) != 0:
+                query = ''
+                for row_id in row_ids:
+                    query += "UPDATE {}.{} SET \"delete\"=TRUE  WHERE \"id\"={};".format(
+                        *_ci(schema_name, dedup_table_grouped), row_id)
 
-        # Execute them updates
-        db.engine.execute(query)
+                # Execute them updates
+                db.engine.execute(query)
+        except Exception as e:
+            app.logger.error("[ERROR] Unable mark rows for deletion in '{}'".format(dedup_table_grouped))
+            app.logger.exception(e)
+            raise e
 
     def remove_rows_from_table(self, schema_id, table_name):
         """ Delete rows in _dedup_'table_name'_to_delete from the table """
@@ -664,6 +619,40 @@ class DataDeduplicator:
             app.logger.exception(e)
             raise e
 
+    def get_cluster(self, schema_id, table_name, group_id, offset=0, limit='ALL', ordering=None, search=None):
+        """ Returns a 'Table' object associated with requested dataset and group_id"""
+
+        try:
+            columns = self.dataloader.get_column_names(schema_id, table_name)
+
+            schema_name = 'schema-' + str(schema_id)
+            # Get all tables from the metadata table in the schema
+            ordering_query = ''
+            if ordering is not None:
+                # ordering tuple is of the form (columns, asc|desc)
+                ordering_query = 'ORDER BY {} {}'.format(_ci(ordering[0]), ordering[1])
+
+            search_query = "WHERE ("
+            # Search on the given group id
+            search_query += "{}::text LIKE '{}' OR ".format(_ci("group_id"), group_id)
+            if search is not None and search != '':
+                # Fill in the search for every column except ID
+                for col in columns[1:-1]:
+                    search_query += "{}::text LIKE '%%{}%%' OR ".format(_ci(col), search)
+            search_query = search_query[:-3] + ")"
+            rows = db.engine.execute(
+                'SELECT * FROM {}.{} {} {} LIMIT {} OFFSET {};'.format(*_ci(schema_name, table_name), search_query,
+                                                                       ordering_query, limit, offset))
+            table = Table(table_name, '',
+                          columns=self.dataloader.get_column_names_and_types(schema_id, table_name))  # Hack-n-slash
+            for row in rows:
+                table.rows.append(list(row))
+            return table
+
+        except Exception as e:
+            app.logger.error("[ERROR] Couldn't fetch table for dataset.")
+            app.logger.exception(e)
+            raise e
 
 if __name__ == "__main__":
     data_loader = DataLoader()

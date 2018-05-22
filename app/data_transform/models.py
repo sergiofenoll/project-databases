@@ -439,6 +439,9 @@ class DataDeduplicator:
             ## Remove leading whitespaces
             #df.columns = df.columns.to_series().apply(lambda x: x.strip())
 
+            if sorting_key not in fixed_column_names:
+                fixed_column_names.append(sorting_key)
+
             ## Clean string values
             for column_name in df.select_dtypes(include=['object']).columns:
                 df[column_name] = clean(df[column_name])

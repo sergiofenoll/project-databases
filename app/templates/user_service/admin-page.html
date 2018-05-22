@@ -1,7 +1,41 @@
 {% extends "base.html" %}
 {% block content %}
     <div class="row">
-        <div class="col-sm-2"></div>
+        <div>
+            <h1>Admin page</h1>
+            <p>Manage users</p>
+        </div>
+    </div>
+    <div class="row">
+        <div class="col-sm-2">
+            <div class="panel panel-default">
+                        <div class="panel-heading">
+                            <a data-toggle="collapse" data-parent="#accordion"
+                               class="btn btn-dark panel-button" href="#collapseOne"><i
+                                    class="fas fa-share-square"></i>Manage rights</a>
+                        </div>
+                        <div id="collapseOne" class="panel-collapse collapse">
+                            <div class="panel-body">
+                                <table class="table">
+                                    <tr>
+                                        <td>
+                                            <a class="btn btn-light panel-button" data-toggle="modal"
+                                               data-target="#addAdminModal"
+                                               href="#addAdminModal"><i class="fas fa-user-plus"></i>Add admin</a>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td>
+                                            <a class="btn btn-light panel-button" data-toggle="modal"
+                                               data-target="#removeAdminModal"
+                                               href="#removeAdminModal"><i class="fas fa-user-times"></i>Remove admin</a>
+                                        </td>
+                                    </tr>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+        </div>
         <div class="col-sm-8">
             {% for message in get_flashed_messages(with_categories=True) %}
                 <div class="alert alert-{{ message[0] }}">
@@ -54,8 +88,104 @@
             </form>
         </div>
         <div class="col-sm-2"></div>
+        <div class="modal fade" id="addAdminModal" tabindex="-1" role="dialog"
+             aria-labelledby="modalLabel"
+             aria-hidden="true">
+            <div class="modal-dialog modal-lg" role="document">
+                <div class="modal-content">
+                    <form class="form-control" id="formAddAdmin">
+                        <div class="modal-header">
+                            <h5 class="modal-title" id="modalLabel">Add access</h5>
+                            <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                                <span aria-hidden="true">&times;</span>
+                            </button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="form-group">
+                                <label for="addAdminModal">Username</label>
+                                <input type="text" class="form-control" id="ap-add-admin-name"
+                                       name="ap-add-admin-name" placeholder="Username"
+                                       required>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="submit" class="btn btn-primary" id="submit">Add</button>
+                            <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        <div class="modal fade" id="removeAdminModal" tabindex="-1" role="dialog"
+             aria-labelledby="modalLabel"
+             aria-hidden="true">
+            <div class="modal-dialog modal-lg" role="document">
+                <div class="modal-content">
+                    <form class="form-control" id="formRemoveAdmin">
+                        <div class="modal-header">
+                            <h5 class="modal-title" id="modalLabel">Remove access</h5>
+                            <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                                <span aria-hidden="true">&times;</span>
+                            </button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="form-group">
+                                <label for="removeAdminModal">Username</label>
+                                <select type="role" class="form-control" id="ap-remove-admin-select"
+                                        name="ap-remove-admin-select" required>
+                                    {% for admin in admins %}
+                                        {% if admin.username != current_user.username %}
+                                            <option value="{{ admin.username }}">{{ admin.username }}</option>
+                                        {% endif %}
+                                    {% endfor %}
+                                </select>
+                            </div>
+
+                        </div>
+                        <div class="modal-footer">
+                            <button type="submit" class="btn btn-primary" id="submit">Remove</button>
+                            <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
     </div>
     <script>
+        $(document).ready(function () {
+                $('#formAddAdmin').submit(function (e) {
+                    e.preventDefault();
+                    $.ajax({
+                        type: 'POST',
+                        url: '/api' + window.location.pathname + '/add-admin?' + $('#formAddAdmin').serialize(),
+                        success: function () {
+                            window.location.reload();
+                        },
+                        error: function () {
+                            window.location.reload();
+                        }
+                    });
+                    $('#addAdminModal').modal('hide');
+                    window.location.reload();
+                });
+
+                $('#formRemoveAdmin').submit(function (e) {
+                    e.preventDefault();
+                    $.ajax({
+                        type: 'POST',
+                        url: '/api' + window.location.pathname + '/remove-admin?' + $('#formRemoveAdmin').serialize(),
+                        success: function () {
+                            window.location.reload();
+                        },
+                        error: function () {
+                            window.location.reload();
+                        }
+                    });
+                    $('#addAdminModal').modal('hide');
+                    window.location.reload();
+                });
+        });
+
         function deleteUser(button) {
             var user = $(button).data('user');
             $.ajax({

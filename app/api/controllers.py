@@ -509,3 +509,29 @@ def get_backup_info(dataset_id, table_name, timestamp):
         return note
     except Exception:
         return ""
+
+@api.route('/api/admin-page/add-admin', methods=['POST'])
+@auth_required
+def add_admin():
+    to_add = request.args.get('ap-add-admin-name')
+    try:
+        UserDataAccess().set_admin(to_add)
+        flash(u"Admin rights granted.", 'success')
+        return jsonify({'succes': True}), 200
+    except Exception as e:
+        flash(u"Failed to grant admin rights.", 'danger')
+        print(e)
+        return jsonify({'error': True}), 400
+
+@api.route('/api/admin-page/remove-admin', methods=['POST'])
+@auth_required
+def remove_admin():
+    to_remove = request.args.get('ap-remove-admin-select')
+    try:
+        UserDataAccess().set_admin(to_remove, False)
+        flash(u"Admin rights removed.", 'success')
+        return jsonify({'succes': True}), 200
+    except Exception as e:
+        flash(u"Failed to remove admin rights.", 'danger')
+        print(e)
+        return jsonify({'error': True}), 400

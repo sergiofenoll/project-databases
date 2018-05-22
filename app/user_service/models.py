@@ -55,6 +55,21 @@ class UserDataAccess:
             quote_objects.append(quote_obj)
         return quote_objects
 
+    def get_admins(self):
+        """ Returns a list of users that are admins """
+        try:
+            rows = db.engine.execute("SELECT * FROM Member WHERE Status = 'admin';")
+            admins = list()
+            for row in rows:
+                admin = User(row['username'], row['pass'], row['firstname'], row['lastname'], row['email'],
+                                 row['status'], row['active'])
+                admins.append(admin)
+            return admins
+        except Exception as e:
+            app.logger.error("[ERROR] Unable to fetch admin list.")
+            app.logger.exception(e)
+            raise e
+
     def add_user(self, user_obj):
         try:
             query = 'INSERT INTO Member(Username,Pass,FirstName,LastName,Email,Status,Active) VALUES({},{},{},{},{},{},{})'.format(
@@ -100,8 +115,20 @@ class UserDataAccess:
             db.engine.execute(query)
             return True
         except Exception as e:
+            app.logger.error("[ERROR] Unable to alter user.")
             app.logger.exception(e)
-            raise Exception
+            raise e
+
+    def set_admin(self, username, admin=True):
+        """ Sets the given users admin status """
+        try:
+            user = self.get_user(username)
+            user.status = 'admin' if admin else 'user'
+            self.alter_user(user)
+        except Exception as e:
+            app.logger.error("[ERROR] Unable set admin on user.")
+            app.logger.exception(e)
+            raise e
 
     def delete_user(self, data_loader, username):
         """remove user and all of its datasets"""

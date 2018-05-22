@@ -49,7 +49,7 @@ def register():
         fname = request.form.get('lg-fname')
         lname = request.form.get('lg-lname')
         email = request.form.get('lg-email')
-        status = request.form.get('lg-status')
+        status = "user" # New users are never admin
         active = True
 
         user_obj = User(username, password, fname, lname, email, status, active)
@@ -107,8 +107,11 @@ def user_data():
 def admin_page():
     if current_user.status != 'admin':
         return abort(403)
+    admins = user_data_access.get_admins()
+    print("Admins: ", admins)
     if request.method == 'GET':
-        return render_template('user_service/admin-page.html', users=user_data_access.get_users())
+        return render_template('user_service/admin-page.html', users=user_data_access.get_users(),
+                                                               admins=admins)
     else:
         try:
             for user in user_data_access.get_users():
@@ -121,7 +124,7 @@ def admin_page():
             flash(u"User data has been updated!", 'success')
         except Exception:
             flash(u"User data couldn't be updated!", 'danger')
-        return render_template('user_service/admin-page.html', users=user_data_access.get_users())
+        return render_template('user_service/admin-page.html', users=user_data_access.get_users(), admins=admins)
 
 
 @user_service.route('/admin-page/<string:username>/delete', methods=['DELETE'])

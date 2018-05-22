@@ -420,7 +420,7 @@ class DataDeduplicator:
             app.logger.exception(e)
             raise e
 
-    def create_duplicate_view(self, schema_id, table_name):
+    def create_duplicate_view(self, schema_id, table_name, group_id):
         """ Creates a view of given table joined with duplicate table """
         schema_name = 'schema-' + str(schema_id)
         dedup_table_name = '_dedup_' + table_name + "_grouped"
@@ -431,7 +431,7 @@ class DataDeduplicator:
             db.engine.execute(drop_dedup_query)
 
             query = "CREATE OR REPLACE VIEW {}.{} AS ".format(*_ci(schema_name, dedup_view_name))
-            query += "SELECT t1.*, t2.\"group_id\" FROM {0}.{1} as t1, {0}.{2} as t2 WHERE t1.\"id\"=t2.\"id\" ;".format(
+            query += "SELECT t1.*, t2.\"group_id\" FROM {0}.{1} as t1, {0}.{2} as t2 WHERE t1.\"id\"=t2.\"id\";".format(
                 *_ci(schema_name, table_name, dedup_table_name))
 
             db.engine.execute(query)
@@ -498,7 +498,6 @@ class DataDeduplicator:
 
             #TODO Create table _dedup_table_groups
             self.create_duplicate_table(schema_id, table_name, groups)
-            self.create_duplicate_view(schema_id, table_name)
 
             return True
 
@@ -603,6 +602,20 @@ class DataDeduplicator:
             app.logger.exception(e)
             raise e
 
+    def delete_dedup_view(self, schema_id, table_name):
+        """ Remove the given cluster (group of rows grouped on 'cluster_id') from _dedup_'table_name'_grouped """
+        schema_name = "schema-" + str(schema_id)
+        dedup_view_name = "_dedup_" + table_name + "_view"
+
+        try:
+            query = "DROP VIEW IF EXISTS {}.{}".format(*_ci(schema_name, dedup_view_name))
+
+            db.engine.execute(query)
+        except Exception as e:
+            app.logger.error("[ERROR] Unable to delete dedup view '{}'".format(dedup_view_name))
+            app.logger.exception(e)
+            raise e
+
     def add_rows_to_delete(self, schema_id, table_name, row_ids):
         """ Sets 'delete' column on true"""
         schema_name = 'schema-' + str(schema_id)
@@ -645,8 +658,11 @@ class DataDeduplicator:
     def get_cluster(self, schema_id, table_name, group_id, offset=0, limit='ALL', ordering=None, search=None):
         """ Returns a 'Table' object associated with requested dataset and group_id"""
 
+        dedup_table_view = "_dedup_" + table_name + "_view"
+
         try:
-            columns = self.dataloader.get_column_names(schema_id, table_name)
+            self.create_duplicate_view(schema_id, table_name, group_id)
+            columns = self.dataloader.get_column_names(schema_id, dedup_table_view)
 
             schema_name = 'schema-' + str(schema_id)
             # Get all tables from the metadata table in the schema
@@ -664,15 +680,18 @@ class DataDeduplicator:
                     search_query += "{}::text LIKE '%%{}%%' OR ".format(_ci(col), search)
             search_query = search_query[:-3] + ")"
             rows = db.engine.execute(
-                'SELECT * FROM {}.{} {} {} LIMIT {} OFFSET {};'.format(*_ci(schema_name, table_name), search_query,
+                'SELECT * FROM {}.{} {} {} LIMIT {} OFFSET {};'.format(*_ci(schema_name, dedup_table_view), search_query,
                                                                        ordering_query, limit, offset))
             table = Table(table_name, '',
-                          columns=self.dataloader.get_column_names_and_types(schema_id, table_name))  # Hack-n-slash
+                          columns=self.dataloader.get_column_names_and_types(schema_id, dedup_table_view))  # Hack-n-slash
             for row in rows:
                 table.rows.append(list(row))
-            return table
 
+            self.delete_dedup_view(schema_id, table_name)
+
+            return table
         except Exception as e:
+            self.delete_dedup_view(search, table_name)
             app.logger.error("[ERROR] Couldn't fetch table for dataset.")
             app.logger.exception(e)
             raise e

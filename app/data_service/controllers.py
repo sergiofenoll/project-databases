@@ -246,14 +246,14 @@ def remove_rows_predicate(dataset_id, table_name):
 def show_dedup_data_alg(dataset_id, table_name):
     if (data_loader.has_access(current_user.username, dataset_id)) is False:
         return abort(403)
-    dedup_table_name = "_dedup_" + table_name + "_view"
-    dedup_table_exists = data_loader.table_exists(dedup_table_name, "schema-" + str(dataset_id))
+    dedup_table_name = "_dedup_" + table_name + "_grouped"
+    dedup_table_exists = data_loader.table_exists(dedup_table_name, dataset_id)
     if not dedup_table_exists:
         flash(u"Duplicate data does not exist.", 'warning')
         return redirect(url_for('data_service.get_table', dataset_id=dataset_id, table_name=table_name))
     try:
         group_id = data_deduplicator.get_next_group_id(dataset_id, table_name)
-        table = data_deduplicator.get_cluster(dataset_id, dedup_table_name, group_id)
+        table = data_deduplicator.get_cluster(dataset_id, table_name, group_id)
         title = "Duplicate data for " + table_name + ": Group " + str(group_id)
         return render_template('data_service/dedup-cluster-view.html', table=table, title=title)
     except Exception:

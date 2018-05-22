@@ -434,6 +434,7 @@ def one_hot_encode(dataset_id, table_name):
 
 
 @api.route('/api/datasets/<int:dataset_id>/tables/<string:table_name>/remove-identical-rows', methods=['DELETE'])
+@auth_required
 def remove_identical_rows(dataset_id, table_name):
     try:
         column_names = request.args.getlist('col-names')
@@ -448,6 +449,7 @@ def remove_identical_rows(dataset_id, table_name):
 
 
 @api.route('/api/datasets/<int:dataset_id>/tables/<string:table_name>/remove-identical-rows-alg', methods=['PUT'])
+@auth_required
 def collect_identical_rows_alg(dataset_id, table_name):
     try:
         sorting_key = request.args.get('selected-col-name')
@@ -468,22 +470,22 @@ def collect_identical_rows_alg(dataset_id, table_name):
 
 
 @api.route('/api/datasets/<int:dataset_id>/tables/<string:table_name>/show-dedup-data-alg', methods=['GET'])
+@auth_required
 def get_duplicate_group(dataset_id, table_name):
     try:
         start = request.args.get('start')
         length = request.args.get('length')
         order_column = int(request.args.get('order[0][column]'))
         order_direction = request.args.get('order[0][dir]')
-        dedup_table_name = "_dedup_" + table_name + "_view"
-        ordering = (data_loader.get_column_names(dataset_id, dedup_table_name)[order_column], order_direction)
+        ordering = (data_loader.get_column_names(dataset_id, table_name)[order_column], order_direction)
         search = request.args.get('search[value]')
 
         group_id = data_deduplicator.get_next_group_id(dataset_id, table_name)
 
-        table = data_deduplicator.get_cluster(dataset_id, dedup_table_name, group_id=group_id, offset=start, limit=length,
+        table = data_deduplicator.get_cluster(dataset_id, table_name, group_id=group_id, offset=start, limit=length,
                                             ordering=ordering,
                                             search=search)
-        _table = data_deduplicator.get_cluster(dataset_id, dedup_table_name, group_id=group_id)
+        _table = data_deduplicator.get_cluster(dataset_id, table_name, group_id=group_id)
 
         # TODO Get remaining ammount of clusters
         remaining_clusters = 9999

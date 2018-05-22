@@ -433,14 +433,15 @@ class DataDeduplicator:
             db.engine.execute(drop_dedup_query)
 
             query = 'CREATE TABLE {}.{} ('
-            query += '\n\"id\" integer,'
-            query += '\n\"group_id\" varchar(255)'
+            query += '\n\"id\" integer NOT NULL,'
+            query += '\n\"group_id\" varchar(255) NOT NULL,'
+            query += '\n\"delete\" BOOLEAN NOT NULL'
             query += '\n);\n'
             query = query.format(*_ci(schema_name, dedup_table_name))
 
             for group_id in range(len(groups)):
                 for row_id in groups[group_id]:
-                    query += 'INSERT INTO {}.{} VALUES ({}, {});'.format(*_ci(schema_name, dedup_table_name), row_id,
+                    query += 'INSERT INTO {}.{} VALUES ({}, {}, FALSE);'.format(*_ci(schema_name, dedup_table_name), row_id,
                                                                         _cv("group_" + str(group_id) + "_"))
 
             db.engine.execute(query)
@@ -568,7 +569,7 @@ class DataDeduplicator:
         dedup_table_name = "_dedup_" + table_name + "_grouped"
 
         try:
-            query = "SELECT group_id FROM {}.{} ORDER BY \"group_id\" ASC;".format(*_ci(schema_name, dedup_table_name))
+            query = "SELECT group_id FROM (SELECT * FROM {}.{} WHERE \"delete\"=FALSE) t1 ORDER BY t1.\"group_id\" ASC;".format(*_ci(schema_name, dedup_table_name))
 
             result = db.engine.execute(query)
             return result.fetchone()[0]
@@ -585,12 +586,17 @@ class DataDeduplicator:
         dedup_table_name = "_dedup_" + table_name + "_grouped"
 
         try:
-            query = "SELECT COUNT(\"group_id\") FROM {}.{} GROUP BY \"group\"".format(
+            query = "SELECT COUNT(\"group_id\") FROM (SELECT * FROM {}.{} WHERE \"delete\"=FALSE) t1 GROUP BY t1.\"group_id\"".format(
                 *_ci(schema_name, dedup_table_name))
 
             result = db.engine.execute(query)
 
-            return result[0]
+            amount = result.fetchone()
+
+            if amount is None:
+                return 0
+            else:
+                return amount[0]
 
         except Exception as e:
             app.logger.error("[ERROR] Unable to get amount of clusters from table '{}'".format(dedup_table_name))
@@ -603,7 +609,7 @@ class DataDeduplicator:
         dedup_table_name = "_dedup_" + table_name + "_grouped"
 
         try:
-            query = "DELETE FROM {}.{} WHERE \"group_id\"={}".format(*_ci(schema_name, dedup_table_name), _cv(group_id))
+            query = "DELETE FROM {}.{} WHERE \"group_id\"={} and \"delete\"=FALSE;".format(*_ci(schema_name, dedup_table_name), _cv(group_id))
 
             db.engine.execute(query)
         except Exception as e:
@@ -617,7 +623,7 @@ class DataDeduplicator:
         dedup_table_name = "_dedup_" + table_name + "_grouped"
 
         try:
-            query = "DROP TABLE {}.{}".format(*_ci(schema_name, dedup_table_name))
+            query = "DROP TABLE {}.{} CASCADE ".format(*_ci(schema_name, dedup_table_name))
 
             db.engine.execute(query)
         except Exception as e:
@@ -626,25 +632,26 @@ class DataDeduplicator:
             raise e
 
     def add_rows_to_delete(self, schema_id, table_name, row_ids):
+        """ Sets 'delete' column on true"""
         schema_name = 'schema-' + str(schema_id)
-        dedup_rows_to_delete = '_dedup_' + table_name + "_to_delete"
+        dedup_rows_to_delete = '_dedup_' + table_name + "_grouped"
 
         query = ''
         for row_id in row_ids:
-            query += "INSERT INTO {}.{}(\"row_id\") VALUES ({})".format(
-                *_ci(schema_name, dedup_rows_to_delete), row_id )
+            query += "UPDATE {}.{} SET \"delete\"=TRUE  WHERE \"id\"={};".format(
+                *_ci(schema_name, dedup_rows_to_delete), row_id)
 
-        # Execute them inserts
+        # Execute them updates
         db.engine.execute(query)
 
     def remove_rows_from_table(self, schema_id, table_name):
         """ Delete rows in _dedup_'table_name'_to_delete from the table """
         schema_name = 'schema-' + str(schema_id)
-        dedup_rows_to_delete = '_dedup_' + table_name + "_to_delete"
+        dedup_rows_to_delete = '_dedup_' + table_name + "_grouped"
 
         try:
 
-            rows = db.engine.execute('SELECT "row_ids" FROM {}.{}'.format(*_ci(schema_name, dedup_rows_to_delete)))
+            rows = db.engine.execute('SELECT \"id\" FROM {}.{} WHERE \"delete\"=TRUE;'.format(*_ci(schema_name, dedup_rows_to_delete)))
 
             result = list()
             for row in rows:
@@ -656,8 +663,6 @@ class DataDeduplicator:
             app.logger.error("[ERROR] Could not remove \'duplicate\' rows for table '{}'".format(table_name))
             app.logger.exception(e)
             raise e
-
-
 
 
 if __name__ == "__main__":

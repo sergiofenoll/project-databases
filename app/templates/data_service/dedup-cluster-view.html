@@ -3,6 +3,14 @@
     <div class="row">
         <h1>{{ title }}</h1>
     </div>
+    <div>
+        {% for message in get_flashed_messages(with_categories=True) %}
+            <div class="alert alert-{{ message[0] }}">
+                <button type="button" class="close" data-dismiss="alert">&times;</button>
+                {{ message[1] }}
+            </div>
+        {% endfor %}
+    </div>
     <div class="row">
         <div class="col-sm-2">
             <div class="panel-group" id="accordion">
@@ -58,8 +66,17 @@
                         type: 'POST',
                         url: window.location.pathname + '?' + $('input:checked').serialize(),
                         contentType: 'application/json;charset=UTF-8',
+                        datatype: 'json',
                         success: function (data) {
-                            window.location.href = data;
+                            if (data.reload) {
+                                window.location.reload()
+                            } else {
+                                 window.location.href = data.url
+                            }
+                        },
+                        error: function ()
+                        {
+                            window.location.href = data.url
                         }
                     })
                 });

@@ -1,15 +1,16 @@
 import csv
 import re
 import shutil
+import pandas as pd
 from datetime import datetime
 from zipfile import ZipFile
-
 from psycopg2 import IntegrityError
 
-from app import app, database as db
+from app import app, database as db, ACTIVE_USER_TIME_SECONDS, BACKUP_LIMIT
 from app.history.models import History
 
 history = History()
+
 
 
 def _ci(*args: str):
@@ -25,12 +26,13 @@ def _cv(*args: str):
 
 
 class Dataset:
-    def __init__(self, id, name, desc, owner, moderators=None):
+    def __init__(self, id, name, desc, owner, moderators=None, active_users_count=0):
         self.name = name
         self.desc = desc
         self.owner = owner
         self.moderators = moderators or []
         self.id = id
+        self.active_users_count = active_users_count
 
     def __eq__(self, other):
         return self.name == other.name and self.desc == other.desc and self.owner == other.owner and self.id == other.id
@@ -43,14 +45,129 @@ class Column:
 
 
 class Table:
-    def __init__(self, name, desc, rows=None, columns=None):
+    def __init__(self, name, desc, rows=None, columns=None, active_users_count=0, total_size=0):
         self.name = name
         self.desc = desc
         self.rows = rows or []
         self.columns = columns or []
+        self.active_users_count = active_users_count
+        self.total_size = total_size
 
     def __eq__(self, other):
         return self.name == other.name and self.desc == other.desc
+
+
+class ActiveUserHandler:
+    def __init__(self):
+        pass
+
+    def remove_inactive_users_in_tables(self):
+        """ remove all the users who aren't active in a table from the list"""
+        try:
+            db.engine.execute(
+                'DELETE FROM Active_In_Table WHERE EXTRACT(EPOCH FROM (now() - last_active)) > {};'.format(ACTIVE_USER_TIME_SECONDS))
+        except Exception as e:
+            app.logger.error("[ERROR] Unable to remove all the users who aren't active in a table from the list")
+            app.logger.exception(e)
+            raise e
+
+    def make_user_active_in_table(self, schema_id, table_name, user_id):
+        """" make a user active in a table """
+        try:
+            schema_name = "schema-" + str(schema_id)
+            exists = db.engine.execute(
+                'SELECT EXISTS(SELECT 1 FROM Active_In_Table WHERE id_dataset = {} AND id_table = {} and id_user = {});'
+                    .format(*_cv(schema_name, table_name, user_id)))
+            if exists.first()[0]:
+                db.engine.execute(
+                    'UPDATE Active_In_Table VALUES SET last_active=NOW() '
+                    'WHERE id_dataset = {} AND id_table = {} and id_user = {}'.format(
+                        *_cv(schema_name, table_name, user_id)))
+            else:
+                db.engine.execute(
+                    'INSERT INTO Active_In_Table VALUES ({},{},{},NOW());'.format(*_cv(schema_name, table_name, user_id)))
+        except Exception as e:
+            app.logger.error("[ERROR] Unable to make a user active in dataset {}".format(table_name))
+            app.logger.exception(e)
+            raise e
+
+    def make_user_active_in_dataset(self, schema_id, user_id):
+        """" make a user active in a table """
+        try:
+            schema_name = "schema-" + str(schema_id)
+            ex = db.engine.execute(
+                'SELECT EXISTS(SELECT 1 FROM Active_In_Table WHERE id_dataset = {} AND id_table IS NULL and id_user = {});'
+                    .format(*_cv(schema_name, user_id)))
+            exists = ex.first()[0]
+            if exists:
+                db.engine.execute(
+                    'UPDATE Active_In_Table VALUES SET last_active=NOW() '
+                    'WHERE id_dataset = {} AND id_table IS NULL and id_user = {}'.format(
+                        *_cv(schema_name, user_id)))
+            else:
+                db.engine.execute(
+                    'INSERT INTO Active_In_Table VALUES ({},NULL,{},NOW());'.format(*_cv(schema_name, user_id)))
+        except Exception as e:
+            app.logger.error("[ERROR] Unable to make a user active in dataset")
+            app.logger.exception(e)
+            raise e
+
+    def get_active_users_in_table(self, schema_id, table_name, user_id):
+        """ give the names of active users in table"""
+        try:
+            self.remove_inactive_users_in_tables()
+            schema_name = "schema-" + str(schema_id)
+            rows = db.engine.execute(
+                'SELECT DISTINCT id_user FROM Active_In_Table WHERE id_dataset = {} AND id_table = {} AND id_user <> {};'
+                    .format(*_cv(schema_name, table_name, user_id)))
+
+            active_users = list()
+            for row in rows:
+                active_users.append(row["id_user"])
+            return active_users
+
+        except Exception as e:
+            app.logger.error("[ERROR] Unable to get active users in table {}".format(table_name))
+            app.logger.exception(e)
+            raise e
+
+    def active_users_in_table_count_excluding_requesting_user(self, schema_id, table_name, user_id):
+        """ give the amount of active users in a table without the requesting user"""
+        try:
+            schema_name = "schema-" + str(schema_id)
+            self.remove_inactive_users_in_tables()
+            count = db.engine.execute(
+                'SELECT COUNT( DISTINCT id_user) FROM Active_In_Table WHERE id_dataset = {} AND id_table = {} and id_user <> {};'
+                    .format(*_cv(schema_name, table_name, user_id)))
+            return count.first()[0]
+        except Exception as e:
+            app.logger.error("[ERROR] Unable to get count of active users in table {}".format(table_name))
+            app.logger.exception(e)
+            raise e
+
+    def active_users_in_dataset_count_excluding_requesting_user(self, schema_id, user_id):
+        """ give the amount of active users in a dataset without the requesting user"""
+        try:
+            schema_name = "schema-" + str(schema_id)
+            self.remove_inactive_users_in_tables()
+            count = db.engine.execute(
+                'SELECT COUNT(DISTINCT id_user) FROM Active_In_Table WHERE id_dataset = {} and id_user <> {};'
+                    .format(*_cv(schema_name, user_id)))
+            return count.first()[0]
+        except Exception as e:
+            app.logger.error("[ERROR] Unable to get count of active users in dataset")
+            app.logger.exception(e)
+            raise e
+
+    def remove_active_states_of_user(self, user_id):
+        """ remove all the users who aren't active in a table from the list"""
+        try:
+            db.engine.execute(
+                'DELETE FROM Active_In_Table WHERE id_user = {};'.format(_cv(user_id)))
+        except Exception as e:
+            app.logger.error("[ERROR] Unable to remove active states of user {}".format(user_id))
+            app.logger.exception(e)
+            raise e
 
 
 class DataLoader:
@@ -102,6 +219,7 @@ class DataLoader:
             db.engine.execute(
                 'INSERT INTO Access(id_dataset, id_user, role) VALUES({}, {}, {});'.format(
                     *_cv(schema_name, owner_id, 'owner')))
+
         except Exception as e:
             app.logger.error("[ERROR] Failed to insert dataset '" + name + "' into the database")
             app.logger.exception(e)
@@ -114,20 +232,18 @@ class DataLoader:
 
         # Clean up the access & dataset tables
         try:
-            id = schema_id.split('-')[1]
-            db.engine.execute('INSERT INTO Available_Schema (id) VALUES ({})'.format(_cv(id)))
+            schema_name = "schema-" + str(schema_id)
+            db.engine.execute('INSERT INTO Available_Schema (id) VALUES ({})'.format(_cv(schema_id)))
 
-            db.engine.execute('DELETE FROM Dataset WHERE id = {};'.format(_cv(str(schema_id))))
+            db.engine.execute('DELETE FROM Dataset WHERE id = {};'.format(_cv(schema_name)))
 
-            db.engine.execute('DROP SCHEMA IF EXISTS {} CASCADE;'.format(_ci(schema_id)))
+            db.engine.execute('DROP SCHEMA IF EXISTS {} CASCADE;'.format(_ci(schema_name)))
 
             # check if there are datasets. If not, clean available_schema
             rows = db.engine.execute('SELECT COUNT(*) FROM Dataset;')
             count = rows.first()[0]  # Amount of already existing schemas
             if count == 0:
                 db.engine.execute('TRUNCATE Available_Schema;')
-
-            db.engine.execute('DROP SCHEMA IF EXISTS {} CASCADE;'.format(_ci(schema_id)))
 
         except Exception as e:
             app.logger.error("[ERROR] Failed to properly remove dataset '" + schema_id + "'")
@@ -153,10 +269,11 @@ class DataLoader:
         """
          This method returns a bool representing whether the given table exists
         """
+        schema_name = 'schema-' + str(schema_id)
         try:
             rows = db.engine.execute(
                 'SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE  table_schema = {} AND table_name = {});'.format(
-                    *_cv(str(schema_id), name)))
+                    *_cv(schema_name, name)))
             row = rows.first()
 
             return row[0]
@@ -166,33 +283,34 @@ class DataLoader:
             app.logger.exception(e)
             raise e
 
-    def create_table(self, name, schema_id, columns, desc="Default description", raw=False):
+    def create_table(self, name, schema_id, columns, desc="Default description", raw=False, metadata_only=False):
         """
          This method takes a schema, name and a list of columns and creates the corresponding table
         """
         schema_name = 'schema-' + str(schema_id)
 
-        query = 'CREATE TABLE {}.{} ('
+        if not metadata_only:
+            query = 'CREATE TABLE {}.{} ('
 
-        query += 'id serial primary key'  # Since we don't know what the actual primary key should be, just assign an id
+            query += 'id serial primary key'  # Since we don't know what the actual primary key should be, just assign an id
 
-        for column in columns:
-            query = query + ', \n\"' + column + '\" varchar(255)'
-        query += '\n);'
+            for column in columns:
+                query = query + ', \n\"' + column + '\" varchar(255)'
+            query += '\n);'
 
-        raw_table_name = "_raw_" + name
-        raw_table_query = query.format(*_ci(schema_name, raw_table_name))
+            raw_table_name = "_raw_" + name
+            raw_table_query = query.format(*_ci(schema_name, raw_table_name))
 
-        query = query.format(*_ci(schema_name, name))
+            query = query.format(*_ci(schema_name, name))
 
-        try:
-            db.engine.execute(query)
-            if raw:
-                db.engine.execute(raw_table_query)
-        except Exception as e:
-            app.logger.error("[ERROR] Failed to create table '" + name + "'")
-            app.logger.exception(e)
-            raise e
+            try:
+                db.engine.execute(query)
+                if raw:
+                    db.engine.execute(raw_table_query)
+            except Exception as e:
+                app.logger.error("[ERROR] Failed to create table '" + name + "'")
+                app.logger.exception(e)
+                raise e
 
         # Log action to history
         history.log_action(schema_id, name, datetime.now(), 'Created table')
@@ -209,9 +327,10 @@ class DataLoader:
         connection = db.engine.connect()
         transaction = connection.begin()
         try:
+            schema_name = 'schema-' + str(schema_id)
             # Delete table
-            table_query = 'DROP TABLE {}.{};'.format(*_ci(schema_id, name))
-            raw_table_query = 'DROP TABLE IF EXISTS {}.{};'.format(*_ci(schema_id, "_raw_" + name))
+            table_query = 'DROP TABLE {}.{};'.format(*_ci(schema_name, name))
+            raw_table_query = 'DROP TABLE IF EXISTS {}.{};'.format(*_ci(schema_name, "_raw_" + name))
             connection.execute(table_query)
             connection.execute(raw_table_query)
 
@@ -220,14 +339,29 @@ class DataLoader:
             connection.execute(metadata_query)
 
             # Delete history
-            schema_name = 'schema-' + str(schema_id)
             history_query = 'DELETE FROM HISTORY WHERE id_dataset={} AND id_table={};'.format(*_cv(schema_name, name))
+
+            # Delete backups
+            backups = self.get_backups(schema_id, name)
+            for backup in backups:
+                self.delete_backup(schema_id, name, backup)
+
             connection.execute(history_query)
 
             transaction.commit()
         except Exception as e:
             transaction.rollback()
             app.logger.error("[ERROR] Failed to delete table '" + name + "'")
+            app.logger.exception(e)
+            raise e
+
+    def copy_table(self, name, schema_id, copy_name):
+        """ Copies the content of table 'name' to a new table 'copy_name' in the same schema"""
+        schema_name = 'schema-' + str(schema_id)
+        try:
+            db.engine.execute('CREATE TABLE {0}.{1} AS SELECT * FROM {0}.{2}'.format(_ci(schema_name), _ci(copy_name), _ci(name)))
+        except Exception as e:
+            app.logger.error("[ERROR] Unable to create copy of table {}".format(name))
             app.logger.exception(e)
             raise e
 
@@ -369,7 +503,7 @@ class DataLoader:
                            'Updated column ' + column_name + ' to have type ' + column_type)
 
     # Data uploading handling
-    def process_csv(self, file, schema_id, tablename, append=False):
+    def process_csv(self, file, schema_id, tablename, table_description='Default description', append=False, type_deduction=False):
         """
          This method takes a filename for a CSV file and processes it into a table.
          A table name should be provided by the user / caller of this method.
@@ -384,9 +518,6 @@ class DataLoader:
             app.logger.error("[ERROR] Cannot overwrite existing table.")
             return
 
-        import pandas as pd
-
-        # TODO: Test if this works
         raw_tablename = '_raw_' + tablename
         schema_name = 'schema-' + str(schema_id)
 
@@ -394,14 +525,22 @@ class DataLoader:
             for line in csv:
                 if not append:
                     columns = line.strip().split(',')
-                    self.create_table(tablename, schema_id, columns, raw=True)
+                    if not type_deduction:
+                        self.create_table(tablename, schema_id, columns, desc=table_description, raw=True)
+                    else:
+                        # Fancy
+                        self.create_table(tablename, schema_id, columns, desc=table_description, metadata_only=True)
                 break
 
         df = pd.read_csv(file)
-        df.to_sql(name=tablename, con=db.engine, schema=schema_name, index=False, if_exists='append')
-        df.to_sql(name=raw_tablename, con=db.engine, schema=schema_name, index=False, if_exists='append')
+        for column in df.columns:
+            if pd.api.types.is_string_dtype(df[column]):
+                df[column] = pd.to_datetime(df[column], errors='ignore')
+        df.index.name = 'id'
+        df.to_sql(name=tablename, con=db.engine, schema=schema_name, index=type_deduction, if_exists='append')
+        df.to_sql(name=raw_tablename, con=db.engine, schema=schema_name, index=type_deduction, if_exists='append')
 
-    def process_zip(self, file, schema_id):
+    def process_zip(self, file, schema_id, type_deduction=False):
         """
          This method takes a ZIP archive filled with CSV files, and processes them individually
          The name of the CSV file will be used as table name. If a table with the same name is found
@@ -426,9 +565,9 @@ class DataLoader:
                     create_new = not self.table_exists(tablename, schema_id)
 
                     if create_new:
-                        self.process_csv(csv, schema_id, tablename)
+                        self.process_csv(csv, schema_id, tablename, type_deduction=type_deduction)
                     else:
-                        self.process_csv(csv, schema_id, tablename, True)
+                        self.process_csv(csv, schema_id, tablename, True, type_deduction=type_deduction)
 
                 # Clean up temp folder
                 shutil.rmtree("../output/temp")
@@ -444,7 +583,7 @@ class DataLoader:
 
             raise e
 
-    def process_dump(self, file, schema_id):
+    def process_dump(self, file, schema_id, table_name, table_description='Default description',):
 
         """
          This method takes a SQL dump file and processes the INSERT statements,
@@ -461,7 +600,7 @@ class DataLoader:
                         # NOTE: An INSERT statement looks like this:
                         # INSERT INTO table_name (column1, column2, column3, ...) VALUES (value1, value2, value3, ...);
 
-                        tablename = statement.split()[2]
+                        tablename = statement.split()[2] or table_name
                         values_list = list()
                         for values_tuple in re.findall(r'\(.*?\)', statement[statement.find('VALUES'):]):
                             # Tuple is any match of the above regex, e.g. (values1, values2, values3, ...)
@@ -476,7 +615,7 @@ class DataLoader:
                             columns = ['col' + str(i) for i in range(1, len(values_list[0]) + 1)]
 
                         if not self.table_exists(tablename, schema_id):
-                            self.create_table(tablename, schema_id, columns, True)
+                            self.create_table(tablename, schema_id, columns, True, desc=table_description)
                         for values in values_list:
                             val_dict = dict()
                             for c_ix in range(len(columns)):
@@ -517,7 +656,11 @@ class DataLoader:
                     moderators = [x for x in rows]
 
                     schema_id = ds_id.split('-')[1]
-                    result.append(Dataset(schema_id, row['nickname'], row['metadata'], owner, moderators))
+
+                    # Find active users in this dataset
+                    active_users = ActiveUserHandler().active_users_in_dataset_count_excluding_requesting_user(schema_id, user_id)
+
+                    result.append(Dataset(schema_id, row['nickname'], row['metadata'], owner, moderators, active_users))
                 except Exception as e:
                     app.logger.warning("[ERROR] Failed to find owner of dataset '" + row['nickname'] + "'")
                     app.logger.exception(e)
@@ -593,19 +736,15 @@ class DataLoader:
     def has_access(self, user_id, id):
         schema_id = "schema-" + str(id)
         try:
-            rows = db.engine.execute(
-                "SELECT * FROM access WHERE id_user={} AND id_dataset={};".format(*_cv(user_id, schema_id)))
-            for _ in rows:
-                return True
-            else:
-                return False
+            exists = db.engine.execute("SELECT EXISTS(SELECT 1 FROM access WHERE id_user={} AND id_dataset={});".format(*_cv(user_id, schema_id)))
+            return exists.first()[0]
 
         except Exception as e:
             app.logger.error("[ERROR] Couldn't find if '" + user_id + "' has access to '" + schema_id + "'")
             app.logger.exception(e)
             raise e
 
-    def get_dataset(self, id):
+    def get_dataset(self, id, user_id=None):
         """
          This method returns a 'Dataset' object according to the requested id
         """
@@ -627,13 +766,17 @@ class DataLoader:
                     _cv(schema_id)))
             moderators = [x[0] for x in rows]
 
+            # Find active users in this dataset
+            if user_id:
+                active_users = ActiveUserHandler().active_users_in_dataset_count_excluding_requesting_user(id, user_id)
+                return Dataset(id, ds['nickname'], ds['metadata'], owner, moderators, active_users)
             return Dataset(id, ds['nickname'], ds['metadata'], owner, moderators)
         except Exception as e:
             app.logger.error("[ERROR] Couldn't fetch data for dataset.")
             app.logger.exception(e)
             raise e
 
-    def get_tables(self, schema_id):
+    def get_tables(self, schema_id, user_id):
         """
          This method returns a list of 'Table' objects associated with the requested dataset
         """
@@ -645,7 +788,8 @@ class DataLoader:
 
             tables = list()
             for row in rows:
-                t = Table(row['id_table'], row['metadata'])
+                active_users = ActiveUserHandler().active_users_in_table_count_excluding_requesting_user(schema_id, row['id_table'], user_id)
+                t = Table(row['id_table'], row['metadata'], active_users_count=active_users)
                 tables.append(t)
 
             return tables
@@ -679,8 +823,14 @@ class DataLoader:
             rows = db.engine.execute(
                 'SELECT * FROM {}.{} {} {} LIMIT {} OFFSET {};'.format(*_ci(schema_name, table_name), search_query,
                                                                        ordering_query, limit, offset))
+
+            # Get total size (of unfiltered table)
+            size_query = 'SELECT count(*) FROM {}.{}'.format(*_ci(schema_name, table_name))
+            size_result = db.engine.execute(size_query)
+            table_size = [r[0] for r in size_result][0]
+
             table = Table(table_name, '',
-                          columns=self.get_column_names_and_types(schema_id, table_name))  # Hack-n-slash
+                          columns=self.get_column_names_and_types(schema_id, table_name), total_size=table_size)
             for row in rows:
                 table.rows.append(list(row))
             return table
@@ -806,6 +956,7 @@ class DataLoader:
 
         return filename
 
+    # Statistics
     def get_numerical_statistic(self, schema_id, table_name, column, function):
 
         """" calculate average of column """
@@ -887,6 +1038,7 @@ class DataLoader:
             stats.append([column.name, self.get_statistics_for_column(schema_id, table_name, column.name, numerical)])
         return stats
 
+    # Raw data & backups
     def revert_back_to_raw_data(self, schema_id, table_name):
         schema_name = "schema-" + str(schema_id)
         try:
@@ -907,6 +1059,126 @@ class DataLoader:
 
         except Exception as e:
             app.logger.error("[ERROR] Couldn't convert back to raw data")
+            app.logger.exception(e)
+            raise e
+
+    def backup_available(self, schema_id, table_name):
+        """ returns true if the back up limit is not yet reached"""
+        return len(self.get_backups(schema_id, table_name)) < BACKUP_LIMIT
+
+    def make_backup(self, schema_id, table_name, note=""):
+        """ Makes a backup of the table in its current state, if there's still room.
+            Backups are given the name '_<table_name>_backup_<timestamp>'
+        """
+        schema_name = "schema-" + str(schema_id)
+        connection = db.engine.connect()
+        transaction = connection.begin()
+        try:
+            timestamp = datetime.now()
+            # Format time to leave out microseconds
+            timestamp = timestamp.replace(microsecond=0)
+            backup_name = '_{}_backup_{}'.format(table_name, timestamp)
+
+            # First check if there aren't too many backups already
+            if len(self.get_backups(schema_id, table_name)) >= BACKUP_LIMIT:
+                app.logger.warning("[WARNING] Couldn't make backup; limit reached.")
+                raise Exception("Backup limit reached.")
+
+            self.copy_table(table_name, schema_id, backup_name)
+
+            backup_query = 'INSERT INTO Backups VALUES ({}, {}, {}, {}, {})'.format(*_cv(schema_name, table_name, backup_name, timestamp, note))
+
+            connection.execute(backup_query)
+
+            history.log_action(schema_id, table_name, datetime.now(), "Created backup.")
+
+            transaction.commit()
+
+        except Exception as e:
+            transaction.rollback()
+            app.logger.error("[ERROR] Couldn't make backup of table {}".format(table_name))
+            app.logger.exception(e)
+            raise e
+
+    def get_backups(self, schema_id, table_name):
+        """ Returns list with timestamps (as strings) for available backups for given table.
+            (This info is fetched from the 'Backups' table)
+        """
+        schema_name = "schema-" + str(schema_id)
+        try:
+            query = 'SELECT timestamp FROM Backups WHERE id_dataset = {} AND table_name = {}'.format(*_cv(schema_name, table_name))
+            rows = db.engine.execute(query)
+
+            timestamps = [str(ts[0]) for ts in rows]
+            return timestamps
+        except Exception as e:
+            app.logger.error("[ERROR] Couldn't fetch backups for table '{}'".format(table_name))
+            app.logger.exception(e)
+            raise e
+
+    def restore_backup(self, schema_id, table_name, timestamp):
+        """ Restores a backup given a table & a timestamp """
+        schema_name = "schema-" + str(schema_id)
+        connection = db.engine.connect()
+        transaction = connection.begin()
+        try:
+            connection.execute('DROP TABLE {}.{};'.format(*_ci(schema_name, table_name)))
+        except Exception as e:
+            transaction.rollback()
+            app.logger.error("[ERROR] Couldn't convert back to raw data")
+            app.logger.exception(e)
+            raise e
+
+        try:
+            backup_name = '_{}_backup_{}'.format(table_name, timestamp)
+            connection.execute(
+                'CREATE TABLE {}.{} AS TABLE {}.{}'.format(*_ci(schema_name, table_name, schema_name, backup_name)))
+
+            # Log action to history
+            history.log_action(schema_id, table_name, datetime.now(), 'Restored backup from {}'.format(timestamp))
+
+            transaction.commit()
+        except Exception as e:
+            transaction.rollback()
+            app.logger.error("[ERROR] Couldn't restore backup for table '{}'".format(table_name))
+            app.logger.exception(e)
+            raise e
+
+    def delete_backup(self, schema_id, table_name, timestamp):
+        """ Deletes the approriate backup table from the dataset """
+        schema_name = "schema-" + str(schema_id)
+        connection = db.engine.connect()
+        transaction = connection.begin()
+        try:
+            backup_name = '_{}_backup_{}'.format(table_name, timestamp)
+            query = 'DELETE FROM Backups WHERE id_dataset = {} AND backup_name = {};'.format(*_cv(schema_name, backup_name))
+            connection.execute(query)
+            history.log_action(schema_id, table_name, datetime.now(), "Deleted backup {}.".format(timestamp))
+
+            query = 'DROP TABLE IF EXISTS {}.{};'.format(
+                *_ci(schema_name, backup_name))
+            connection.execute(query)
+            transaction.commit()
+        except Exception as e:
+            transaction.rollback()
+            app.logger.error("[ERROR] Couldn't delete backup.")
+            app.logger.exception(e)
+            raise e
+
+    def get_backup_info(self, schema_id, table_name, timestamp):
+        """ Returns the info (the note) for a given backup """
+        schema_name = "schema-" + str(schema_id)
+        try:
+            backup_name = '_{}_backup_{}'.format(table_name, timestamp)
+            query = 'SELECT note FROM Backups WHERE id_dataset = {} AND backup_name = {}'.format(*_cv(schema_name, backup_name))
+            result = db.engine.execute(query)
+            note = ""
+            for row in result:
+                if row[0] is not None:
+                    note = row[0]
+            return note
+        except Exception as e:
+            app.logger.error("[ERROR] Couldn't get info for backup.")
             app.logger.exception(e)
             raise e
 

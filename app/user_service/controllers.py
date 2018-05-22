@@ -2,7 +2,7 @@ from flask import Blueprint, request, render_template, url_for, redirect, abort,
 from flask_login import login_required, current_user, login_user, logout_user
 from passlib.hash import sha256_crypt
 
-from app import app, data_loader, login, user_data_access
+from app import app, data_loader, login, user_data_access, active_user_handler
 from app.user_service.models import User
 
 user_service = Blueprint('user_service', __name__)
@@ -49,7 +49,7 @@ def register():
         fname = request.form.get('lg-fname')
         lname = request.form.get('lg-lname')
         email = request.form.get('lg-email')
-        status = request.form.get('lg-status')
+        status = "user" # New users are never admin
         active = True
 
         user_obj = User(username, password, fname, lname, email, status, active)
@@ -67,6 +67,7 @@ def register():
 @user_service.route('/logout')
 @login_required
 def logout():
+    active_user_handler.remove_active_states_of_user(current_user.username)
     logout_user()
     flash(u"Successfully logged out!", 'success')
     return redirect(url_for('main.index'))
@@ -106,8 +107,10 @@ def user_data():
 def admin_page():
     if current_user.status != 'admin':
         return abort(403)
+    admins = user_data_access.get_admins()
     if request.method == 'GET':
-        return render_template('user_service/admin-page.html', users=user_data_access.get_users())
+        return render_template('user_service/admin-page.html', users=user_data_access.get_users(),
+                                                               admins=admins)
     else:
         try:
             for user in user_data_access.get_users():
@@ -120,7 +123,7 @@ def admin_page():
             flash(u"User data has been updated!", 'success')
         except Exception:
             flash(u"User data couldn't be updated!", 'danger')
-        return render_template('user_service/admin-page.html', users=user_data_access.get_users())
+        return render_template('user_service/admin-page.html', users=user_data_access.get_users(), admins=admins)
 
 
 @user_service.route('/admin-page/<string:username>/delete', methods=['DELETE'])

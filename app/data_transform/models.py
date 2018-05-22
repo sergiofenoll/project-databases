@@ -74,14 +74,34 @@ class DataTransformer:
             app.logger.exception(e)
             raise e
 
-    def impute_missing_data(self, schema_id, table, column, function):
+    def impute_missing_data_on_value(self, schema_id, table, column, value, function):
+        """" impute missing data based on the average"""
+        try:
+            schema_name = 'schema-' + str(schema_id)
+
+            db.engine.execute('UPDATE {0}.{1} SET {2} = {3} WHERE {2} IS NULL;'.format(*_ci(schema_name, table, column),
+                                                                                       _cv(value)))
+            history.log_action(schema_id, table, datetime.now(), 'Imputed missing data on ' + function.lower())
+
+        except Exception as e:
+            app.logger.error("[ERROR] Unable to impute missing data for column {}".format(column))
+            app.logger.exception(e)
+            raise e
+
+    def impute_missing_data(self, schema_id, table, column, function, custom_value=None):
         """"impute missing data based on the average"""
         if function == "AVG":
             return self.impute_missing_data_on_average(schema_id, table, column)
         elif function == "MEDIAN":
             return self.impute_missing_data_on_median(schema_id, table, column)
+        elif function == "MCV":
+            value = DataLoader().calculate_most_common_value(schema_id, table, column)
+            return self.impute_missing_data_on_value(schema_id, table, column, value, "most common value")
+        elif function == "CUSTOM":
+            return self.impute_missing_data_on_value(schema_id, table, column, custom_value, "custom value")
         else:
             app.logger.error("[ERROR] Unable to impute missing data for column {}".format(column))
+            raise Exception
 
     def find_and_replace(self, schema_id, table, column, to_be_replaced, replacement, replacement_function):
         """" find and replace """

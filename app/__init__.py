@@ -23,7 +23,7 @@ database = SQLAlchemy(app)
 login = LoginManager(app)
 login.init_app(app)
 
-from app.data_service.models import DataLoader, TableJoiner
+from app.data_service.models import DataLoader, TableJoiner, ActiveUserHandler
 
 from app.user_service.models import UserDataAccess
 from app.data_transform.models import DateTimeTransformer, DataTransformer, NumericalTransformations, OneHotEncode, DataDeduplicator
@@ -33,14 +33,22 @@ data_loader = DataLoader()
 date_time_transformer = DateTimeTransformer()
 data_transformer = DataTransformer()
 numerical_transformer = NumericalTransformations()
+active_user_handler = ActiveUserHandler()
 
 table_joiner = TableJoiner(data_loader)
 one_hot_encoder = OneHotEncode(data_loader)
 data_deduplicator = DataDeduplicator(data_loader)
 
+
 @login.user_loader
 def load_user(user_id):
-    return user_data_access.get_user(user_id)
+    user = None
+    try:
+        user = user_data_access.get_user(user_id)
+    except Exception as e:
+        app.logger.error("[ERROR] User is none")
+        app.logger.exception(e)
+    return user
 
 
 from app.main.controllers import main

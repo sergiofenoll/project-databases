@@ -22,3 +22,4 @@ six==1.11.0
 sklearn==0.0
 SQLAlchemy==1.2.6
 Werkzeug==0.14.1
+recordlinkage=0.11.2

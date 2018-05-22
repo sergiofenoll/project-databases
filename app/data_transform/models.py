@@ -3,8 +3,7 @@ from statistics import median
 
 import pandas as pd
 import recordlinkage
-from recordlinkage.preprocessing import clean
-import edit_distance
+from recordlinkage.preprocessing import clean 
 
 from app import app, database as db
 from app.data_service.models import DataLoader, Table

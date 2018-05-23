@@ -1,4 +1,3 @@
-
 from functools import wraps
 
 from flask import abort, Blueprint, jsonify, request, send_from_directory, flash
@@ -6,13 +5,14 @@ from flask_login import current_user, login_user
 from passlib.hash import sha256_crypt
 
 from app import data_loader, date_time_transformer, data_transformer, numerical_transformer, one_hot_encoder, \
-    active_user_handler, UPLOAD_FOLDER
+    data_deduplicator, active_user_handler, UPLOAD_FOLDER
 from app.history.models import History
 from app.user_service.models import UserDataAccess
 
 api = Blueprint('api', __name__)
 
 _history = History()
+
 
 def auth_required(f):
     @wraps(f)
@@ -31,7 +31,7 @@ def auth_required(f):
         return f(*args, **kwargs)
 
     return wrapper
-  
+
 
 @api.route('/api/datasets/<int:dataset_id>/tables/<string:table_name>', methods=['GET'])
 @auth_required
@@ -59,7 +59,7 @@ def get_table(dataset_id, table_name):
     return jsonify(draw=int(request.args.get('draw')),
                    recordsTotal=table.total_size,
                    recordsFiltered=table.total_size,
-                   data=data) # table.rows
+                   data=data)  # table.rows
 
 
 @api.route('/api/datasets/<int:dataset_id>/tables/<string:table_name>/history', methods=['GET'])
@@ -120,7 +120,6 @@ def delete_row(dataset_id, table_name):
     except Exception:
         flash(u"Rows couldn't be deleted.", 'danger')
         return jsonify({'error': True}), 400
-
 
 
 @api.route('/api/datasets/<int:dataset_id>/tables/<string:table_name>/columns', methods=['POST'])
@@ -245,6 +244,7 @@ def impute_missing_data(dataset_id, table_name):
         flash(u"Couldn't fill missing data.", 'danger')
         return jsonify({'error': True}), 400
 
+
 @api.route('/api/datasets/<int:dataset_id>/tables/<string:table_name>/export', methods=['PUT'])
 @auth_required
 def export_table(dataset_id, table_name):
@@ -267,6 +267,7 @@ def export_table(dataset_id, table_name):
     except Exception:
         flash(u"Data couldn't be exported.", 'danger')
         return jsonify({'error': True}), 400
+
 
 @api.route('/api/download/<string:filename>', methods=['GET'])
 @auth_required
@@ -335,6 +336,7 @@ def normalize(dataset_id, table_name):
         flash(u"Data couldn't be normalized.", 'danger')
         return jsonify({'error': True}), 400
 
+
 @api.route('/api/datasets/<int:dataset_id>/tables/<string:table_name>/discretize', methods=['PUT'])
 @auth_required
 def discretize(dataset_id, table_name):
@@ -397,6 +399,7 @@ def rename_column(dataset_id, table_name):
         flash(u"Column couldn't be renamed.", 'danger')
         return jsonify({'error': True}), 400
 
+
 @api.route('/api/datasets/<int:dataset_id>/tables/<string:table_name>/chart', methods=['GET'])
 @auth_required
 def chart(dataset_id, table_name):
@@ -415,7 +418,7 @@ def chart(dataset_id, table_name):
         flash(u"Charts couldn't be produced.", 'danger')
         return jsonify({'error': True}), 400
 
-      
+
 @api.route('/api/datasets/<int:dataset_id>/tables/<string:table_name>/one-hot-encode-column', methods=['PUT'])
 @auth_required
 def one_hot_encode(dataset_id, table_name):
@@ -432,6 +435,54 @@ def one_hot_encode(dataset_id, table_name):
         return jsonify({'error': True}), 400
 
 
+@api.route('/api/datasets/<int:dataset_id>/tables/<string:table_name>/remove-identical-rows-alg', methods=['PUT'])
+@auth_required
+def collect_identical_rows_alg(dataset_id, table_name):
+    try:
+        sorting_key = request.args.get('selected-col-name')
+        fixed_column_names = request.args.getlist('identical-col-names')
+        var_column_names = request.args.getlist('similar-col-names')
+        duplicates_found = data_deduplicator.collect_identical_rows_alg(dataset_id, table_name, sorting_key,
+                                                                        fixed_column_names, var_column_names,
+                                                                        'damerau_levenshtein')
+
+        if not duplicates_found:
+            flash(u"No identical rows could be found", 'danger')
+            return jsonify({'error': True}), 400
+
+        return jsonify({'success': True}), 200
+    except Exception:
+        flash(u"Couldn't collect identical rows", 'danger')
+        return jsonify({'error': True}), 400
+
+
+@api.route('/api/datasets/<int:dataset_id>/tables/<string:table_name>/show-dedup-data-alg', methods=['GET'])
+@auth_required
+def get_duplicate_group(dataset_id, table_name):
+    try:
+        start = request.args.get('start')
+        length = request.args.get('length')
+        order_column = int(request.args.get('order[0][column]'))
+        order_direction = request.args.get('order[0][dir]')
+        ordering = (data_loader.get_column_names(dataset_id, table_name)[order_column], order_direction)
+        search = request.args.get('search[value]')
+
+        group_id = data_deduplicator.get_next_group_id(dataset_id, table_name)
+
+        table = data_deduplicator.get_cluster(dataset_id, table_name, group_id=group_id, offset=start, limit=length,
+                                              ordering=ordering,
+                                              search=search)
+        _table = data_deduplicator.get_cluster(dataset_id, table_name, group_id=group_id)
+
+        return jsonify(draw=int(request.args.get('draw')),
+                       recordsTotal=len(_table.rows),
+                       recordsFiltered=len(_table.rows),
+                       data=table.rows)
+    except Exception:
+        flash(u"Cluster of duplicate rows could't be shown.", 'danger')
+        return jsonify({'error': True}), 400
+
+
 @api.route('/api/datasets/<int:dataset_id>/tables/<string:table_name>/active-users', methods=['GET'])
 @auth_required
 def get_active_users(dataset_id, table_name):
@@ -444,7 +495,7 @@ def get_active_users(dataset_id, table_name):
     except Exception:
         return jsonify({'error': True}), 400
 
-      
+
 @api.route('/api/datasets/<int:dataset_id>/tables/<string:table_name>/create-backup', methods=['PUT'])
 @auth_required
 def create_backup(dataset_id, table_name):
@@ -453,7 +504,8 @@ def create_backup(dataset_id, table_name):
     try:
         active_user_handler.make_user_active_in_table(dataset_id, table_name, current_user.username)
         if not data_loader.backup_available(dataset_id, table_name):
-            flash(u"You have reached the limit amount of backups. You must remove a backup to create a new one.", 'danger')
+            flash(u"You have reached the limit amount of backups. You must remove a backup to create a new one.",
+                  'danger')
             return jsonify({'error': True}), 400
         note = request.args.get('backup-note')
         data_loader.make_backup(dataset_id, table_name, note)
@@ -483,7 +535,9 @@ def restore_backup(dataset_id, table_name):
         flash(u"Failed to restore backup.", 'danger')
         return jsonify({'error': True}), 400
 
-@api.route('/api/datasets/<int:dataset_id>/tables/<string:table_name>/delete-backup/<string:timestamp>', methods=['DELETE'])
+
+@api.route('/api/datasets/<int:dataset_id>/tables/<string:table_name>/delete-backup/<string:timestamp>',
+           methods=['DELETE'])
 @auth_required
 def delete_backup(dataset_id, table_name, timestamp):
     if (data_loader.has_access(current_user.username, dataset_id)) is False:
@@ -495,10 +549,11 @@ def delete_backup(dataset_id, table_name, timestamp):
     except Exception:
         return jsonify({'error': True}), 400
 
-@api.route('/api/datasets/<int:dataset_id>/tables/<string:table_name>/get-backup-info/<string:timestamp>', methods=['GET'])
+
+@api.route('/api/datasets/<int:dataset_id>/tables/<string:table_name>/get-backup-info/<string:timestamp>',
+           methods=['GET'])
 @auth_required
 def get_backup_info(dataset_id, table_name, timestamp):
-
     if (data_loader.has_access(current_user.username, dataset_id)) is False:
         return abort(403)
     try:
@@ -510,6 +565,7 @@ def get_backup_info(dataset_id, table_name, timestamp):
     except Exception:
         return ""
 
+
 @api.route('/api/admin-page/add-admin', methods=['POST'])
 @auth_required
 def add_admin():
@@ -520,8 +576,8 @@ def add_admin():
         return jsonify({'succes': True}), 200
     except Exception as e:
         flash(u"Failed to grant admin rights.", 'danger')
-        print(e)
         return jsonify({'error': True}), 400
+
 
 @api.route('/api/admin-page/remove-admin', methods=['POST'])
 @auth_required
@@ -533,5 +589,4 @@ def remove_admin():
         return jsonify({'succes': True}), 200
     except Exception as e:
         flash(u"Failed to remove admin rights.", 'danger')
-        print(e)
         return jsonify({'error': True}), 400

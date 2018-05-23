@@ -803,7 +803,6 @@ class DataLoader:
          This method returns a list of 'Table' objects associated with the requested dataset
         """
         try:
-
             columns = self.get_column_names(schema_id, table_name)
 
             schema_name = 'schema-' + str(schema_id)
@@ -815,7 +814,7 @@ class DataLoader:
 
             search_query = ''
             if search is not None and search != '':
-                search_query = "WHERE (";
+                search_query = "WHERE ("
                 # Fill in the search for every column except ID
                 for col in columns[1:]:
                     search_query += "{}::text LIKE '%%{}%%' OR ".format(_ci(col), search)

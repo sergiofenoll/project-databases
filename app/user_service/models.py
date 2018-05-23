@@ -103,7 +103,6 @@ class UserDataAccess:
             return user
         else:
             raise Exception
-            return None
 
     def alter_user(self, user):
         try:

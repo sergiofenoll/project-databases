@@ -576,7 +576,6 @@ def add_admin():
         return jsonify({'succes': True}), 200
     except Exception as e:
         flash(u"Failed to grant admin rights.", 'danger')
-        print(e)
         return jsonify({'error': True}), 400
 
 
@@ -590,5 +589,4 @@ def remove_admin():
         return jsonify({'succes': True}), 200
     except Exception as e:
         flash(u"Failed to remove admin rights.", 'danger')
-        print(e)
         return jsonify({'error': True}), 400

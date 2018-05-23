@@ -12,26 +12,30 @@
 				<form id="formRemoveIdenticalRowsAlg" name="myForm">
 					<div class="form-group">
                         <ul class="list-unstyled">
-                            <h6>1) Choose which column to view as most important</h6>
                             <li>
+                                <label for="selected-col-name">1) Choose which column to view as most important</label><br>
                                 <select form="formRemoveIdenticalRowsAlg" name="selected-col-name">
                                     <{% for column in table.columns[1:] %}
                                         <option value="{{ column.name }}">{{ column.name }}</option>
                                     {% endfor %}
                                 </select>
                             </li>
-                            <h6>2) Select columns on which rows must have identical values. (Can include column from '1)')</h6>
-                            {% for column in table.columns[1:] %}
-                                <li><input type="checkbox" class="removeIdenticalRows" name="identical-col-names" value="{{ column.name }}"> {{ column.name }}</li>
-                            {% endfor %}
-                            <input type="button" onclick="SetAllCheckBoxes('myForm', 'identical-col-names', true);" value="Select All">
-                            <input type="button" onclick="SetAllCheckBoxes('myForm', 'identical-col-names', false);" value="Deselect All">
-                            <h6>3) Select columns on which rows may have similair values. (At least 1 column is required)</h6>
-                            {% for column in table.columns[1:] %}
-                                <li><input type="checkbox" class="removeIdenticalRows" name="similar-col-names" value="{{ column.name }}"> {{ column.name }}</li>
-                            {% endfor %}
-                            <input type="button" onclick="SetAllCheckBoxes('myForm', 'similar-col-names', true);" value="Select All">
-                            <input type="button" onclick="SetAllCheckBoxes('myForm', 'similar-col-names', false);" value="Deselect All">
+                            <li>
+                                <label for="identical-col-names">2) Select columns on which rows must have identical values.</label>
+                                {% for column in table.columns[1:] %}
+                                    <li><input type="checkbox" class="removeIdenticalRows" name="identical-col-names" value="{{ column.name }}"> {{ column.name }}</li>
+                                {% endfor %}
+                                <input type="button" onclick="SetAllCheckBoxes('myForm', 'identical-col-names', true);" value="Select All">
+                                <input type="button" onclick="SetAllCheckBoxes('myForm', 'identical-col-names', false);" value="Deselect All">
+                            </li>
+                            <li>
+                                <label for="similar-col-names">3) Select columns on which rows may have similair values.</label>
+                                {% for column in table.columns[1:] %}
+                                    <li><input type="checkbox" class="removeIdenticalRows" name="similar-col-names" value="{{ column.name }}"> {{ column.name }}</li>
+                                {% endfor %}
+                                <input type="button" onclick="SetAllCheckBoxes('myForm', 'similar-col-names', true);" value="Select All">
+                                <input type="button" onclick="SetAllCheckBoxes('myForm', 'similar-col-names', false);" value="Deselect All">
+                            </li>
                         </ul>
 						<button type="submit" class="btn btn-primary">Collect duplicate rows
 						</button>

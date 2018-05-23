@@ -25,7 +25,7 @@
                                 <i class="fas fa-minus-circle"></i> Delete marked/selected row(s) and exit</a>
                         </div>
                         <div class="panel-heading">
-                            <a class="btn btn-dark panel-button" id="removeSelectedRowsExit" href="#">
+                            <a class="btn btn-dark panel-button" id="removeSelectedRowsExp" href="#">
                                 <i class="fas fa-minus-circle"></i> Delete marked rows, remaining duplicates processed automatically and exit. (Warning: Selection of the 'correct' row is very experimental!) </a>
                         </div>
                     </div>
@@ -89,24 +89,43 @@
                     })
                 });
             $('#removeSelectedRowsExit').click(function () {
-                    $.ajax({
-                        type: 'POST',
-                        url: window.location.pathname + '/exit?' + $('input:checked').serialize(),
-                        contentType: 'application/json;charset=UTF-8',
-                        datatype: 'json',
-                        success: function (data) {
-                            if (data.reload) {
-                                window.location.reload()
-                            } else {
-                                 window.location.assign(data.url);
-                            }
-                        },
-                        error: function (data)
-                        {
-                            window.location.assign(data.url);
+                $.ajax({
+                    type: 'POST',
+                    url: window.location.pathname + '/exit?' + $('input:checked').serialize(),
+                    contentType: 'application/json;charset=UTF-8',
+                    datatype: 'json',
+                    success: function (data) {
+                        if (data.reload) {
+                            window.location.reload()
+                        } else {
+                             window.location.assign(data.url);
                         }
-                    })
-                });
+                    },
+                    error: function (data)
+                    {
+                        window.location.assign(data.url);
+                    }
+                })
+            });
+            $('#removeSelectedRowsExp').click(function () {
+                $.ajax({
+                    type: 'POST',
+                    url: window.location.pathname + '/exp?' + $('input:checked').serialize(),
+                    contentType: 'application/json;charset=UTF-8',
+                    datatype: 'json',
+                    success: function (data) {
+                        if (data.reload) {
+                            window.location.reload()
+                        } else {
+                             window.location.assign(data.url);
+                        }
+                    },
+                    error: function (data)
+                    {
+                        window.location.assign(data.url);
+                    }
+                })
+            });
         });
     </script>
 {% endblock %}

@@ -313,6 +313,33 @@ def remove_or_mark_identical_rows_alg_exit(dataset_id, table_name):
                         'url': url_for('data_service.get_table', dataset_id=dataset_id, table_name=table_name)}), 400
 
 
+@data_service.route('/datasets/<int:dataset_id>/tables/<string:table_name>/show-dedup-data-alg/exp', methods=['POST'])
+def remove_or_mark_identical_rows_alg_exp(dataset_id, table_name):
+    try:
+        row_ids = [key.split('-')[1] for key in request.args]
+
+        if len(row_ids) != 0:
+            # Mark given id's as 'to_delete' and remove associated cluster from dedup_table_grouped
+            data_deduplicator.add_rows_to_delete(dataset_id, table_name, row_ids)
+            data_deduplicator.remove_cluster(dataset_id, table_name, data_deduplicator.get_next_group_id(dataset_id, table_name))
+
+        data_deduplicator.process_remaining_duplicates(dataset_id, table_name)
+
+        # Clean dedup tables from db and remove the selected rows
+        data_deduplicator.remove_rows_from_table(dataset_id, table_name)
+        data_deduplicator.delete_dedup_table(dataset_id, table_name)
+        flash(u"Marked rows have been deleted.", 'success')
+        return jsonify({'success': True, 'reload': False, 'redirect': True, 'url': url_for('data_service.get_table', dataset_id=dataset_id, table_name=table_name)}), 200
+
+    except Exception:
+        # Clean dedup tables from db
+        data_deduplicator.delete_dedup_table(dataset_id, table_name)
+        flash(u"Rows couldn't be deleted.", 'warning')
+
+        return jsonify({'error': True, 'reload': False, 'redirect': True,
+                        'url': url_for('data_service.get_table', dataset_id=dataset_id, table_name=table_name)}), 400
+
+
 @data_service.route('/datasets/<int:dataset_id>/join-tables/<string:table_name>', methods=['GET'])
 @login_required
 def get_join_column_names(dataset_id, table_name):

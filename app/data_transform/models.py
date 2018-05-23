@@ -3,7 +3,7 @@ from statistics import median
 
 import pandas as pd
 import recordlinkage
-from recordlinkage.preprocessing import clean 
+from recordlinkage.preprocessing import clean
 
 from app import app, database as db
 from app.data_service.models import DataLoader, Table
@@ -658,12 +658,12 @@ class DataDeduplicator:
         """ Returns a 'Table' object associated with requested dataset and group_id"""
 
         dedup_table_view = "_dedup_" + table_name + "_view"
+        schema_name = 'schema-' + str(schema_id)
 
         try:
             self.create_duplicate_view(schema_id, table_name, group_id)
             columns = self.dataloader.get_column_names(schema_id, dedup_table_view)
 
-            schema_name = 'schema-' + str(schema_id)
             # Get all tables from the metadata table in the schema
             ordering_query = ''
             if ordering is not None:
@@ -695,21 +695,29 @@ class DataDeduplicator:
             app.logger.exception(e)
             raise e
 
-if __name__ == "__main__":
-    data_loader = DataLoader()
-    data_dedup = DataDeduplicator(data_loader)
+    def process_remaining_duplicates(self, schema_id, table_name):
+        """ For each duplicate group, marks all for deletion but first entry """
 
-    '''
-    sorting_key = 'given_name'
-    fixed_column_names = list({'given_name', 'date_of_birth', 'suburb', 'state'})
-    var_column_names = list({'surname', 'address_1'})
-    alg = 'damerau_levenshtein'
+        schema_name = 'schema-' + str(schema_id)
+        dedup_table_grouped = '_dedup_' + table_name + "_grouped"
 
-    data_dedup.collect_identical_rows_alg(1, 'dedup', sorting_key, fixed_column_names, var_column_names, alg)
-    '''
 
-    matches = list([[0,1], [1,2], [3,4], [2,3], [4,5], [5,6], [6,500], [500,1], [7, 501], [7, 502], [8, 503], [502, 503]])
-    groups = data_dedup.group_matches(matches)
+        try:
+            while self.get_amount_of_cluster(schema_id, table_name) != 0:
+                query = "SELECT id FROM {}.{} WHERE \"group_id\"={}".format(*_ci(schema_name, dedup_table_grouped), self.get_next_group_id(schema_id, table_name))
 
-    print(groups)
+                rows = db.engine.execute(query)
+
+                ids_to_delete = list()
+                for row in rows:
+                    ids_to_delete.append(row[0])
+                ids_to_delete.pop(0)
+
+                self.add_rows_to_delete(schema_id, table_name, ids_to_delete)
+                self.remove_cluster(schema_id, table_name, self.get_next_group_id(schema_id, table_name))
+
+        except Exception as e:
+            app.logger.error("[ERROR] Couldn't mark remaining duplicates for deletion.")
+            app.logger.exception(e)
+            raise e
 

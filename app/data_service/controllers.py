@@ -212,7 +212,7 @@ def show_raw_data(dataset_id, table_name):
         return abort(403)
 
     raw_table_name = "_raw_" + table_name
-    raw_table_exists = data_loader.table_exists(raw_table_name, "schema-" + str(dataset_id))
+    raw_table_exists = data_loader.table_exists(raw_table_name, dataset_id)
     if not raw_table_exists:
         flash(u"Raw data does not exist.", 'warning')
         return redirect(url_for('data_service.get_table', dataset_id=dataset_id, table_name=table_name))

@@ -141,7 +141,7 @@ def get_table(dataset_id, table_name):
         backups = data_loader.get_backups(dataset_id, table_name)
 
         raw_table_name = "_raw_" + table_name
-        raw_table_exists = data_loader.table_exists(raw_table_name, "schema-" + str(dataset_id))
+        raw_table_exists = data_loader.table_exists(raw_table_name,dataset_id)
         current_user.active_schema = dataset_id
         active_user_handler.make_user_active_in_table(dataset_id, table_name, current_user.username)
         return render_template('data_service/table-view.html', table=table,

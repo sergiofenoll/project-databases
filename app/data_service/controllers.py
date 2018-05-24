@@ -269,6 +269,16 @@ def remove_or_mark_identical_rows_alg_sty(dataset_id, table_name):
         # Mark given id's as 'to_delete' and remove associated cluster from dedup_table_grouped
         data_deduplicator.add_rows_to_delete(dataset_id, table_name, row_ids)
 
+        if data_deduplicator.get_amount_of_cluster(dataset_id, table_name) == 0:
+            # Clean dedup tables from db and remove the selected rows
+            data_deduplicator.remove_rows_from_table(dataset_id, table_name)
+            data_deduplicator.delete_dedup_table(dataset_id, table_name)
+            flash(u"Marked rows have been deleted.", 'success')
+            return jsonify({'success': True, 'reload': False, 'redirect': True, 'url': url_for('data_service.get_table', dataset_id=dataset_id, table_name=table_name)}), 200
+        else:
+            flash(u"Rows have been marked for deletion'.", 'success')
+            return jsonify({'success': True, 'reload': True, 'redirect': False}), 200
+
         flash(u"Rows have been marked for deletion'.", 'success')
         return jsonify({'success': True, 'reload': True, 'redirect': False}), 200
 

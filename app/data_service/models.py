@@ -484,9 +484,8 @@ class DataLoader:
         for idx, val in db.engine.execute(
                 'SELECT id, {} FROM {}.{}'.format(*_ci(column_name, schema_name, table_name))):
             idx_list.append(idx)
-            inverse_query += '\tWHEN {} THEN {}\n'.format(*_cv(idx, val))
-        inverse_query += 'WHERE id IN ({})\n'.format(', '.join(_cv(idx_list)))
-        inverse_query += 'END;'
+            inverse_query += ' WHEN {} THEN {}'.format(*_cv(idx, val))
+        inverse_query += ' END WHERE id IN ({})\n'.format(', '.join(_cv(idx) for idx in idx_list))
         try:
             db.engine.execute('ALTER TABLE {}.{} DROP COLUMN IF EXISTS {};'.format(*_ci(schema_name, table_name, column_name)))
         except Exception as e:

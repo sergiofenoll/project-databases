@@ -97,6 +97,21 @@ def get_history(dataset_id, table_name):
                    data=rows)
 
 
+@api.route('/api/datasets/<int:dataset_id>/tables/<string:table_name>/history/undo/<int:action_id>', methods=['POST'])
+@auth_required
+def undo_action(dataset_id, table_name, action_id):
+    if not data_loader.has_access(current_user.username, dataset_id):
+        return abort(403)
+    active_user_handler.make_user_active_in_table(dataset_id, table_name, current_user.username)
+    try:
+        _history.undo_action(dataset_id, table_name, action_id)
+        flash(u"Action was undone", 'success')
+        return jsonify({'success': True}), 200
+    except Exception as e:
+        flash(u"Action could not be undone", 'danger')
+        return jsonify({'error': True}), 400
+
+
 @api.route('/api/datasets/<int:dataset_id>/tables/<string:table_name>/rows', methods=['POST'])
 @auth_required
 def add_row(dataset_id, table_name):
@@ -429,7 +444,7 @@ def chart(dataset_id, table_name):
         flash(u"Charts couldn't be produced.", 'danger')
         return jsonify({'error': True}), 400
 
-      
+
 @api.route('/api/datasets/<int:dataset_id>/tables/<string:table_name>/one-hot-encode-column', methods=['PUT'])
 @auth_required
 def one_hot_encode(dataset_id, table_name):
@@ -458,7 +473,7 @@ def get_active_users(dataset_id, table_name):
     except Exception:
         return jsonify({'error': True}), 400
 
-      
+
 @api.route('/api/datasets/<int:dataset_id>/tables/<string:table_name>/create-backup', methods=['PUT'])
 @auth_required
 def create_backup(dataset_id, table_name):
@@ -523,3 +538,4 @@ def get_backup_info(dataset_id, table_name, timestamp):
         return note
     except Exception:
         return ""
+

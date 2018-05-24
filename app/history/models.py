@@ -17,11 +17,11 @@ class History:
     def __init__(self):
         pass
 
-    def log_action(self, dataset_id, table_name, date, desc):
+    def log_action(self, dataset_id, table_name, date, desc, inverse_query):
         dataset_name = 'schema-' + str(dataset_id)
         try:
             db.engine.execute(
-                'INSERT INTO HISTORY VALUES ({0}, {1}, \'{3}\', {2})'.format(*_cv(dataset_name, table_name, desc), date))
+                    "INSERT INTO HISTORY (id_dataset, id_table, date, action_desc, inv_query, undone) VALUES ({}, {}, '{}', {}, {}, FALSE)".format(*_cv(dataset_name, table_name), date, *_cv(desc, inverse_query)))
         except Exception as e:
             app.logger.error(
                 "[ERROR] Failed to save action with description {} to history of {}.{}".format(desc, dataset_name,
@@ -39,19 +39,45 @@ class History:
 
             search_query = ''
             if search is not None:
-                search_query = "WHERE (id_dataset='{0}' AND id_table='{1}' ) AND (action_desc LIKE '%%{2}%%')".format(
+                search_query = "WHERE (id_dataset='{}' AND id_table='{}' ) AND (action_desc LIKE '%%{}%%')".format(
                     dataset_name, table_name, search)
             else:
-                search_query = "WHERE id_dataset='{0}' AND id_table='{1}'".format(dataset_name, table_name)
+                search_query = "WHERE id_dataset='{}' AND id_table='{}'".format(dataset_name, table_name)
 
             rows = db.engine.execute(
-                'SELECT DATE, ACTION_DESC FROM HISTORY {} {} LIMIT {} OFFSET {};'.format(search_query, ordering_query,
+                'SELECT DATE, ACTION_DESC, ACTION_ID, UNDONE FROM HISTORY {} {} LIMIT {} OFFSET {};'.format(search_query, ordering_query,
                                                                                          limit, offset))
 
-            history = [list(row) for row in rows]
+            id_undoable_action = db.engine.execute(
+                    'SELECT MAX(ACTION_ID) FROM HISTORY WHERE ID_DATASET={} AND ID_TABLE={} AND UNDONE=FALSE;'.format(*_cv(dataset_name, table_name))).fetchone()[0]
+
+            history = [
+                    [row['date'], row['action_desc'], [row['action_id'], row['undone'], row['action_id'] == id_undoable_action]] for row in rows]
             return history
         except Exception as e:
             app.logger.error(
                 "[ERROR] Failed to get actions from history of {}.{}".format(dataset_name, table_name))
             app.logger.exception(e)
             raise e
+
+    def undo_action(self, dataset_id, table_name, action_id):
+        dataset_name = 'schema-' + str(dataset_id)
+        try:
+            inverse_query = db.engine.execute('SELECT INV_QUERY FROM HISTORY WHERE ACTION_ID={}'.format(action_id)).fetchone()[0]
+        except Exception as e:
+            app.logger.error('[ERROR] Failed to get inverse query from action with id {}'.format(action_id))
+            app.logger.exception(e)
+            raise e
+        try:
+            db.engine.execute(inverse_query)
+        except Exception as e:
+            app.logger.error('[ERROR] Failed to undo action with id {}'.format(action_id))
+            app.logger.exception(e)
+            raise e
+        try:
+            db.engine.execute('UPDATE HISTORY SET UNDONE=TRUE WHERE ACTION_ID={}'.format(action_id))
+        except Exception as e:
+            app.logger.error('[ERROR] Failed to set action with id {} as undone'.format(action_id))
+            app.logger.exception(e)
+            raise e
+

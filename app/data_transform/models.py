@@ -426,7 +426,7 @@ class OneHotEncode:
 
                 inverse_query = ''
                 for column in ohe.columns:
-                    inverse_query += 'ALTER TABLE {}.{} DROP COLUMN IF EXISTS {};'.format(schema_name, table_name, column)
+                    inverse_query += 'ALTER TABLE {}.{} DROP COLUMN IF EXISTS {};'.format(*_ci(schema_name, table_name, column))
                 history.log_action(schema_id, table_name, datetime.now(), 'Applied One Hot Encoding to column {}'.format(column_name), inverse_query)
 
             except Exception as e:

@@ -1123,23 +1123,18 @@ class DataLoader:
     # Raw data & backups
     def revert_back_to_raw_data(self, schema_id, table_name):
         schema_name = "schema-" + str(schema_id)
+        connection = db.engine.connect()
+        transaction = connection.begin()
         try:
-            db.engine.execute('DROP TABLE {}.{};'.format(*_ci(schema_name, table_name)))
-        except Exception as e:
-            app.logger.error("[ERROR] Couldn't convert back to raw data")
-            app.logger.exception(e)
-            raise e
-
-        try:
+            connection.execute('DROP TABLE {}.{};'.format(*_ci(schema_name, table_name)))
             raw_table_name = "_raw_" + table_name
-
-            db.engine.execute(
+            connection.execute(
                 'CREATE TABLE {}.{} AS TABLE {}.{}'.format(*_ci(schema_name, table_name, schema_name, raw_table_name)))
-
-            # Log action to history
-            history.log_action(schema_id, table_name, datetime.now(), 'Reverted to raw data')
-
+            connection.execute(
+                    'DELETE FROM HISTORY WHERE ID_DATASET={0} AND ID_TABLE={1} AND ACTION_ID<>(SELECT MIN(ACTION_ID) FROM HISTORY WHERE ID_DATASET={0} AND ID_TABLE={1});'.format(*_cv(schema_name, table_name)))
+            transaction.commit()
         except Exception as e:
+            transaction.rollback()
             app.logger.error("[ERROR] Couldn't convert back to raw data")
             app.logger.exception(e)
             raise e
@@ -1206,20 +1201,11 @@ class DataLoader:
         transaction = connection.begin()
         try:
             connection.execute('DROP TABLE {}.{};'.format(*_ci(schema_name, table_name)))
-        except Exception as e:
-            transaction.rollback()
-            app.logger.error("[ERROR] Couldn't convert back to raw data")
-            app.logger.exception(e)
-            raise e
-
-        try:
             backup_name = '_{}_backup_{}'.format(table_name, timestamp)
             connection.execute(
                 'CREATE TABLE {}.{} AS TABLE {}.{}'.format(*_ci(schema_name, table_name, schema_name, backup_name)))
-
-            # Log action to history
-            history.log_action(schema_id, table_name, datetime.now(), 'Restored backup from {}'.format(timestamp))
-
+            connection.execute(
+                    'DELETE FROM HISTORY WHERE ID_DATASET={} AND ID_TABLE={} AND DATE>'{}';'.format(*_cv(schema_name, table_name), timestamp))
             transaction.commit()
         except Exception as e:
             transaction.rollback()

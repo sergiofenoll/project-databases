@@ -129,8 +129,8 @@ class DataTransformer:
             schema_name = 'schema-' + str(schema_id)
             query = ""
             if replacement_function == "substring":
-                updated_rows = [row['id'] for row in db.engine.execute('SELECT id FROM {}.{} WHERE {} LIKE %%{}%%'.format(
-                    schema_name, table, column, replacement)).fetchall()]
+                updated_rows = [row['id'] for row in db.engine.execute('SELECT id FROM {}.{} WHERE {} LIKE {}'.format(
+                    *_ci(schema_name, table, column), _cv('%%'+replacement+'%%'))).fetchall()]
                 query = 'UPDATE {0}.{1} SET {2} = REPLACE({2}, {3}, {4});'.format(*_ci(schema_name, table, column),
                                                                                   *_cv(to_be_replaced, replacement))
             elif replacement_function == "full replace":

@@ -1170,9 +1170,6 @@ class DataLoader:
                 *_cv(schema_name, table_name, backup_name, timestamp, note))
 
             connection.execute(backup_query)
-
-            history.log_action(schema_id, table_name, datetime.now(), "Created backup.")
-
             transaction.commit()
 
         except Exception as e:

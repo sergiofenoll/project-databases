@@ -373,7 +373,7 @@ class NumericalTransformations:
         schema_name = 'schema-' + str(schema_id)
         df = pd.read_sql_query('SELECT * FROM "{}"."{}"'.format(schema_name, table_name), db.engine)
 
-        intervals = pd.cut(df[column_name], 10).value_counts()
+        intervals = pd.cut(df[column_name], 10).value_counts().sort_index()
         data = {
             'labels': list(intervals.index.astype(str)),
             'data': list(intervals.astype(int)),
@@ -386,7 +386,7 @@ class NumericalTransformations:
         schema_name = 'schema-' + str(schema_id)
         df = pd.read_sql_query('SELECT * FROM "{}"."{}"'.format(schema_name, table_name), db.engine)
 
-        intervals = df[column_name].value_counts()
+        intervals = df[column_name].value_counts().sort_index()
         data = {
             'labels': list(intervals.index.astype(str)),
             'data': list(intervals.astype(str)),

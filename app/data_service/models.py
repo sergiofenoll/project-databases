@@ -377,20 +377,28 @@ class DataLoader:
         try:
             for row_id in row_ids:
 
-                column_tuple = self.get_column_names(schema_name, table_name)
+                column_tuple = self.get_column_names(schema_id, table_name)
                 value_tuple = db.engine.execute(
                     'SELECT * FROM {}.{} WHERE id={};'.format(*_ci(schema_name, table_name),
                                                               _cv(row_id))).fetchone()[1:]
 
                 db.engine.execute('DELETE FROM {}.{} WHERE id={};'.format(*_ci(schema_name, table_name), _cv(row_id)))
                 # Log action to history
+                values_query = 'DEFAULT'
+
+                for value in value_tuple:
+                    values_query += ', '
+
+                    if value is None:
+                        values_query += 'NULL'
+                    else:
+                        values_query += _cv(value)
                 if add_history:
                     inverse_query = 'INSERT INTO {}.{}({}) VALUES ({});'.format(*_ci(schema_name, table_name),
                                                                                 ', '.join(
                                                                                     _ci(column_name) for column_name in
                                                                                     column_tuple),
-                                                                                ', '.join(_cv(value) for value in
-                                                                                          value_tuple))
+                                                                                values_query)
                     history.log_action(schema_id, table_name, datetime.now(), 'Deleted row #' + str(row_id), inverse_query)
         except Exception as e:
             app.logger.error("[ERROR] Unable to delete row from table '" + table_name + "'")
@@ -455,6 +463,8 @@ class DataLoader:
         column_type = db.engine.execute(
             "select data_type from information_schema.columns where table_name = '{}' and column_name='{}';".format(
                 table_name, column_name)).fetchone()[0]
+
+        # create inverse query
         inverse_query = 'ALTER TABLE {}.{} ADD COLUMN {} {} NULL;'.format(*_ci(schema_name, table_name, column_name),
                                                                           column_type)
         inverse_query += 'UPDATE {}.{} SET {} = CASE id\n'.format(*_ci(schema_name, table_name, column_name))

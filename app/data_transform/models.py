@@ -353,6 +353,8 @@ class OneHotEncode:
                 df = df.join(ohe)
                 df.to_sql(table_name, con=db.engine, schema=schema_name, if_exists='replace', index=False)
 
+                history.log_action(schema_id, table_name, datetime.now(), 'One-hot-encoded on column \'{}\''.format(column_name))
+
             except Exception as e:
                 transaction.rollback()
                 app.logger.error("[ERROR] Couldn't one_hot_encode  '" + column_name + "' in '." + table_name + "',")

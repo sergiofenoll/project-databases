@@ -372,10 +372,10 @@ def join_tables(dataset_id):
             if key.startswith("join"):
                 join_pair_row = f.getlist(key)
                 t1 = join_pair_row[0]
-                t2 = join_pair_row[1]
-                t1_column = join_pair_row[2]
+                t1_column = join_pair_row[1]
+                relation_operator = join_pair_row[2]
+                t2 = join_pair_row[3]
                 t2_column = join_pair_row[4]
-                relation_operator = join_pair_row[3]
 
                 join_pair = TableJoinPair(table1_name=t1, table2_name=t2, table1_column=t1_column,
                                           table2_column=t2_column, relation_operator=relation_operator)

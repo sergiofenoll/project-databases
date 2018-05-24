@@ -1459,3 +1459,6 @@ class TableJoiner:
             app.logger.error("[ERROR] Failed to create raw data for table '" + table_name + "'")
             app.log_exception(e)
             raise e
+
+        # History log
+        history.log_action(dataset_id, table_name, datetime.now(), 'Joined tables into \'{}\''.format(table_name))

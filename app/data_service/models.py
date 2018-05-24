@@ -304,7 +304,6 @@ class DataLoader:
                     query = query + ', \n\"' + column + '\" varchar(255)'
                 query += '\n);'
 
-
                 raw_table_query = query.format(*_ci(schema_name, raw_table_name))
 
                 query = query.format(*_ci(schema_name, name))
@@ -328,10 +327,12 @@ class DataLoader:
 
             # Log action to history
             history.log_action(schema_id, name, datetime.now(), 'Created table',
-                'DROP TABLE IF EXISTS {}.{};'.format(*_ci(schema_name, name)) +
-                'DROP TABLE IF EXISTS {}.{};'.format(*_ci(schema_name, raw_table_name)) +
-                'DELETE FROM METADATA WHERE ID_DATASET={} AND ID_TABLE={};'.format(*_cv(schema_name, name)) +
-                'DELETE FROM HISTORY WHERE ID_DATASET={} AND ID_TABLE={};'.format(*_cv(schema_name, name)))
+                               'DROP TABLE IF EXISTS {}.{};'.format(*_ci(schema_name, name)) +
+                               'DROP TABLE IF EXISTS {}.{};'.format(*_ci(schema_name, raw_table_name)) +
+                               'DELETE FROM METADATA WHERE ID_DATASET={} AND ID_TABLE={};'.format(
+                                   *_cv(schema_name, name)) +
+                               'DELETE FROM HISTORY WHERE ID_DATASET={} AND ID_TABLE={};'.format(
+                                   *_cv(schema_name, name)))
 
             transaction.commit()
 
@@ -340,7 +341,6 @@ class DataLoader:
             app.logger.error("[ERROR] Failed to delete table '" + name + "'")
             app.logger.exception(e)
             raise e
-
 
     def delete_table(self, name, schema_id):
         connection = db.engine.connect()
@@ -412,7 +412,8 @@ class DataLoader:
                                                                                     _ci(column_name) for column_name in
                                                                                     column_tuple),
                                                                                 values_query)
-                    history.log_action(schema_id, table_name, datetime.now(), 'Deleted row #' + str(row_id), inverse_query)
+                    history.log_action(schema_id, table_name, datetime.now(), 'Deleted row #' + str(row_id),
+                                       inverse_query)
         except Exception as e:
             app.logger.error("[ERROR] Unable to delete row from table '" + table_name + "'")
             app.logger.exception(e)
@@ -487,7 +488,8 @@ class DataLoader:
             inverse_query += ' WHEN {} THEN {}'.format(*_cv(idx, val))
         inverse_query += ' END WHERE id IN ({})\n'.format(', '.join(_cv(idx) for idx in idx_list))
         try:
-            db.engine.execute('ALTER TABLE {}.{} DROP COLUMN IF EXISTS {};'.format(*_ci(schema_name, table_name, column_name)))
+            db.engine.execute(
+                'ALTER TABLE {}.{} DROP COLUMN IF EXISTS {};'.format(*_ci(schema_name, table_name, column_name)))
         except Exception as e:
             app.logger.error("[ERROR] Unable to delete column from table '" + table_name + "'")
             app.logger.exception(e)
@@ -524,13 +526,15 @@ class DataLoader:
         if add_history:
             row_id = db.engine.execute('SELECT MAX(id) FROM {}.{}'.format(*_ci(schemaname, table))).fetchone()[0]
             inverse_query = 'DELETE FROM {}.{} WHERE id={};'.format(*_ci(schemaname, table), _cv(row_id))
-            history.log_action(schema_id, table, datetime.now(), 'Added row with values ' + ' '.join(values), inverse_query)
+            history.log_action(schema_id, table, datetime.now(), 'Added row with values ' + ' '.join(values),
+                               inverse_query)
 
     def insert_column(self, schema_id, table_name, column_name, column_type):
         schema_name = 'schema-' + str(schema_id)
         try:
             db.engine.execute(
-                'ALTER TABLE {}.{} ADD IF NOT EXISTS {} {} NULL;'.format(*_ci(schema_name, table_name, column_name), column_type))
+                'ALTER TABLE {}.{} ADD IF NOT EXISTS {} {} NULL;'.format(*_ci(schema_name, table_name, column_name),
+                                                                         column_type))
         except Exception as e:
             app.logger.error("[ERROR] Unable to insert column into table '{}'".format(table_name))
             app.logger.exception(e)
@@ -538,7 +542,8 @@ class DataLoader:
 
         # Log action to history
         inverse_query = 'ALTER TABLE {}.{} DROP COLUMN IF EXISTS {}'.format(*_ci(schema_name, table_name, column_name))
-        history.log_action(schema_id, table_name, datetime.now(), 'Added column with name ' + column_name, inverse_query)
+        history.log_action(schema_id, table_name, datetime.now(), 'Added column with name ' + column_name,
+                           inverse_query)
 
     def rename_column(self, schema_id, table_name, column_name, new_column_name):
         schema_name = 'schema-' + str(schema_id)
@@ -557,8 +562,9 @@ class DataLoader:
 
         # Log action to history
         inverse_query = 'ALTER TABLE {}.{} RENAME {} TO {}'.format(*_ci(schema_name, table_name, new_column_name,
-                                                                   column_name))
-        history.log_action(schema_id, table_name, datetime.now(), 'Renamed column {} to {}'.format(column_name, new_column_name, inverse_query))
+                                                                        column_name))
+        history.log_action(schema_id, table_name, datetime.now(),
+                           'Renamed column {} to {}'.format(column_name, new_column_name, inverse_query))
 
     def update_column_type(self, schema_id, table_name, column_name, column_type):
         schema_name = 'schema-' + str(schema_id)
@@ -582,7 +588,8 @@ class DataLoader:
                            'Updated column ' + column_name + ' to have type ' + column_type, inverse_query)
 
     # Data uploading handling
-    def process_csv(self, file, schema_id, tablename, table_description='Default description', append=False, type_deduction=False):
+    def process_csv(self, file, schema_id, tablename, table_description='Default description', append=False,
+                    type_deduction=False):
         """
          This method takes a filename for a CSV file and processes it into a table.
          A table name should be provided by the user / caller of this method.
@@ -664,7 +671,7 @@ class DataLoader:
 
             raise e
 
-    def process_dump(self, file, schema_id, table_name, table_description='Default description',):
+    def process_dump(self, file, schema_id, table_name, table_description='Default description', ):
 
         """
          This method takes a SQL dump file and processes the INSERT statements,
@@ -1136,8 +1143,10 @@ class DataLoader:
             connection.execute(
                 'CREATE TABLE {}.{} AS TABLE {}.{}'.format(*_ci(schema_name, table_name, schema_name, raw_table_name)))
             connection.execute(
-                    'DELETE FROM HISTORY WHERE ID_DATASET={0} AND ID_TABLE={1} AND ACTION_ID<>(SELECT MIN(ACTION_ID) FROM HISTORY WHERE ID_DATASET={0} AND ID_TABLE={1});'.format(*_cv(schema_name, table_name)))
+                'DELETE FROM HISTORY WHERE ID_DATASET={0} AND ID_TABLE={1} AND ACTION_ID<>(SELECT MIN(ACTION_ID) FROM HISTORY WHERE ID_DATASET={0} AND ID_TABLE={1});'.format(
+                    *_cv(schema_name, table_name)))
             transaction.commit()
+            create_serial_sequence(schema_name, table_name)
         except Exception as e:
             transaction.rollback()
             app.logger.error("[ERROR] Couldn't convert back to raw data")
@@ -1186,7 +1195,8 @@ class DataLoader:
         """
         schema_name = "schema-" + str(schema_id)
         try:
-            query = 'SELECT timestamp FROM Backups WHERE id_dataset = {} AND table_name = {}'.format(*_cv(schema_name, table_name))
+            query = 'SELECT timestamp FROM Backups WHERE id_dataset = {} AND table_name = {}'.format(
+                *_cv(schema_name, table_name))
             rows = db.engine.execute(query)
 
             timestamps = [str(ts[0]) for ts in rows]
@@ -1207,8 +1217,10 @@ class DataLoader:
             connection.execute(
                 'CREATE TABLE {}.{} AS TABLE {}.{}'.format(*_ci(schema_name, table_name, schema_name, backup_name)))
             connection.execute(
-                    "DELETE FROM HISTORY WHERE ID_DATASET={} AND ID_TABLE={} AND DATE>'{}';".format(*_cv(schema_name, table_name), timestamp))
+                "DELETE FROM HISTORY WHERE ID_DATASET={} AND ID_TABLE={} AND DATE>'{}';".format(
+                    *_cv(schema_name, table_name), timestamp))
             transaction.commit()
+            create_serial_sequence(schema_name, table_name)
         except Exception as e:
             transaction.rollback()
             app.logger.error("[ERROR] Couldn't restore backup for table '{}'".format(table_name))
@@ -1222,7 +1234,8 @@ class DataLoader:
         transaction = connection.begin()
         try:
             backup_name = '_{}_backup_{}'.format(table_name, timestamp)
-            query = 'DELETE FROM Backups WHERE id_dataset = {} AND backup_name = {};'.format(*_cv(schema_name, backup_name))
+            query = 'DELETE FROM Backups WHERE id_dataset = {} AND backup_name = {};'.format(
+                *_cv(schema_name, backup_name))
             connection.execute(query)
             history.log_action(schema_id, table_name, datetime.now(), "Deleted backup {}.".format(timestamp))
 

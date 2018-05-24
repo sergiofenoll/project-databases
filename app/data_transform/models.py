@@ -425,9 +425,13 @@ class OneHotEncode:
                 create_serial_sequence(schema_name, table_name)
 
                 inverse_query = ''
-                for column in ohe.columns:
-                    inverse_query += 'ALTER TABLE {}.{} DROP COLUMN IF EXISTS {};'.format(*_ci(schema_name, table_name, column))
-                history.log_action(schema_id, table_name, datetime.now(), 'Applied One Hot Encoding to column {}'.format(column_name), inverse_query)
+
+                if len(ohe.columns) == 0:
+                    raise Exception("[ERROR] No values found to encode" + column_name + "' in '." + table_name + "',")
+                else:
+                    for column in ohe.columns:
+                        inverse_query += 'ALTER TABLE {}.{} DROP COLUMN IF EXISTS {};'.format(*_ci(schema_name, table_name, column))
+                    history.log_action(schema_id, table_name, datetime.now(), 'Applied One Hot Encoding to column {}'.format(column_name), inverse_query)
 
             except Exception as e:
                 transaction.rollback()

@@ -1208,7 +1208,7 @@ class DataLoader:
             connection.execute(
                 'CREATE TABLE {}.{} AS TABLE {}.{}'.format(*_ci(schema_name, table_name, schema_name, backup_name)))
             connection.execute(
-                    'DELETE FROM HISTORY WHERE ID_DATASET={} AND ID_TABLE={} AND DATE>'{}';'.format(*_cv(schema_name, table_name), timestamp))
+                    "DELETE FROM HISTORY WHERE ID_DATASET={} AND ID_TABLE={} AND DATE>'{}';".format(*_cv(schema_name, table_name), timestamp))
             transaction.commit()
         except Exception as e:
             transaction.rollback()

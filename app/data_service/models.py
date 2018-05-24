@@ -8,6 +8,7 @@ from psycopg2 import IntegrityError
 
 from app import app, database as db, ACTIVE_USER_TIME_SECONDS, BACKUP_LIMIT
 from app.history.models import History
+from app.data_transform.helpers import create_serial_sequence
 
 history = History()
 
@@ -618,6 +619,8 @@ class DataLoader:
         df.index.name = 'id'
         df.to_sql(name=tablename, con=db.engine, schema=schema_name, index=type_deduction, if_exists='append')
         df.to_sql(name=raw_tablename, con=db.engine, schema=schema_name, index=type_deduction, if_exists='append')
+        if type_deduction:
+            create_serial_sequence(schema_name, tablename)
 
     def process_zip(self, file, schema_id, type_deduction=False):
         """

@@ -348,6 +348,10 @@ class DataLoader:
 
             connection.execute(history_query)
 
+            # Drop deduplication table in case dedup_process aborted
+            dedup_table_query = 'DROP TABLE IF EXISTS {}.{};'.format(*_ci(schema_name, "_dedup_" + name + "_grouped"))
+            connection.execute(dedup_table_query)
+
             transaction.commit()
         except Exception as e:
             transaction.rollback()

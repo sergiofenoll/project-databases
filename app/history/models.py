@@ -3,14 +3,14 @@ from app import app, database as db
 
 def _ci(*args: str):
     if len(args) == 1:
-        return '"{}"'.format(args[0].replace('"', '""'))
-    return ['"{}"'.format(arg.replace('"', '""')) for arg in args]
+        return '"{}"'.format(str(args[0]).replace('"', '""'))
+    return ['"{}"'.format(str(arg).replace('"', '""')) for arg in args]
 
 
 def _cv(*args: str):
     if len(args) == 1:
-        return "'{}'".format(args[0].replace("'", "''"))
-    return ["'{}'".format(arg.replace("'", "''")) for arg in args]
+        return "'{}'".format(str(args[0]).replace("'", "''"))
+    return ["'{}'".format(str(arg).replace("'", "''")) for arg in args]
 
 
 class History:
@@ -22,6 +22,12 @@ class History:
         try:
             db.engine.execute(
                     "INSERT INTO HISTORY (id_dataset, id_table, date, action_desc, inv_query, undone) VALUES ({}, {}, '{}', {}, {}, FALSE)".format(*_cv(dataset_name, table_name), date, *_cv(desc, inverse_query)))
+            if app.config['HISTORY_LIMIT']:
+                db.engine.execute(
+                        'UPDATE HISTORY SET UNDONE=TRUE, INV_QUERY=NULL ' +
+                        'WHERE ACTION_ID=(SELECT MIN(ACTION_ID) FROM HISTORY WHERE ID_DATASET={} AND ID_TABLE={} AND UNDONE=FALSE) '.format(*_cv(dataset_name, table_name)) +
+                        'AND (SELECT COUNT(ACTION_ID) FROM HISTORY WHERE ID_DATASET={} AND ID_TABLE={} AND UNDONE=FALSE)>{};'.format(
+                            *_cv(dataset_name, table_name, app.config['HISTORY_LIMIT'])))
         except Exception as e:
             app.logger.error(
                 "[ERROR] Failed to save action with description {} to history of {}.{}".format(desc, dataset_name,
@@ -63,7 +69,7 @@ class History:
     def undo_action(self, dataset_id, table_name, action_id):
         dataset_name = 'schema-' + str(dataset_id)
         try:
-            inverse_query = db.engine.execute('SELECT INV_QUERY FROM HISTORY WHERE ACTION_ID={}'.format(action_id)).fetchone()[0]
+            inverse_query = db.engine.execute('SELECT INV_QUERY FROM HISTORY WHERE ACTION_ID={} AND UNDONE=FALSE'.format(action_id)).fetchone()[0]
         except Exception as e:
             app.logger.error('[ERROR] Failed to get inverse query from action with id {}'.format(action_id))
             app.logger.exception(e)

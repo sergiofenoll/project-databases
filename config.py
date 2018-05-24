@@ -26,3 +26,4 @@ ALLOWED_EXTENSIONS = ['zip', 'csv', 'dump', 'sql']
 UPLOAD_FOLDER = os.path.join(BASE_DIR, 'input')
 ACTIVE_USER_TIME_SECONDS = 300
 BACKUP_LIMIT = 10
+HISTORY_LIMIT = 20 # set to 0 for unlimited history

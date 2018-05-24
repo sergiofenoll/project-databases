@@ -310,7 +310,7 @@ class DataLoader:
                 query = query.format(*_ci(schema_name, name))
 
                 try:
-                    db.engine.execute(query)
+                    connection.execute(query)
                     if raw:
                         connection.execute(raw_table_query)
                 except Exception as e:

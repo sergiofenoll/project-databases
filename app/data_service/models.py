@@ -344,7 +344,6 @@ class DataLoader:
             connection.execute(metadata_query)
 
             # Delete history
-            schema_name = schema_id
             history_query = 'DELETE FROM HISTORY WHERE id_dataset={} AND id_table={};'.format(*_cv(schema_name, name))
 
             # Delete backups
@@ -423,7 +422,6 @@ class DataLoader:
             if predicate[2] == "CONTAINS":
                 predicate[2] = "LIKE"
                 predicate[3] = "%%" + predicate[3] + "%%"
-            # TODO: make this safe!
             if p_ix == 0:
                 q = '{0} {1} {2}'.format(_ci(predicate[1]), predicate[2], _cv(str(predicate[3])))
                 where_queries.append(q)

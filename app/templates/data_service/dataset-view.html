@@ -145,7 +145,7 @@
         <div class="modal fade" id="uploadFileModal" tabindex="-1" role="dialog">
             <div class="modal-dialog" role="document">
                 <div class="modal-content">
-                    <form action="/datasets/{{ ds.id }}" method="post" enctype=multipart/form-data>
+                    <form class="form-group" action="/datasets/{{ ds.id }}" method="post" enctype=multipart/form-data>
                         <div class="modal-header">
                             <h5 class="modal-title">Upload data</h5>
                             <button type="button" class="close" data-dismiss="modal" aria-label="Close">
@@ -153,9 +153,22 @@
                             </button>
                         </div>
                         <div class="modal-body">
-                            <label for="ds-files">Supported extensions: CSV, ZIP, DUMP</label>
+                            <label for="ds-files">Supported extensions: CSV, ZIP, DUMP, SQL</label>
                             <input type="file" class="form-control-file" name="file" id="ds-files"
-                                   accept=".csv,.zip,.dump">
+                                   accept=".csv,.zip,.dump,.sql" required>
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="checkbox" name="ds-type-deduction"
+                                       id="ds-type-deduction" data-user="ds-type-deduction">
+                                <label class="form-check-label">Automatic type deduction</label>
+                            </div>
+                            <input type="text" name="ds-table-name" id="ds-table-name" class="form-control show-input"
+                                   placeholder="Table name" style="display:none">
+                            <textarea name="ds-table-desc" id="ds-table-desc" class="form-control show-input"
+                                      value="Default description" style="display:none">Default description</textarea>
+                            <small class="form-text text-muted">
+                                If a zip file is uploaded, default name (file name) and description will be used for
+                                every table.
+                            </small>
                         </div>
                         <div class="modal-footer">
                             <button type="submit" class="btn btn-primary">Upload</button>
@@ -314,11 +327,11 @@
                                            placeholder="Table description" required>
                                 </div>
                             </div>
-                            <div class="modal-footer">
-                                <button type="submit" class="btn btn-primary">Upload</button>
-                                <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
-                            </div>
-                        </form>
+                            <button type="submit" class="btn btn-primary">Upload</button>
+                            <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                    </div>
+                    </form>
+                    <div class="modal-footer">
                     </div>
                 </div>
             </div>
@@ -373,5 +386,19 @@
                 }
             });
         }
+
+        $("input[type=file]").on('change', function () {
+            if (this.files[0].name.substr(this.files[0].name.length - 4) == ".csv" ||
+
+                this.files[0].name.substr(this.files[0].name.length - 4) == ".sql" ||
+
+                this.files[0].name.substr(this.files[0].name.length - 5) == ".dump") {
+                $('.show-input').show();
+            }
+            else {
+                $('.show-input').hide();
+            }
+        });
+
     </script>
 {% endblock %}

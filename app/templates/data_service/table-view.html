@@ -23,7 +23,7 @@
                                 </tr>
                                 <tr>
                                     <td><a class="btn btn-light panel-button" id="removeRow" href="#"><i
-                                            class="fas fa-minus-circle"></i>
+                                               class="fas fa-minus-circle"></i>
                                         Remove selected row(s)</a></td>
                                 </tr>
                                 <tr>
@@ -31,6 +31,12 @@
                                            data-target="#removePredicate" href="#removePredicate"><i
                                             class="fas fa-minus-circle"></i>
                                         Remove by predicate</a></td>
+                                </tr>
+                                <tr>
+                                    <td><a class="btn btn-light panel-button" data-toggle="modal"
+                                           data-target="#removeIdenticalRowsAlg" href="#removeIdenticalRowsAlg"><i
+                                            class="fas fa-minus-circle"></i>
+                                        Deduplicate table</a></td>
                                 </tr>
                             </table>
                         </div>
@@ -193,11 +199,18 @@
                     var dynamicForms = new DynamicForms();
                     dynamicForms.automaticallySetupForm();
                     var table = $('#dataTable').DataTable({
+                        colReorder: true,
+                        colReorder: {
+                            fixedColumnsLeft: 1
+                        },
                         scrollX: "auto",
                         scrollY: "50vh",
                         scrollCollapse: true,
                         processing: true,
                         serverSide: true,
+                        stateSave: true,
+                        dom: 'Blfrtip',
+                        buttons: ['colvis'],
                         ajax: '/api' + window.location.pathname,
                         order: [[1, 'asc']],
                         rowsDefs: [{}],
@@ -206,10 +219,15 @@
                             searchable: false,
                             orderable: false,
                             width: '1%', // min width
-                            render: function (data) {
+                             render: function (data) {
                                 return '<input type="checkbox" class="form-check" name="row-' + data + '" id="row-' + data + '">';
                             }
-                        }]
+                        }],
+                        columns: [
+                        {% for column in table.columns %}
+                             { data: "{{ column.name}}" }{{ "," if not loop.last}}
+                        {% endfor %}
+                        ]
                     });
                     $('#removeRow').click(function () {
                         $.ajax({

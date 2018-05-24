@@ -1,9 +1,9 @@
 import csv
 import re
 import shutil
+import pandas as pd
 from datetime import datetime
 from zipfile import ZipFile
-
 from psycopg2 import IntegrityError
 
 from app import app, database as db, ACTIVE_USER_TIME_SECONDS, BACKUP_LIMIT
@@ -44,12 +44,13 @@ class Column:
 
 
 class Table:
-    def __init__(self, name, desc, rows=None, columns=None, active_users_count=0):
+    def __init__(self, name, desc, rows=None, columns=None, active_users_count=0, total_size=0):
         self.name = name
         self.desc = desc
         self.rows = rows or []
         self.columns = columns or []
         self.active_users_count = active_users_count
+        self.total_size = total_size
 
     def __eq__(self, other):
         return self.name == other.name and self.desc == other.desc
@@ -232,20 +233,18 @@ class DataLoader:
 
         # Clean up the access & dataset tables
         try:
-            id = schema_id.split('-')[1]
-            db.engine.execute('INSERT INTO Available_Schema (id) VALUES ({})'.format(_cv(id)))
+            schema_name = "schema-" + str(schema_id)
+            db.engine.execute('INSERT INTO Available_Schema (id) VALUES ({})'.format(_cv(schema_id)))
 
-            db.engine.execute('DELETE FROM Dataset WHERE id = {};'.format(_cv(str(schema_id))))
+            db.engine.execute('DELETE FROM Dataset WHERE id = {};'.format(_cv(schema_name)))
 
-            db.engine.execute('DROP SCHEMA IF EXISTS {} CASCADE;'.format(_ci(schema_id)))
+            db.engine.execute('DROP SCHEMA IF EXISTS {} CASCADE;'.format(_ci(schema_name)))
 
             # check if there are datasets. If not, clean available_schema
             rows = db.engine.execute('SELECT COUNT(*) FROM Dataset;')
             count = rows.first()[0]  # Amount of already existing schemas
             if count == 0:
                 db.engine.execute('TRUNCATE Available_Schema;')
-
-            db.engine.execute('DROP SCHEMA IF EXISTS {} CASCADE;'.format(_ci(schema_id)))
 
         except Exception as e:
             app.logger.error("[ERROR] Failed to properly remove dataset '" + schema_id + "'")
@@ -271,10 +270,11 @@ class DataLoader:
         """
          This method returns a bool representing whether the given table exists
         """
+        schema_name = 'schema-' + str(schema_id)
         try:
             rows = db.engine.execute(
                 'SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE  table_schema = {} AND table_name = {});'.format(
-                    *_cv(str(schema_id), name)))
+                    *_cv(schema_name, name)))
             row = rows.first()
 
             return row[0]
@@ -284,33 +284,34 @@ class DataLoader:
             app.logger.exception(e)
             raise e
 
-    def create_table(self, name, schema_id, columns, desc="Default description", raw=False):
+    def create_table(self, name, schema_id, columns, desc="Default description", raw=False, metadata_only=False):
         """
          This method takes a schema, name and a list of columns and creates the corresponding table
         """
         schema_name = 'schema-' + str(schema_id)
 
-        query = 'CREATE TABLE {}.{} ('
+        if not metadata_only:
+            query = 'CREATE TABLE {}.{} ('
 
-        query += 'id serial primary key'  # Since we don't know what the actual primary key should be, just assign an id
+            query += 'id serial primary key'  # Since we don't know what the actual primary key should be, just assign an id
 
-        for column in columns:
-            query = query + ', \n\"' + column + '\" varchar(255)'
-        query += '\n);'
+            for column in columns:
+                query = query + ', \n\"' + column + '\" varchar(255)'
+            query += '\n);'
 
-        raw_table_name = "_raw_" + name
-        raw_table_query = query.format(*_ci(schema_name, raw_table_name))
+            raw_table_name = "_raw_" + name
+            raw_table_query = query.format(*_ci(schema_name, raw_table_name))
 
-        query = query.format(*_ci(schema_name, name))
+            query = query.format(*_ci(schema_name, name))
 
-        try:
-            db.engine.execute(query)
-            if raw:
-                db.engine.execute(raw_table_query)
-        except Exception as e:
-            app.logger.error("[ERROR] Failed to create table '" + name + "'")
-            app.logger.exception(e)
-            raise e
+            try:
+                db.engine.execute(query)
+                if raw:
+                    db.engine.execute(raw_table_query)
+            except Exception as e:
+                app.logger.error("[ERROR] Failed to create table '" + name + "'")
+                app.logger.exception(e)
+                raise e
 
         # Log action to history
         history.log_action(schema_id, name, datetime.now(), 'Created table', 
@@ -331,9 +332,10 @@ class DataLoader:
         connection = db.engine.connect()
         transaction = connection.begin()
         try:
+            schema_name = 'schema-' + str(schema_id)
             # Delete table
-            table_query = 'DROP TABLE {}.{};'.format(*_ci(schema_id, name))
-            raw_table_query = 'DROP TABLE IF EXISTS {}.{};'.format(*_ci(schema_id, "_raw_" + name))
+            table_query = 'DROP TABLE {}.{};'.format(*_ci(schema_name, name))
+            raw_table_query = 'DROP TABLE IF EXISTS {}.{};'.format(*_ci(schema_name, "_raw_" + name))
             connection.execute(table_query)
             connection.execute(raw_table_query)
 
@@ -344,6 +346,12 @@ class DataLoader:
             # Delete history
             schema_name = schema_id
             history_query = 'DELETE FROM HISTORY WHERE id_dataset={} AND id_table={};'.format(*_cv(schema_name, name))
+
+            # Delete backups
+            backups = self.get_backups(schema_id, name)
+            for backup in backups:
+                self.delete_backup(schema_id, name, backup)
+
             connection.execute(history_query)
 
             transaction.commit()
@@ -553,7 +561,7 @@ class DataLoader:
                            'Updated column ' + column_name + ' to have type ' + column_type, inverse_query)
 
     # Data uploading handling
-    def process_csv(self, file, schema_id, tablename, append=False):
+    def process_csv(self, file, schema_id, tablename, table_description='Default description', append=False, type_deduction=False):
         """
          This method takes a filename for a CSV file and processes it into a table.
          A table name should be provided by the user / caller of this method.
@@ -568,9 +576,6 @@ class DataLoader:
             app.logger.error("[ERROR] Cannot overwrite existing table.")
             return
 
-        import pandas as pd
-
-        # TODO: Test if this works
         raw_tablename = '_raw_' + tablename
         schema_name = 'schema-' + str(schema_id)
 
@@ -578,14 +583,22 @@ class DataLoader:
             for line in csv:
                 if not append:
                     columns = line.strip().split(',')
-                    self.create_table(tablename, schema_id, columns, raw=True)
+                    if not type_deduction:
+                        self.create_table(tablename, schema_id, columns, desc=table_description, raw=True)
+                    else:
+                        # Fancy
+                        self.create_table(tablename, schema_id, columns, desc=table_description, metadata_only=True)
                 break
 
         df = pd.read_csv(file)
-        df.to_sql(name=tablename, con=db.engine, schema=schema_name, index=False, if_exists='append')
-        df.to_sql(name=raw_tablename, con=db.engine, schema=schema_name, index=False, if_exists='append')
+        for column in df.columns:
+            if pd.api.types.is_string_dtype(df[column]):
+                df[column] = pd.to_datetime(df[column], errors='ignore')
+        df.index.name = 'id'
+        df.to_sql(name=tablename, con=db.engine, schema=schema_name, index=type_deduction, if_exists='append')
+        df.to_sql(name=raw_tablename, con=db.engine, schema=schema_name, index=type_deduction, if_exists='append')
 
-    def process_zip(self, file, schema_id):
+    def process_zip(self, file, schema_id, type_deduction=False):
         """
          This method takes a ZIP archive filled with CSV files, and processes them individually
          The name of the CSV file will be used as table name. If a table with the same name is found
@@ -610,9 +623,9 @@ class DataLoader:
                     create_new = not self.table_exists(tablename, schema_id)
 
                     if create_new:
-                        self.process_csv(csv, schema_id, tablename)
+                        self.process_csv(csv, schema_id, tablename, type_deduction=type_deduction)
                     else:
-                        self.process_csv(csv, schema_id, tablename, True)
+                        self.process_csv(csv, schema_id, tablename, True, type_deduction=type_deduction)
 
                 # Clean up temp folder
                 shutil.rmtree("../output/temp")
@@ -628,7 +641,7 @@ class DataLoader:
 
             raise e
 
-    def process_dump(self, file, schema_id):
+    def process_dump(self, file, schema_id, table_name, table_description='Default description',):
 
         """
          This method takes a SQL dump file and processes the INSERT statements,
@@ -645,7 +658,7 @@ class DataLoader:
                         # NOTE: An INSERT statement looks like this:
                         # INSERT INTO table_name (column1, column2, column3, ...) VALUES (value1, value2, value3, ...);
 
-                        tablename = statement.split()[2]
+                        tablename = statement.split()[2] or table_name
                         values_list = list()
                         for values_tuple in re.findall(r'\(.*?\)', statement[statement.find('VALUES'):]):
                             # Tuple is any match of the above regex, e.g. (values1, values2, values3, ...)
@@ -660,7 +673,7 @@ class DataLoader:
                             columns = ['col' + str(i) for i in range(1, len(values_list[0]) + 1)]
 
                         if not self.table_exists(tablename, schema_id):
-                            self.create_table(tablename, schema_id, columns, True)
+                            self.create_table(tablename, schema_id, columns, True, desc=table_description)
                         for values in values_list:
                             val_dict = dict()
                             for c_ix in range(len(columns)):
@@ -851,7 +864,6 @@ class DataLoader:
          This method returns a list of 'Table' objects associated with the requested dataset
         """
         try:
-
             columns = self.get_column_names(schema_id, table_name)
 
             schema_name = 'schema-' + str(schema_id)
@@ -863,7 +875,7 @@ class DataLoader:
 
             search_query = ''
             if search is not None and search != '':
-                search_query = "WHERE (";
+                search_query = "WHERE ("
                 # Fill in the search for every column except ID
                 for col in columns[1:]:
                     search_query += "{}::text LIKE '%%{}%%' OR ".format(_ci(col), search)
@@ -873,8 +885,13 @@ class DataLoader:
                 'SELECT * FROM {}.{} {} {} LIMIT {} OFFSET {};'.format(*_ci(schema_name, table_name), search_query,
                                                                        ordering_query, limit, offset))
 
+            # Get total size (of unfiltered table)
+            size_query = 'SELECT count(*) FROM {}.{}'.format(*_ci(schema_name, table_name))
+            size_result = db.engine.execute(size_query)
+            table_size = [r[0] for r in size_result][0]
+
             table = Table(table_name, '',
-                          columns=self.get_column_names_and_types(schema_id, table_name))
+                          columns=self.get_column_names_and_types(schema_id, table_name), total_size=table_size)
             for row in rows:
                 table.rows.append(list(row))
             return table
@@ -1151,8 +1168,7 @@ class DataLoader:
         """
         schema_name = "schema-" + str(schema_id)
         try:
-            query = 'SELECT timestamp::VARCHAR FROM Backups WHERE id_dataset = {} AND table_name = {}'.format(
-                *_cv(schema_name, table_name))
+            query = 'SELECT timestamp FROM Backups WHERE id_dataset = {} AND table_name = {}'.format(*_cv(schema_name, table_name))
             rows = db.engine.execute(query)
 
             timestamps = [str(ts[0]) for ts in rows]
@@ -1197,10 +1213,13 @@ class DataLoader:
         transaction = connection.begin()
         try:
             backup_name = '_{}_backup_{}'.format(table_name, timestamp)
-            query = 'DELETE FROM Backups WHERE id_dataset = {} AND backup_name = {}'.format(
-                *_cv(schema_name, backup_name))
+            query = 'DELETE FROM Backups WHERE id_dataset = {} AND backup_name = {};'.format(*_cv(schema_name, backup_name))
             connection.execute(query)
             history.log_action(schema_id, table_name, datetime.now(), "Deleted backup {}.".format(timestamp))
+
+            query = 'DROP TABLE IF EXISTS {}.{};'.format(
+                *_ci(schema_name, backup_name))
+            connection.execute(query)
             transaction.commit()
         except Exception as e:
             transaction.rollback()

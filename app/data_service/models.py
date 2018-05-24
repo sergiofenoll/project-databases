@@ -605,6 +605,7 @@ class DataLoader:
                         # INSERT INTO table_name (column1, column2, column3, ...) VALUES (value1, value2, value3, ...);
 
                         tablename = statement.split()[2] or table_name
+                        raw_table_name = "_raw_" + tablename
                         values_list = list()
                         for values_tuple in re.findall(r'\(.*?\)', statement[statement.find('VALUES'):]):
                             # Tuple is any match of the above regex, e.g. (values1, values2, values3, ...)
@@ -619,12 +620,13 @@ class DataLoader:
                             columns = ['col' + str(i) for i in range(1, len(values_list[0]) + 1)]
 
                         if not self.table_exists(tablename, schema_id):
-                            self.create_table(tablename, schema_id, columns, True, desc=table_description)
+                            self.create_table(tablename, schema_id, columns, desc=table_description, raw=True)
                         for values in values_list:
                             val_dict = dict()
                             for c_ix in range(len(columns)):
                                 val_dict[columns[c_ix]] = values[c_ix]
                             self.insert_row(tablename, schema_id, columns, val_dict, False)
+                            self.insert_row(raw_table_name, schema_id, columns, val_dict, False)
             transaction.commit()
 
         except Exception as e:

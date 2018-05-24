@@ -40,6 +40,16 @@ class DataTransformer:
             if not average:
                 average = 0
 
+            columns = DataLoader().get_column_names_and_types(schema_id, table)
+            type = ""
+
+            for column_t in columns:
+                if column_t.name == column:
+                    type = column_t.type
+                    break
+            if type == "integer":
+                average = int(round(average))
+
             null_rows = [row['id'] for row in db.engine.execute(
                 'SELECT id from {}.{} WHERE {} IS NULL;'.format(*_ci(schema_name, table, column))).fetchall()]
 

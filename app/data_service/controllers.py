@@ -261,6 +261,26 @@ def show_dedup_data_alg(dataset_id, table_name):
         return redirect(url_for('data_service.get_table', dataset_id=dataset_id, table_name=table_name), code=303)
 
 
+@data_service.route('/datasets/<int:dataset_id>/tables/<string:table_name>/show-dedup-data-alg/sty', methods=['POST'])
+def remove_or_mark_identical_rows_alg_sty(dataset_id, table_name):
+    try:
+        row_ids = [key.split('-')[1] for key in request.args]
+
+        # Mark given id's as 'to_delete' and remove associated cluster from dedup_table_grouped
+        data_deduplicator.add_rows_to_delete(dataset_id, table_name, row_ids)
+
+        flash(u"Rows have been marked for deletion'.", 'success')
+        return jsonify({'success': True, 'reload': True, 'redirect': False}), 200
+
+    except Exception:
+        # Clean dedup tables from db
+        data_deduplicator.delete_dedup_table(dataset_id, table_name)
+        flash(u"Rows couldn't be marked for deletion.", 'warning')
+
+        return jsonify({'error': True, 'reload': False, 'redirect': True,
+                        'url': url_for('data_service.get_table', dataset_id=dataset_id, table_name=table_name)}), 400
+
+
 @data_service.route('/datasets/<int:dataset_id>/tables/<string:table_name>/show-dedup-data-alg/ctu', methods=['POST'])
 def remove_or_mark_identical_rows_alg_ctu(dataset_id, table_name):
     try:

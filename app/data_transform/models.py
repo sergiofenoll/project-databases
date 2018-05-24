@@ -432,7 +432,7 @@ class DataDeduplicator:
             db.engine.execute(drop_dedup_query)
 
             query = "CREATE OR REPLACE VIEW {}.{} AS ".format(*_ci(schema_name, dedup_view_name))
-            query += "SELECT t1.*, t2.\"group_id\" FROM {0}.{1} as t1, {0}.{2} as t2 WHERE t1.\"id\"=t2.\"id\";".format(
+            query += "SELECT t1.*, t2.\"group_id\" FROM {0}.{1} as t1, {0}.{2} as t2 WHERE t1.\"id\"=t2.\"id\" AND \"delete\"=False;".format(
                 *_ci(schema_name, table_name, dedup_table_name))
 
             db.engine.execute(query)

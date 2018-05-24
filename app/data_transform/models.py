@@ -358,7 +358,7 @@ class NumericalTransformations:
                     'DELETE FROM {}.{} WHERE {} > {}'.format(*_ci(schema_name, table_name, column_name), _cv(value)))
 
             inverse_query = ''
-            for row in outlier_row:
+            for row in outlier_rows:
                 inverse_query += 'INSERT INTO {}.{} ({});'.format(*_ci(schema_name, table_name), ', '.join(_cv(row)))
             history.log_action(schema_id, table_name, datetime.now(),
                     'Removed outliers from column {}'.format(column_name), inverse_query)

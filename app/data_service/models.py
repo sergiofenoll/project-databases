@@ -992,6 +992,9 @@ class DataLoader:
             db.engine.execute(
                 'UPDATE metadata SET (id_table, metadata) = ({}, {}) WHERE id_dataset={} AND id_table={}'.format(
                     *_cv(new_table_name, new_desc, schema_name, old_table_name)))
+            db.engine.execute(
+                'UPDATE history SET id_table={} WHERE id_dataset={} and id_table={}'.format(
+                    *_cv(new_table_name, schema_name, old_table_name)))
             if new_table_name != old_table_name:
                 db.engine.execute(
                     'ALTER TABLE {}.{} RENAME TO {};'.format(*_ci(schema_name, old_table_name, new_table_name)))

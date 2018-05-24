@@ -91,7 +91,7 @@ class DataTransformer:
             db.engine.execute('UPDATE {0}.{1} SET {2} = {3} WHERE {2} IS NULL;'.format(*_ci(schema_name, table, column),
                                                                                        _cv(value)))
             inverse_query = 'UPDATE {}.{} SET {} = NULL WHERE id in ({});'.format(*_ci(schema_name, table, column), ', '.join(_cv(row) for row in null_rows))
-            history.log_action(schema_id, table, datetime.now(), 'Imputed missing data on ' + function.lower(), inerse_query)
+            history.log_action(schema_id, table, datetime.now(), 'Imputed missing data on ' + function.lower(), inverse_query)
 
         except Exception as e:
             app.logger.error("[ERROR] Unable to impute missing data for column {}".format(column))

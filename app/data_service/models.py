@@ -288,45 +288,58 @@ class DataLoader:
         """
          This method takes a schema, name and a list of columns and creates the corresponding table
         """
-        schema_name = 'schema-' + str(schema_id)
 
-        if not metadata_only:
-            query = 'CREATE TABLE {}.{} ('
-
-            query += 'id serial primary key'  # Since we don't know what the actual primary key should be, just assign an id
-
-            for column in columns:
-                query = query + ', \n\"' + column + '\" varchar(255)'
-            query += '\n);'
-
+        connection = db.engine.connect()
+        transaction = connection.begin()
+        try:
+            schema_name = 'schema-' + str(schema_id)
             raw_table_name = "_raw_" + name
-            raw_table_query = query.format(*_ci(schema_name, raw_table_name))
+            if not metadata_only:
+                query = 'CREATE TABLE {}.{} ('
 
-            query = query.format(*_ci(schema_name, name))
+                query += 'id serial primary key'  # Since we don't know what the actual primary key should be, just assign an id
 
+                for column in columns:
+                    query = query + ', \n\"' + column + '\" varchar(255)'
+                query += '\n);'
+
+
+                raw_table_query = query.format(*_ci(schema_name, raw_table_name))
+
+                query = query.format(*_ci(schema_name, name))
+
+                try:
+                    db.engine.execute(query)
+                    if raw:
+                        connection.execute(raw_table_query)
+                except Exception as e:
+                    app.logger.error("[ERROR] Failed to create table '" + name + "'")
+                    app.logger.exception(e)
+                    raise e
+
+            # Add metadata for this table
             try:
-                db.engine.execute(query)
-                if raw:
-                    db.engine.execute(raw_table_query)
+                connection.execute('INSERT INTO metadata VALUES({}, {}, {});'.format(*_cv(schema_name, name, desc)))
             except Exception as e:
-                app.logger.error("[ERROR] Failed to create table '" + name + "'")
+                app.logger.error("[ERROR] Failed to insert metadata for table '" + name + "'")
                 app.logger.exception(e)
                 raise e
 
-        # Log action to history
-        history.log_action(schema_id, name, datetime.now(), 'Created table', 
-            'DROP TABLE IF EXISTS {}.{};'.format(*_ci(schema_name, name)) +
-            'DROP TABLE IF EXISTS {}.{};'.format(*_ci(schema_name, raw_table_name)) +
-            'DELETE FROM METADATA WHERE ID_DATASET={} AND ID_TABLE={};'.format(*_cv(schema_name, name)) +
-            'DELETE FROM HISTORY WHERE ID_DATASET={} AND ID_TABLE={};'.format(*_cv(schema_name, name)))
+            # Log action to history
+            history.log_action(schema_id, name, datetime.now(), 'Created table',
+                'DROP TABLE IF EXISTS {}.{};'.format(*_ci(schema_name, name)) +
+                'DROP TABLE IF EXISTS {}.{};'.format(*_ci(schema_name, raw_table_name)) +
+                'DELETE FROM METADATA WHERE ID_DATASET={} AND ID_TABLE={};'.format(*_cv(schema_name, name)) +
+                'DELETE FROM HISTORY WHERE ID_DATASET={} AND ID_TABLE={};'.format(*_cv(schema_name, name)))
 
-        # Add metadata for this table
-        try:
-            db.engine.execute('INSERT INTO metadata VALUES({}, {}, {});'.format(*_cv(schema_name, name, desc)))
+            transaction.commit()
+
         except Exception as e:
-            app.logger.error("[ERROR] Failed to insert metadata for table '" + name + "'")
+            transaction.rollback()
+            app.logger.error("[ERROR] Failed to delete table '" + name + "'")
             app.logger.exception(e)
             raise e
+
 
     def delete_table(self, name, schema_id):
         connection = db.engine.connect()

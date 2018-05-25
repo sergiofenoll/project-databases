@@ -524,7 +524,7 @@ class DataLoader:
 
         # Log action to history
         if add_history:
-            row_id = db.engine.execute('SELECT MAX(id) FROM {}.{}'.format(*_ci(schemaname, table))).fetchone()[0]
+            row_id = db.engine.execute('SELECT MAX(id) FROM {}.{};'.format(*_ci(schemaname, table))).fetchone()[0]
             inverse_query = 'DELETE FROM {}.{} WHERE id={};'.format(*_ci(schemaname, table), _cv(row_id))
             history.log_action(schema_id, table, datetime.now(), 'Added row with values ' + ' '.join(values),
                                inverse_query)
@@ -541,7 +541,7 @@ class DataLoader:
             raise e
 
         # Log action to history
-        inverse_query = 'ALTER TABLE {}.{} DROP COLUMN IF EXISTS {}'.format(*_ci(schema_name, table_name, column_name))
+        inverse_query = 'ALTER TABLE {}.{} DROP COLUMN IF EXISTS {};'.format(*_ci(schema_name, table_name, column_name))
         history.log_action(schema_id, table_name, datetime.now(), 'Added column with name ' + column_name,
                            inverse_query)
 

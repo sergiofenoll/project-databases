@@ -167,7 +167,7 @@ class DataTransformer:
             query = 'UPDATE {0}.{1} SET {2} = regexp_replace({2}, {3}, {4})'.format(*_ci(schema_name, table, column),
                                                                                     *_cv(regex, replacement))
             updated_rows = [(row['id'], row[column]) for row in db.engine.execute('SELECT id, {2} FROM {0}.{1} WHERE {2} LIKE {3}'.format(
-                schema_name, table, column, regex)).fetchall()]
+                *_ci(schema_name, table, column), _cv(regex))).fetchall()]
             inverse_query = 'UPDATE {}.{} SET {} = CASE id\n'.format(*_ci(schema_name, table, column))
             row_ids = []
             for row_id, original_data in updated_rows:
@@ -294,7 +294,7 @@ class NumericalTransformations:
         transaction = connection.begin()
         try:
             schema_name = 'schema-' + str(schema_id)
-            df = pd.read_sql_query('SELECT * FROM "{}"."{}"'.format(schema_name, table_name), db.engine)
+            df = pd.read_sql_query('SELECT * FROM {}.{}'.format(*_ci(schema_name, table_name)), db.engine)
             new_column_name = column_name + '_intervals_eq_f_' + str(num_intervals)
 
             sorted_data = list(df[column_name].sort_values())
@@ -323,7 +323,7 @@ class NumericalTransformations:
         transaction = connection.begin()
         try:
             schema_name = 'schema-' + str(schema_id)
-            df = pd.read_sql_query('SELECT * FROM "{}"."{}"'.format(schema_name, table_name), db.engine)
+            df = pd.read_sql_query('SELECT * FROM {}.{}'.format(*_ci(schema_name, table_name)), db.engine)
             new_column_name = column_name + '_intervals_custom'
 
             df[new_column_name] = pd.cut(df[column_name], intervals).apply(str)
@@ -371,7 +371,7 @@ class NumericalTransformations:
 
     def chart_data_numerical(self, schema_id, table_name, column_name):
         schema_name = 'schema-' + str(schema_id)
-        df = pd.read_sql_query('SELECT * FROM "{}"."{}"'.format(schema_name, table_name), db.engine)
+        df = pd.read_sql_query('SELECT * FROM {}.{}'.format(*_ci(schema_name, table_name)), db.engine)
 
         intervals = pd.cut(df[column_name], 10).value_counts().sort_index()
         data = {
@@ -384,7 +384,7 @@ class NumericalTransformations:
 
     def chart_data_categorical(self, schema_id, table_name, column_name):
         schema_name = 'schema-' + str(schema_id)
-        df = pd.read_sql_query('SELECT * FROM "{}"."{}"'.format(schema_name, table_name), db.engine)
+        df = pd.read_sql_query('SELECT * FROM {}.{}'.format(*_ci(schema_name, table_name)), db.engine)
 
         intervals = df[column_name].value_counts().sort_index()
         data = {

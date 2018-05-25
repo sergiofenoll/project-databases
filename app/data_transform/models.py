@@ -168,12 +168,12 @@ class DataTransformer:
                                                                                     *_cv(regex, replacement))
             updated_rows = [(row['id'], row[column]) for row in db.engine.execute('SELECT id, {2} FROM {0}.{1} WHERE {2} LIKE {3};'.format(
                 *_ci(schema_name, table, column), _cv(regex))).fetchall()]
-            inverse_query = 'UPDATE {}.{} SET {} = CASE id\n'.format(*_ci(schema_name, table, column))
+            inverse_query = 'UPDATE {}.{} SET {} = CASE id '.format(*_ci(schema_name, table, column))
             row_ids = []
             for row_id, original_data in updated_rows:
                 row_ids.append(row_id)
-                inverse_query += '\tCASE {} THEN {}\n'.format(row_id, data)
-            inverse_query += 'WHERE id IN ({})\nEND;'.format(', '.join(_cv(row_ids)))
+                inverse_query += 'WHEN {} THEN {} '.format(*_cv(row_id, original_data))
+            inverse_query += 'END WHERE id IN ({});'.format(', '.join(_cv(row_id) for row_id in row_ids))
             db.engine.execute(query)
             history.log_action(schema_id, table, datetime.now(), 'Used find and replace', inverse_query)
         except Exception as e:

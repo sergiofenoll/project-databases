@@ -34,7 +34,7 @@ class DataTransformer:
         """" impute missing data based on the average"""
         try:
             schema_name = 'schema-' + str(schema_id)
-            rows = db.engine.execute('SELECT AVG({}) FROM {}.{}'.format(*_ci(column, schema_name, table)))
+            rows = db.engine.execute('SELECT AVG({}) FROM {}.{};'.format(*_ci(column, schema_name, table)))
 
             average = rows.first()[0]
             if not average:
@@ -68,7 +68,7 @@ class DataTransformer:
         try:
             schema_name = 'schema-' + str(schema_id)
 
-            rows = db.engine.execute('SELECT {} FROM {}.{}'.format(*_ci(column, schema_name, table)))
+            rows = db.engine.execute('SELECT {} FROM {}.{};'.format(*_ci(column, schema_name, table)))
             values = list()
             for value in rows:
                 if value[0] is not None:
@@ -129,12 +129,12 @@ class DataTransformer:
             schema_name = 'schema-' + str(schema_id)
             query = ""
             if replacement_function == "substring":
-                updated_rows = [row['id'] for row in db.engine.execute('SELECT id FROM {}.{} WHERE {} LIKE {}'.format(
+                updated_rows = [row['id'] for row in db.engine.execute('SELECT id FROM {}.{} WHERE {} LIKE {};'.format(
                     *_ci(schema_name, table, column), _cv('%%'+replacement+'%%'))).fetchall()]
                 query = 'UPDATE {0}.{1} SET {2} = REPLACE({2}, {3}, {4});'.format(*_ci(schema_name, table, column),
                                                                                   *_cv(to_be_replaced, replacement))
             elif replacement_function == "full replace":
-                updated_rows = [row['id'] for row in db.engine.execute('SELECT id FROM {}.{} WHERE {}={}'.format(
+                updated_rows = [row['id'] for row in db.engine.execute('SELECT id FROM {}.{} WHERE {}={};'.format(
                     *_ci(schema_name, table, column), _cv(replacement))).fetchall()]
                 query = 'UPDATE {0}.{1} SET {2} = {3} WHERE {2} = {4};'.format(*_ci(schema_name, table, column),
                                                                                *_cv(replacement, to_be_replaced))
@@ -164,9 +164,9 @@ class DataTransformer:
             regex = regex.replace('%', '%%')
 
             schema_name = 'schema-' + str(schema_id)
-            query = 'UPDATE {0}.{1} SET {2} = regexp_replace({2}, {3}, {4})'.format(*_ci(schema_name, table, column),
+            query = 'UPDATE {0}.{1} SET {2} = regexp_replace({2}, {3}, {4});'.format(*_ci(schema_name, table, column),
                                                                                     *_cv(regex, replacement))
-            updated_rows = [(row['id'], row[column]) for row in db.engine.execute('SELECT id, {2} FROM {0}.{1} WHERE {2} LIKE {3}'.format(
+            updated_rows = [(row['id'], row[column]) for row in db.engine.execute('SELECT id, {2} FROM {0}.{1} WHERE {2} LIKE {3};'.format(
                 *_ci(schema_name, table, column), _cv(regex))).fetchall()]
             inverse_query = 'UPDATE {}.{} SET {} = CASE id\n'.format(*_ci(schema_name, table, column))
             row_ids = []
@@ -202,7 +202,7 @@ class DateTimeTransformer:
             raise e
 
         # Log action to history
-        inverse_query = 'ALTER TABLE {}.{} DROP COLUMN IF EXISTS {}'.format(*_ci(schema_name, table, new_column))
+        inverse_query = 'ALTER TABLE {}.{} DROP COLUMN IF EXISTS {};'.format(*_ci(schema_name, table, new_column))
         history.log_action(schema_id, table, datetime.now(), 'Extracted ' + element + ' from column ' + column, inverse_query)
 
     def extract_date_or_time(self, schema_id, table, column, element):
@@ -220,7 +220,7 @@ class DateTimeTransformer:
             raise e
 
         # Log action to history
-        inverse_query = 'ALTER TABLE {}.{} DROP COLUMN IF EXISTS {}'.format(*_ci(schema_name, table, new_column))
+        inverse_query = 'ALTER TABLE {}.{} DROP COLUMN IF EXISTS {};'.format(*_ci(schema_name, table, new_column))
         history.log_action(schema_id, table, datetime.now(), 'Extracted ' + element + ' from column ' + column, inverse_query)
 
     def get_transformations(self):
@@ -249,7 +249,7 @@ class NumericalTransformations:
         transaction = connection.begin()
         try:
             schema_name = 'schema-' + str(schema_id)
-            df = pd.read_sql_query('SELECT * FROM "{}"."{}"'.format(schema_name, table_name), db.engine)
+            df = pd.read_sql_query('SELECT * FROM {}.{};'.format(*_ci(schema_name, table_name)), db.engine)
             new_column_name = column_name + '_norm'
 
             df[new_column_name] = df[column_name]
@@ -273,7 +273,7 @@ class NumericalTransformations:
         transaction = connection.begin()
         try:
             schema_name = 'schema-' + str(schema_id)
-            df = pd.read_sql_query('SELECT * FROM "{}"."{}"'.format(schema_name, table_name), db.engine)
+            df = pd.read_sql_query('SELECT * FROM {}.{};'.format(*_ci(schema_name, table_name)), db.engine)
             new_column_name = column_name + '_intervals_eq_w_' + str(num_intervals)
             df[new_column_name] = pd.cut(df[column_name], num_intervals, precision=9).apply(str)
             df.to_sql(name=table_name, con=db.engine, schema=schema_name, if_exists='replace', index=False)
@@ -294,7 +294,7 @@ class NumericalTransformations:
         transaction = connection.begin()
         try:
             schema_name = 'schema-' + str(schema_id)
-            df = pd.read_sql_query('SELECT * FROM {}.{}'.format(*_ci(schema_name, table_name)), db.engine)
+            df = pd.read_sql_query('SELECT * FROM {}.{};'.format(*_ci(schema_name, table_name)), db.engine)
             new_column_name = column_name + '_intervals_eq_f_' + str(num_intervals)
 
             sorted_data = list(df[column_name].sort_values())
@@ -323,7 +323,7 @@ class NumericalTransformations:
         transaction = connection.begin()
         try:
             schema_name = 'schema-' + str(schema_id)
-            df = pd.read_sql_query('SELECT * FROM {}.{}'.format(*_ci(schema_name, table_name)), db.engine)
+            df = pd.read_sql_query('SELECT * FROM {}.{};'.format(*_ci(schema_name, table_name)), db.engine)
             new_column_name = column_name + '_intervals_custom'
 
             df[new_column_name] = pd.cut(df[column_name], intervals).apply(str)
@@ -347,15 +347,15 @@ class NumericalTransformations:
         try:
             schema_name = 'schema-' + str(schema_id)
             if less_than:
-                outlier_rows = [row for row in db.engine.execute('SELECT * FROM {}.{} WHERE {} < {}'.format(
+                outlier_rows = [row for row in db.engine.execute('SELECT * FROM {}.{} WHERE {} < {};'.format(
                     *_ci(schema_name, table_name, column_name), _cv(value))).fetchall()]
                 db.engine.execute(
-                    'DELETE FROM {}.{} WHERE {} < {}'.format(*_ci(schema_name, table_name, column_name), _cv(value)))
+                    'DELETE FROM {}.{} WHERE {} < {};'.format(*_ci(schema_name, table_name, column_name), _cv(value)))
             else:
-                outlier_rows = [row for row in db.engine.execute('SELECT * FROM {}.{} WHERE {} < {}'.format(
+                outlier_rows = [row for row in db.engine.execute('SELECT * FROM {}.{} WHERE {} < {};'.format(
                     *_ci(schema_name, table_name, column_name), _cv(value))).fetchall()]
                 db.engine.execute(
-                    'DELETE FROM {}.{} WHERE {} > {}'.format(*_ci(schema_name, table_name, column_name), _cv(value)))
+                    'DELETE FROM {}.{} WHERE {} > {};'.format(*_ci(schema_name, table_name, column_name), _cv(value)))
 
             inverse_query = ''
             for row in outlier_rows:
@@ -371,7 +371,7 @@ class NumericalTransformations:
 
     def chart_data_numerical(self, schema_id, table_name, column_name):
         schema_name = 'schema-' + str(schema_id)
-        df = pd.read_sql_query('SELECT * FROM {}.{}'.format(*_ci(schema_name, table_name)), db.engine)
+        df = pd.read_sql_query('SELECT * FROM {}.{};'.format(*_ci(schema_name, table_name)), db.engine)
 
         intervals = pd.cut(df[column_name], 10).value_counts().sort_index()
         data = {
@@ -384,7 +384,7 @@ class NumericalTransformations:
 
     def chart_data_categorical(self, schema_id, table_name, column_name):
         schema_name = 'schema-' + str(schema_id)
-        df = pd.read_sql_query('SELECT * FROM {}.{}'.format(*_ci(schema_name, table_name)), db.engine)
+        df = pd.read_sql_query('SELECT * FROM {}.{};'.format(*_ci(schema_name, table_name)), db.engine)
 
         intervals = df[column_name].value_counts().sort_index()
         data = {
@@ -416,7 +416,7 @@ class OneHotEncode:
         if is_categorical:
             try:
                 # SELECT * FROM "schema_name"."table";
-                data_query = 'SELECT * FROM {}.{}'.format(*_ci(schema_name, table_name))
+                data_query = 'SELECT * FROM {}.{};'.format(*_ci(schema_name, table_name))
 
                 df = pd.read_sql(data_query, con=db.engine)
                 ohe = pd.get_dummies(df[column_name])
@@ -452,7 +452,7 @@ class DataDeduplicator:
 
         try:
             # Retrieve id's for identical rows
-            identical_rows_query = "SELECT t1.id FROM {0}.{1} as t1, {0}.{1} as t2 WHERE t1.id > t2.id".format(
+            identical_rows_query = "SELECT t1.id FROM {0}.{1} as t1, {0}.{1} as t2 WHERE t1.id > t2.id;".format(
                 *_ci(schema_name, table_name))
 
             for column_name in column_names:
@@ -637,7 +637,7 @@ class DataDeduplicator:
         dedup_table_name = "_dedup_" + table_name + "_grouped"
 
         try:
-            query = "SELECT COUNT(\"group_id\") FROM (SELECT * FROM {}.{} WHERE \"delete\"=FALSE) t1 GROUP BY t1.\"group_id\"".format(
+            query = "SELECT COUNT(\"group_id\") FROM (SELECT * FROM {}.{} WHERE \"delete\"=FALSE) t1 GROUP BY t1.\"group_id\";".format(
                 *_ci(schema_name, dedup_table_name))
 
             result = db.engine.execute(query)
@@ -688,7 +688,7 @@ class DataDeduplicator:
         dedup_view_name = "_dedup_" + table_name + "_view"
 
         try:
-            query = "DROP VIEW IF EXISTS {}.{}".format(*_ci(schema_name, dedup_view_name))
+            query = "DROP VIEW IF EXISTS {}.{};".format(*_ci(schema_name, dedup_view_name))
 
             db.engine.execute(query)
         except Exception as e:

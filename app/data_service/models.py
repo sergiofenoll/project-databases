@@ -83,7 +83,7 @@ class ActiveUserHandler:
             if exists.first()[0]:
                 db.engine.execute(
                     'UPDATE Active_In_Table VALUES SET last_active=NOW() '
-                    'WHERE id_dataset = {} AND id_table = {} and id_user = {}'.format(
+                    'WHERE id_dataset = {} AND id_table = {} and id_user = {};'.format(
                         *_cv(schema_name, table_name, user_id)))
             else:
                 db.engine.execute(
@@ -105,7 +105,7 @@ class ActiveUserHandler:
             if exists:
                 db.engine.execute(
                     'UPDATE Active_In_Table VALUES SET last_active=NOW() '
-                    'WHERE id_dataset = {} AND id_table IS NULL and id_user = {}'.format(
+                    'WHERE id_dataset = {} AND id_table IS NULL and id_user = {};'.format(
                         *_cv(schema_name, user_id)))
             else:
                 db.engine.execute(
@@ -236,7 +236,7 @@ class DataLoader:
         # Clean up the access & dataset tables
         try:
             schema_name = "schema-" + str(schema_id)
-            db.engine.execute('INSERT INTO Available_Schema (id) VALUES ({})'.format(_cv(schema_id)))
+            db.engine.execute('INSERT INTO Available_Schema (id) VALUES ({});'.format(_cv(schema_id)))
 
             db.engine.execute('DELETE FROM Dataset WHERE id = {};'.format(_cv(schema_name)))
 
@@ -384,7 +384,7 @@ class DataLoader:
         schema_name = 'schema-' + str(schema_id)
         try:
             db.engine.execute(
-                'CREATE TABLE {0}.{1} AS SELECT * FROM {0}.{2}'.format(_ci(schema_name), _ci(copy_name), _ci(name)))
+                'CREATE TABLE {0}.{1} AS SELECT * FROM {0}.{2};'.format(_ci(schema_name), _ci(copy_name), _ci(name)))
         except Exception as e:
             app.logger.error("[ERROR] Unable to create copy of table {}".format(name))
             app.logger.exception(e)
@@ -491,7 +491,7 @@ class DataLoader:
                 'SELECT id, {} FROM {}.{}'.format(*_ci(column_name, schema_name, table_name))):
             idx_list.append(idx)
             inverse_query += ' WHEN {} THEN {}'.format(*_cv(idx, val))
-        inverse_query += ' END WHERE id IN ({})\n'.format(', '.join(_cv(idx) for idx in idx_list))
+        inverse_query += ' END WHERE id IN ({});'.format(', '.join(_cv(idx) for idx in idx_list))
         try:
             db.engine.execute(
                 'ALTER TABLE {}.{} DROP COLUMN IF EXISTS {};'.format(*_ci(schema_name, table_name, column_name)))
@@ -556,7 +556,7 @@ class DataLoader:
             if not new_column_name or new_column_name.isspace():
                 raise Exception("Can't rename column to empty string")
             db.engine.execute(
-                'ALTER TABLE {0}.{1} RENAME {2} TO {3}'.format(
+                'ALTER TABLE {0}.{1} RENAME {2} TO {3};'.format(
                     *_ci(schema_name, table_name, column_name, new_column_name)))
         except Exception as e:
             app.logger.error(
@@ -566,10 +566,10 @@ class DataLoader:
             raise e
 
         # Log action to history
-        inverse_query = 'ALTER TABLE {}.{} RENAME {} TO {}'.format(*_ci(schema_name, table_name, new_column_name,
+        inverse_query = 'ALTER TABLE {}.{} RENAME {} TO {};'.format(*_ci(schema_name, table_name, new_column_name,
                                                                         column_name))
         history.log_action(schema_id, table_name, datetime.now(),
-                           'Renamed column {} to {}'.format(column_name, new_column_name, inverse_query))
+                           'Renamed column {} to {}'.format(column_name, new_column_name), inverse_query)
 
     def update_column_type(self, schema_id, table_name, column_name, column_type):
         schema_name = 'schema-' + str(schema_id)
@@ -923,7 +923,7 @@ class DataLoader:
                                                                        ordering_query, limit, offset))
 
             # Get total size (of unfiltered table)
-            size_query = 'SELECT count(*) FROM {}.{}'.format(*_ci(schema_name, table_name))
+            size_query = 'SELECT count(*) FROM {}.{};'.format(*_ci(schema_name, table_name))
             size_result = db.engine.execute(size_query)
             table_size = [r[0] for r in size_result][0]
 
@@ -991,7 +991,7 @@ class DataLoader:
         try:
             if not new_name or new_name.isspace():
                 raise Exception("Can't rename table to empty string")
-            db.engine.execute('UPDATE dataset SET (metadata, nickname) = ({} , {}) WHERE id={}'.format(
+            db.engine.execute('UPDATE dataset SET (metadata, nickname) = ({} , {}) WHERE id={};'.format(
                 *_cv(new_desc, new_name, schema_name, )))
 
         except Exception as e:
@@ -1005,10 +1005,10 @@ class DataLoader:
             if not new_table_name or new_table_name.isspace():
                 raise Exception("Can't rename table to empty string")
             db.engine.execute(
-                'UPDATE metadata SET (id_table, metadata) = ({}, {}) WHERE id_dataset={} AND id_table={}'.format(
+                'UPDATE metadata SET (id_table, metadata) = ({}, {}) WHERE id_dataset={} AND id_table={};'.format(
                     *_cv(new_table_name, new_desc, schema_name, old_table_name)))
             db.engine.execute(
-                'UPDATE history SET id_table={} WHERE id_dataset={} and id_table={}'.format(
+                'UPDATE history SET id_table={} WHERE id_dataset={} and id_table={};'.format(
                     *_cv(new_table_name, schema_name, old_table_name)))
             if new_table_name != old_table_name:
                 db.engine.execute(
@@ -1065,7 +1065,7 @@ class DataLoader:
         try:
             schema_name = 'schema-' + str(schema_id)
             rows = db.engine.execute(
-                'SELECT ' + function + '( "{}" ) FROM "{}"."{}"'.format(column, schema_name, table_name))
+                'SELECT ' + function + '( "{}" ) FROM "{}"."{}";'.format(column, schema_name, table_name))
             stat = rows.first()[0]
             if not stat:
                 stat = 0
@@ -1085,7 +1085,7 @@ class DataLoader:
                                      'WHERE "{}" IS NOT NULL '
                                      'GROUP BY "{}" '
                                      'ORDER BY counted DESC, "{}" '
-                                     'LIMIT 1'.format(column, schema_name, table_name, column, column, column))
+                                     'LIMIT 1;'.format(column, schema_name, table_name, column, column, column))
             value = None
             for x in rows:
                 value = x[0]
@@ -1149,7 +1149,7 @@ class DataLoader:
             connection.execute('DROP TABLE {}.{};'.format(*_ci(schema_name, table_name)))
             raw_table_name = "_raw_" + table_name
             connection.execute(
-                'CREATE TABLE {}.{} AS TABLE {}.{}'.format(*_ci(schema_name, table_name, schema_name, raw_table_name)))
+                'CREATE TABLE {}.{} AS TABLE {}.{};'.format(*_ci(schema_name, table_name, schema_name, raw_table_name)))
             connection.execute(
                 'DELETE FROM HISTORY WHERE ID_DATASET={0} AND ID_TABLE={1} AND ACTION_ID<>(SELECT MIN(ACTION_ID) FROM HISTORY WHERE ID_DATASET={0} AND ID_TABLE={1});'.format(
                     *_cv(schema_name, table_name)))
@@ -1185,7 +1185,7 @@ class DataLoader:
 
             self.copy_table(table_name, schema_id, backup_name)
 
-            backup_query = 'INSERT INTO Backups VALUES ({}, {}, {}, {}, {})'.format(
+            backup_query = 'INSERT INTO Backups VALUES ({}, {}, {}, {}, {});'.format(
                 *_cv(schema_name, table_name, backup_name, timestamp, note))
 
             connection.execute(backup_query)
@@ -1203,7 +1203,7 @@ class DataLoader:
         """
         schema_name = "schema-" + str(schema_id)
         try:
-            query = 'SELECT timestamp FROM Backups WHERE id_dataset = {} AND table_name = {}'.format(
+            query = 'SELECT timestamp FROM Backups WHERE id_dataset = {} AND table_name = {};'.format(
                 *_cv(schema_name, table_name))
             rows = db.engine.execute(query)
 
@@ -1223,7 +1223,7 @@ class DataLoader:
             connection.execute('DROP TABLE {}.{};'.format(*_ci(schema_name, table_name)))
             backup_name = '_{}_backup_{}'.format(table_name, timestamp)
             connection.execute(
-                'CREATE TABLE {}.{} AS TABLE {}.{}'.format(*_ci(schema_name, table_name, schema_name, backup_name)))
+                'CREATE TABLE {}.{} AS TABLE {}.{};'.format(*_ci(schema_name, table_name, schema_name, backup_name)))
             connection.execute(
                 "DELETE FROM HISTORY WHERE ID_DATASET={} AND ID_TABLE={} AND DATE>'{}';".format(
                     *_cv(schema_name, table_name), timestamp))
@@ -1262,7 +1262,7 @@ class DataLoader:
         schema_name = "schema-" + str(schema_id)
         try:
             backup_name = '_{}_backup_{}'.format(table_name, timestamp)
-            query = 'SELECT note FROM Backups WHERE id_dataset = {} AND backup_name = {}'.format(
+            query = 'SELECT note FROM Backups WHERE id_dataset = {} AND backup_name = {};'.format(
                 *_cv(schema_name, backup_name))
             result = db.engine.execute(query)
             note = ""

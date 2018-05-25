@@ -5,8 +5,10 @@ branches:
     - development
 python:
   - "3.6"
+services:
+  - postgresql
 addons:
-  - postgresql: "9.6.8"
+  postgresql: "9.6"
 install:
   - pip3 install -r requirements.txt
 before_script:

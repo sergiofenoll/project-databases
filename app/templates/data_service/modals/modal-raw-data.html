@@ -16,14 +16,13 @@
 						</button>
 					</div>
 				</form>
-				<form id="formShowRawData">
-					<div class="form-group">
-						<h5 class="modal-title">Show raw data</h5>
-						<button type="submit" class="btn btn-primary" {% if not raw_table_exists %}
-										disabled  {% endif %}>Show
-						</button>
-					</div>
-				</form>
+				<div class="form-group">
+					<h5 class="modal-title">Show raw data</h5>
+					<a href="/datasets/{{ table.dataset }}/tables/{{ table.name }}/show-raw-data"
+					   role="button" class="btn btn-primary" {% if not raw_table_exists %}
+									disabled  {% endif %}>Show
+					</a>
+				</div>
 			</div>
 		</div>
 	</div>
@@ -36,14 +35,5 @@
 			url: window.location.pathname + '/revert-to-raw-data'
 		});
 		window.location.reload();
-	});
-
-	$('#formShowRawData').submit(function (e) {
-		e.preventDefault();
-		$.ajax({
-			type: 'GET',
-			url: window.location.pathname + '/show-raw-data'
-		});
-		window.location.assign(window.location.pathname + '/show-raw-data')
 	});
 </script>

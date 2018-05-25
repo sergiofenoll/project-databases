@@ -1,7 +1,10 @@
 {% extends "base.html" %}
 {% block content %}
-    <div class="row">
-        <h1>History of {{ table.name }}</h1>
+    <div class="row" style="margin-bottom: 10px;">
+		<div>
+			<h1>History of {{ table.name }}</h1>
+			<a href="/datasets/{{ table.dataset }}/tables/{{ table.name }}" role="button" class="btn btn-sm btn-dark">Return to table</a>
+		</div>
     </div>
     <div class="row">
         <table class="table table-striped table-bordered" cellspacing="0" width="100%" id="historyTable">

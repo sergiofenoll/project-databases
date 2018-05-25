@@ -433,6 +433,8 @@ class OneHotEncode:
                         inverse_query += 'ALTER TABLE {}.{} DROP COLUMN IF EXISTS {};'.format(*_ci(schema_name, table_name, column))
                     history.log_action(schema_id, table_name, datetime.now(), 'Applied One Hot Encoding to column {}'.format(column_name), inverse_query)
 
+                history.log_action(schema_id, table_name, datetime.now(), 'One-hot-encoded on column \'{}\''.format(column_name))
+
             except Exception as e:
                 transaction.rollback()
                 app.logger.error("[ERROR] Couldn't one_hot_encode  '" + column_name + "' in '." + table_name + "',")
@@ -509,7 +511,7 @@ class DataDeduplicator:
             db.engine.execute(drop_dedup_query)
 
             query = "CREATE OR REPLACE VIEW {}.{} AS ".format(*_ci(schema_name, dedup_view_name))
-            query += "SELECT t1.*, t2.\"group_id\" FROM {0}.{1} as t1, {0}.{2} as t2 WHERE t1.\"id\"=t2.\"id\";".format(
+            query += "SELECT t1.*, t2.\"group_id\" FROM {0}.{1} as t1, {0}.{2} as t2 WHERE t1.\"id\"=t2.\"id\" AND \"delete\"=False;".format(
                 *_ci(schema_name, table_name, dedup_table_name))
 
             db.engine.execute(query)

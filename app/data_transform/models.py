@@ -146,7 +146,7 @@ class DataTransformer:
                 inverse_query = ''
                 for row_id in updated_rows:
                     inverse_query += 'UPDATE {0}.{1} SET {2} = REPLACE({2}, {3}, {4}) WHERE id = {5};'.format(
-                            *_ci(schema_name, table, column), *_cv(to_be_replaced, replacement), row_id)
+                            *_ci(schema_name, table, column), *_cv(replacement, to_be_replaced), row_id)
             else:
                 inverse_query = ''
                 for row_id in updated_rows:

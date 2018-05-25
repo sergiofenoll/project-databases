@@ -192,7 +192,7 @@ class DateTimeTransformer:
             schema_name = 'schema-' + str(schema_id)
             new_column = column + ' (' + element + ')'
             data_loader = DataLoader()
-            data_loader.insert_column(schema_id, table, new_column, "double precision")
+            data_loader.insert_column(schema_id, table, new_column, "double precision", False)
             db.engine.execute(
                 'UPDATE {}.{} SET {} = (EXTRACT({} FROM {}::TIMESTAMP));'.format(*_ci(schema_name, table, new_column),
                                                                                   element, _ci(column)))
@@ -211,7 +211,7 @@ class DateTimeTransformer:
             schema_name = 'schema-' + str(schema_id)
             new_column = column + ' (' + element + ')'
             data_loader = DataLoader()
-            data_loader.insert_column(schema_id, table, new_column, "varchar(255)")
+            data_loader.insert_column(schema_id, table, new_column, "varchar(255)", False)
             db.engine.execute(
                 'UPDATE {0}.{1} SET {2} = {3}::{4};'.format(*_ci(schema_name, table, new_column, column), element))
         except Exception as e:

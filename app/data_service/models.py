@@ -535,7 +535,7 @@ class DataLoader:
             history.log_action(schema_id, table, datetime.now(), 'Added row with values ' + ' '.join(values),
                                inverse_query)
 
-    def insert_column(self, schema_id, table_name, column_name, column_type):
+    def insert_column(self, schema_id, table_name, column_name, column_type, history=True):
         schema_name = 'schema-' + str(schema_id)
         try:
             db.engine.execute(
@@ -547,9 +547,10 @@ class DataLoader:
             raise e
 
         # Log action to history
-        inverse_query = 'ALTER TABLE {}.{} DROP COLUMN IF EXISTS {};'.format(*_ci(schema_name, table_name, column_name))
-        history.log_action(schema_id, table_name, datetime.now(), 'Added column with name ' + column_name,
-                           inverse_query)
+        if history:
+            inverse_query = 'ALTER TABLE {}.{} DROP COLUMN IF EXISTS {};'.format(*_ci(schema_name, table_name, column_name))
+            history.log_action(schema_id, table_name, datetime.now(), 'Added column with name ' + column_name,
+                               inverse_query)
 
     def rename_column(self, schema_id, table_name, column_name, new_column_name):
         schema_name = 'schema-' + str(schema_id)

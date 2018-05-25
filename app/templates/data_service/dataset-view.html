@@ -1,9 +1,10 @@
 {% extends "base.html" %}
 {% block content %}
-    <div class="row">
-        <div>
+    <div class="row" style="padding-bottom: 10px;">
+		<div> 
             <h1>{{ ds.name }}</h1>
             <p>{{ ds.desc }}</p>
+			<a href="/datasets" role="button" class="btn btn-sm btn-dark">Return to datasets</a>
         </div>
     </div>
     {% for message in get_flashed_messages(with_categories=True) %}

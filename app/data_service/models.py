@@ -52,6 +52,7 @@ class Table:
         self.columns = columns or []
         self.active_users_count = active_users_count
         self.total_size = total_size
+        self.dataset = None
 
     def __eq__(self, other):
         return self.name == other.name and self.desc == other.desc
@@ -837,6 +838,7 @@ class DataLoader:
 
             table = Table(table_name, '',
                           columns=self.get_column_names_and_types(schema_id, table_name), total_size=table_size)
+            table.dataset = schema_id
             for row in rows:
                 table.rows.append(list(row))
             return table

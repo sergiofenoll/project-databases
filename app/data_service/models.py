@@ -455,9 +455,6 @@ class DataLoader:
 
             to_delete = [r['id'] for r in result]
 
-            # Pass ids to 'traditional' delete_row
-            self.delete_row(schema_id, table_name, to_delete, False)
-
             column_tuple = self.get_column_names(schema_name, table_name)
             inverse_query = ''
             for row_id in to_delete:
@@ -470,6 +467,10 @@ class DataLoader:
                                                                                  column_tuple),
                                                                              ', '.join(_cv(value) for value in
                                                                                        value_tuple))
+
+                                                                             # Pass ids to 'traditional' delete_row
+            self.delete_row(schema_id, table_name, to_delete, False)
+
             history.log_action(schema_id, table_name, datetime.now(), 'Deleted rows on predicate', inverse_query)
         except Exception as e:
             app.logger.error('[ERROR] Unable to fetch rows to delete from ' + table_name)

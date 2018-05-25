@@ -455,12 +455,12 @@ class DataLoader:
 
             to_delete = [r['id'] for r in result]
 
-            column_tuple = self.get_column_names(schema_name, table_name)
+            column_tuple = self.get_column_names(schema_id, table_name)
             inverse_query = ''
             for row_id in to_delete:
                 value_tuple = db.engine.execute(
                     'SELECT * FROM {}.{} WHERE id={};'.format(*_ci(schema_name, table_name),
-                                                              _cv(row_id))).fetchone()[1:]
+                                                              _cv(row_id))).fetchone()
                 inverse_query += 'INSERT INTO {}.{}({}) VALUES ({});'.format(*_ci(schema_name, table_name),
                                                                              ', '.join(
                                                                                  _ci(column_name) for column_name in
@@ -468,10 +468,11 @@ class DataLoader:
                                                                              ', '.join(_cv(value) for value in
                                                                                        value_tuple))
 
-                                                                             # Pass ids to 'traditional' delete_row
+            # Pass ids to 'traditional' delete_row
             self.delete_row(schema_id, table_name, to_delete, False)
 
-            history.log_action(schema_id, table_name, datetime.now(), 'Deleted rows on predicate', inverse_query)
+            if len(to_delete):
+                history.log_action(schema_id, table_name, datetime.now(), 'Deleted rows on predicate', inverse_query)
         except Exception as e:
             app.logger.error('[ERROR] Unable to fetch rows to delete from ' + table_name)
             app.logger.exception(e)
@@ -949,7 +950,7 @@ class DataLoader:
             schema = "schema-" + str(schema_id)
             rows = db.engine.execute(
                 'SELECT column_name FROM information_schema.columns WHERE table_schema={} AND table_name={};'.format(
-                    *_cv(schema, table_name)))
+                    *_cv(schema, table_name))).fetchall()
             result = list()
             for row in rows:
                 result.append(row[0])

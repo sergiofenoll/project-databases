@@ -128,24 +128,24 @@ class DataTransformer:
         try:
             schema_name = 'schema-' + str(schema_id)
             query = ""
+            updated_rows = list()
             if replacement_function == "substring":
                 updated_rows = [row['id'] for row in db.engine.execute('SELECT id FROM {}.{} WHERE {} LIKE {};'.format(
-                    *_ci(schema_name, table, column), _cv('%%'+replacement+'%%'))).fetchall()]
+                    *_ci(schema_name, table, column), _cv('%%'+to_be_replaced+'%%'))).fetchall()]
                 query = 'UPDATE {0}.{1} SET {2} = REPLACE({2}, {3}, {4});'.format(*_ci(schema_name, table, column),
                                                                                   *_cv(to_be_replaced, replacement))
             elif replacement_function == "full replace":
                 updated_rows = [row['id'] for row in db.engine.execute('SELECT id FROM {}.{} WHERE {}={};'.format(
-                    *_ci(schema_name, table, column), _cv(replacement))).fetchall()]
+                    *_ci(schema_name, table, column), _cv(to_be_replaced))).fetchall()]
                 query = 'UPDATE {0}.{1} SET {2} = {3} WHERE {2} = {4};'.format(*_ci(schema_name, table, column),
                                                                                *_cv(replacement, to_be_replaced))
             else:
                 app.logger.error("[ERROR] Unable to perform find and replace")
-
             db.engine.execute(query)
             if replacement_function == 'substring':
                 inverse_query = ''
                 for row_id in updated_rows:
-                    inverse_query += 'UPDATE {0}.{1} SET {2} = REPLACE({2}, {3}, {4} WHERE id = {5});'.format(
+                    inverse_query += 'UPDATE {0}.{1} SET {2} = REPLACE({2}, {3}, {4}) WHERE id = {5};'.format(
                             *_ci(schema_name, table, column), *_cv(to_be_replaced, replacement), row_id)
             else:
                 inverse_query = ''

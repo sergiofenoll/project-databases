@@ -52,6 +52,7 @@ class Table:
         self.columns = columns or []
         self.active_users_count = active_users_count
         self.total_size = total_size
+        self.dataset = None
 
     def __eq__(self, other):
         return self.name == other.name and self.desc == other.desc
@@ -366,6 +367,10 @@ class DataLoader:
                 self.delete_backup(schema_id, name, backup)
 
             connection.execute(history_query)
+
+            # Drop deduplication table in case dedup_process aborted
+            dedup_table_query = 'DROP TABLE IF EXISTS {}.{};'.format(*_ci(schema_name, "_dedup_" + name + "_grouped"))
+            connection.execute(dedup_table_query)
 
             transaction.commit()
         except Exception as e:
@@ -689,6 +694,7 @@ class DataLoader:
                         # INSERT INTO table_name (column1, column2, column3, ...) VALUES (value1, value2, value3, ...);
 
                         tablename = statement.split()[2] or table_name
+                        raw_table_name = "_raw_" + tablename
                         values_list = list()
                         for values_tuple in re.findall(r'\(.*?\)', statement[statement.find('VALUES'):]):
                             # Tuple is any match of the above regex, e.g. (values1, values2, values3, ...)
@@ -703,12 +709,13 @@ class DataLoader:
                             columns = ['col' + str(i) for i in range(1, len(values_list[0]) + 1)]
 
                         if not self.table_exists(tablename, schema_id):
-                            self.create_table(tablename, schema_id, columns, True, desc=table_description)
+                            self.create_table(tablename, schema_id, columns, desc=table_description, raw=True)
                         for values in values_list:
                             val_dict = dict()
                             for c_ix in range(len(columns)):
                                 val_dict[columns[c_ix]] = values[c_ix]
                             self.insert_row(tablename, schema_id, columns, val_dict, False)
+                            self.insert_row(raw_table_name, schema_id, columns, val_dict, False)
             transaction.commit()
 
         except Exception as e:
@@ -922,6 +929,7 @@ class DataLoader:
 
             table = Table(table_name, '',
                           columns=self.get_column_names_and_types(schema_id, table_name), total_size=table_size)
+            table.dataset = schema_id
             for row in rows:
                 table.rows.append(list(row))
             return table
@@ -1544,3 +1552,6 @@ class TableJoiner:
             app.logger.error("[ERROR] Failed to create raw data for table '" + table_name + "'")
             app.log_exception(e)
             raise e
+
+        # History log
+        history.log_action(dataset_id, table_name, datetime.now(), 'Joined tables into \'{}\''.format(table_name))

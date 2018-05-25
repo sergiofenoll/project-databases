@@ -1,9 +1,10 @@
 {% extends "base.html" %}
 {% block content %}
-    <div class="row">
-        <div>
+    <div class="row" style="padding-bottom: 10px;">
+		<div> 
             <h1>{{ ds.name }}</h1>
             <p>{{ ds.desc }}</p>
+			<a href="/datasets" role="button" class="btn btn-sm btn-dark">Return to datasets</a>
         </div>
     </div>
     <div class="row">
@@ -263,8 +264,8 @@
                             <div class="modal-body">
                                 <label for="ds-files">Raw data stored will come from the selected tables, not from the
                                     'raw' data of these tables</label>
-                                <label for="ds-files">Select table1, table2, table1.column, relation and
-                                    table2.column</label>
+                                <label for="ds-files">Select (table1, table1.column), (relation) and
+                                    (table2, table2.column)</label>
                                 <div data-dynamic-form>
                                     <div data-dynamic-form-template="multi">
                                         <label>
@@ -272,14 +273,6 @@
                                             <select class="join_table" onchange="update_selection(this.id, this.value)"
                                                     form="join-tables" name="join[ID]"
                                                     data-dynamic-form-input-id-template="ID" id="join[ID]-table1">
-                                                <{% for t in tables %}
-                                                <option value="{{ t.name }}">{{ t.name }}</option>
-                                            {% endfor %}
-                                            </select>
-                                            <!--Table 2-->
-                                            <select class="join_table" onchange="update_selection(this.id, this.value)"
-                                                    form="join-tables" name="join[ID]"
-                                                    data-dynamic-form-input-id-template="ID" id="join[ID]-table2">
                                                 <{% for t in tables %}
                                                 <option value="{{ t.name }}">{{ t.name }}</option>
                                             {% endfor %}
@@ -301,6 +294,14 @@
                                                 <option value=">=">more or equals</option>
                                                 <option value="=">equals</option>
                                                 <option value="<>">not equals</option>
+                                            </select>
+                                            <!--Table 2-->
+                                            <select class="join_table" onchange="update_selection(this.id, this.value)"
+                                                    form="join-tables" name="join[ID]"
+                                                    data-dynamic-form-input-id-template="ID" id="join[ID]-table2">
+                                                <{% for t in tables %}
+                                                <option value="{{ t.name }}">{{ t.name }}</option>
+                                            {% endfor %}
                                             </select>
                                             <!--Column 2-->
                                             <select form="join-tables" name="join[ID]"
@@ -327,11 +328,11 @@
                                            placeholder="Table description" required>
                                 </div>
                             </div>
-                            <button type="submit" class="btn btn-primary">Upload</button>
-                            <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
-                    </div>
-                    </form>
-                    <div class="modal-footer">
+                            <div class="modal-footer">
+                                <button type="submit" class="btn btn-primary">Upload</button>
+                                <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                            </div>
+                        </form>
                     </div>
                 </div>
             </div>

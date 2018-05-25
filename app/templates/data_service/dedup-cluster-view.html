@@ -17,8 +17,12 @@
                 <div class="panel panel-default">
                     <div class="panel panel-default">
                         <div class="panel-heading">
+                            <a class="btn btn-dark panel-button" id="removeSelectedRowsStay" href="#">
+                                <i class="fas fa-minus-circle"></i> Mark selected row(s) for deletion and stay in current group</a>
+                        </div>
+                        <div class="panel-heading">
                             <a class="btn btn-dark panel-button" id="removeSelectedRowsContinue" href="#">
-                                <i class="fas fa-minus-circle"></i> Mark selected row(s) for deletion and continue</a>
+                                <i class="fas fa-minus-circle"></i> Mark selected row(s) for deletion and continue to next group</a>
                         </div>
                         <div class="panel-heading">
                             <a class="btn btn-dark panel-button" id="removeSelectedRowsExit" href="#">
@@ -69,6 +73,25 @@
                     }
                 }]
             });
+            $('#removeSelectedRowsStay').click(function () {
+                    $.ajax({
+                        type: 'POST',
+                        url: window.location.pathname + '/sty?' + $('input:checked').serialize(),
+                        contentType: 'application/json;charset=UTF-8',
+                        datatype: 'json',
+                        success: function (data) {
+                            if (data.reload) {
+                                window.location.reload()
+                            } else {
+                                 window.location.assign(data.url);
+                            }
+                        },
+                        error: function (data)
+                        {
+                            window.location.assign(data.url);
+                        }
+                    })
+                });
             $('#removeSelectedRowsContinue').click(function () {
                     $.ajax({
                         type: 'POST',

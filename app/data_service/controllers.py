@@ -261,6 +261,36 @@ def show_dedup_data_alg(dataset_id, table_name):
         return redirect(url_for('data_service.get_table', dataset_id=dataset_id, table_name=table_name), code=303)
 
 
+@data_service.route('/datasets/<int:dataset_id>/tables/<string:table_name>/show-dedup-data-alg/sty', methods=['POST'])
+def remove_or_mark_identical_rows_alg_sty(dataset_id, table_name):
+    try:
+        row_ids = [key.split('-')[1] for key in request.args]
+
+        # Mark given id's as 'to_delete' and remove associated cluster from dedup_table_grouped
+        data_deduplicator.add_rows_to_delete(dataset_id, table_name, row_ids)
+
+        if data_deduplicator.get_amount_of_cluster(dataset_id, table_name) == 0:
+            # Clean dedup tables from db and remove the selected rows
+            data_deduplicator.remove_rows_from_table(dataset_id, table_name)
+            data_deduplicator.delete_dedup_table(dataset_id, table_name)
+            flash(u"Marked rows have been deleted.", 'success')
+            return jsonify({'success': True, 'reload': False, 'redirect': True, 'url': url_for('data_service.get_table', dataset_id=dataset_id, table_name=table_name)}), 200
+        else:
+            flash(u"Rows have been marked for deletion'.", 'success')
+            return jsonify({'success': True, 'reload': True, 'redirect': False}), 200
+
+        flash(u"Rows have been marked for deletion'.", 'success')
+        return jsonify({'success': True, 'reload': True, 'redirect': False}), 200
+
+    except Exception:
+        # Clean dedup tables from db
+        data_deduplicator.delete_dedup_table(dataset_id, table_name)
+        flash(u"Rows couldn't be marked for deletion.", 'warning')
+
+        return jsonify({'error': True, 'reload': False, 'redirect': True,
+                        'url': url_for('data_service.get_table', dataset_id=dataset_id, table_name=table_name)}), 400
+
+
 @data_service.route('/datasets/<int:dataset_id>/tables/<string:table_name>/show-dedup-data-alg/ctu', methods=['POST'])
 def remove_or_mark_identical_rows_alg_ctu(dataset_id, table_name):
     try:
@@ -372,10 +402,10 @@ def join_tables(dataset_id):
             if key.startswith("join"):
                 join_pair_row = f.getlist(key)
                 t1 = join_pair_row[0]
-                t2 = join_pair_row[1]
-                t1_column = join_pair_row[2]
+                t1_column = join_pair_row[1]
+                relation_operator = join_pair_row[2]
+                t2 = join_pair_row[3]
                 t2_column = join_pair_row[4]
-                relation_operator = join_pair_row[3]
 
                 join_pair = TableJoinPair(table1_name=t1, table2_name=t2, table1_column=t1_column,
                                           table2_column=t2_column, relation_operator=relation_operator)

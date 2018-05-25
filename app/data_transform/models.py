@@ -433,8 +433,6 @@ class OneHotEncode:
                         inverse_query += 'ALTER TABLE {}.{} DROP COLUMN IF EXISTS {};'.format(*_ci(schema_name, table_name, column))
                     history.log_action(schema_id, table_name, datetime.now(), 'Applied One Hot Encoding to column {}'.format(column_name), inverse_query)
 
-                history.log_action(schema_id, table_name, datetime.now(), 'One-hot-encoded on column \'{}\''.format(column_name))
-
             except Exception as e:
                 transaction.rollback()
                 app.logger.error("[ERROR] Couldn't one_hot_encode  '" + column_name + "' in '." + table_name + "',")

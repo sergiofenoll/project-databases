@@ -352,7 +352,7 @@ class NumericalTransformations:
                 db.engine.execute(
                     'DELETE FROM {}.{} WHERE {} < {};'.format(*_ci(schema_name, table_name, column_name), _cv(value)))
             else:
-                outlier_rows = [row for row in db.engine.execute('SELECT * FROM {}.{} WHERE {} < {};'.format(
+                outlier_rows = [row for row in db.engine.execute('SELECT * FROM {}.{} WHERE {} > {};'.format(
                     *_ci(schema_name, table_name, column_name), _cv(value))).fetchall()]
                 db.engine.execute(
                     'DELETE FROM {}.{} WHERE {} > {};'.format(*_ci(schema_name, table_name, column_name), _cv(value)))
@@ -716,17 +716,40 @@ class DataDeduplicator:
     def remove_rows_from_table(self, schema_id, table_name):
         """ Delete rows in _dedup_'table_name'_to_delete from the table """
         schema_name = 'schema-' + str(schema_id)
-        dedup_rows_to_delete = '_dedup_' + table_name + "_grouped"
+        dedup_table_grouped = '_dedup_' + table_name + "_grouped"
 
         try:
+            # Fetch all rows to be deleted
+            rows_to_delete = db.engine.execute('SELECT * FROM {0}.{1} WHERE \"id\" in (SELECT \"id\" FROM {0}.{2} WHERE \"delete\"=TRUE);'.format(
+                *_ci(schema_name, table_name, dedup_table_grouped))).fetchall()
 
-            rows = db.engine.execute('SELECT \"id\" FROM {}.{} WHERE \"delete\"=TRUE;'.format(*_ci(schema_name, dedup_rows_to_delete)))
+            row_ids = list()
+            inverse_query = ''
+            column_tuple = self.dataloader.get_column_names(schema_id, table_name)
 
-            result = list()
-            for row in rows:
-                result.append(row[0])
+            for row in rows_to_delete:
+                row_ids.append(row['id'])
 
-            self.dataloader.delete_row(schema_id, table_name, result)
+                value_tuple = row[1:]
+                values_query = 'DEFAULT'
+
+                for value in value_tuple:
+                    values_query += ', '
+
+                    if value is None:
+                        values_query += 'NULL'
+                    else:
+                        values_query += _cv(value)
+                inverse_query += 'INSERT INTO {}.{}({}) VALUES ({});'.format(*_ci(schema_name, table_name),
+                                                                                ', '.join(
+                                                                                    _ci(column_name) for column_name in
+                                                                                    column_tuple),
+                                                                                values_query)
+
+            history.log_action(schema_id, table_name, datetime.now(), 'Deduplicated table', inverse_query)
+
+
+            self.dataloader.delete_row(schema_id, table_name, row_ids, False)
 
         except Exception as e:
             app.logger.error("[ERROR] Could not remove \'duplicate\' rows for table '{}'".format(table_name))

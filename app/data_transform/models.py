@@ -359,7 +359,7 @@ class NumericalTransformations:
 
             inverse_query = ''
             for row in outlier_rows:
-                inverse_query += 'INSERT INTO {}.{} ({});'.format(*_ci(schema_name, table_name), ', '.join(_cv(row)))
+                inverse_query += 'INSERT INTO {}.{} VALUES ({});'.format(*_ci(schema_name, table_name), ', '.join(_cv(value) for value in row))
             history.log_action(schema_id, table_name, datetime.now(),
                     'Removed outliers from column {}'.format(column_name), inverse_query)
             transaction.commit()
@@ -725,29 +725,13 @@ class DataDeduplicator:
 
             row_ids = list()
             inverse_query = ''
-            column_tuple = self.dataloader.get_column_names(schema_id, table_name)
 
             for row in rows_to_delete:
                 row_ids.append(row['id'])
-
-                value_tuple = row[1:]
-                values_query = 'DEFAULT'
-
-                for value in value_tuple:
-                    values_query += ', '
-
-                    if value is None:
-                        values_query += 'NULL'
-                    else:
-                        values_query += _cv(value)
-                inverse_query += 'INSERT INTO {}.{}({}) VALUES ({});'.format(*_ci(schema_name, table_name),
-                                                                                ', '.join(
-                                                                                    _ci(column_name) for column_name in
-                                                                                    column_tuple),
-                                                                                values_query)
+                inverse_query += 'INSERT INTO {}.{} VALUES ({});'.format(*_ci(schema_name, table_name),
+                                                                             ', '.join(_cv(value) for value in row))
 
             history.log_action(schema_id, table_name, datetime.now(), 'Deduplicated table', inverse_query)
-
 
             self.dataloader.delete_row(schema_id, table_name, row_ids, False)
 

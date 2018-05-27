@@ -8,6 +8,7 @@ import sys
 from flask import Flask
 from flask_login import LoginManager
 from flask_sqlalchemy import SQLAlchemy
+from passlib.hash import sha256_crypt
 from config import *
 
 app = Flask(__name__)
@@ -25,7 +26,7 @@ login.init_app(app)
 
 from app.data_service.models import DataLoader, TableJoiner, ActiveUserHandler
 
-from app.user_service.models import UserDataAccess
+from app.user_service.models import UserDataAccess, User
 from app.data_transform.models import DateTimeTransformer, DataTransformer, NumericalTransformations, OneHotEncode, DataDeduplicator
 
 user_data_access = UserDataAccess()
@@ -42,13 +43,8 @@ data_deduplicator = DataDeduplicator(data_loader)
 
 @login.user_loader
 def load_user(user_id):
-    user = None
-    try:
-        user = user_data_access.get_user(user_id)
-    except Exception as e:
-        app.logger.error("[ERROR] User is none")
-        app.logger.exception(e)
-    return user
+    user = user_data_access.get_user(user_id)
+    return user if user.is_active else None
 
 
 from app.main.controllers import main
@@ -64,3 +60,9 @@ app.register_blueprint(data_service)
 app.register_blueprint(data_transform)
 app.register_blueprint(_history)
 app.register_blueprint(api)
+
+admin = User(app.config['ADMIN_USERNAME'],
+        sha256_crypt.encrypt(app.config['ADMIN_PASSWORD']),
+        firstname='Admin', lastname='Admin', email='admin@admin',
+        status='admin', active=True)
+UserDataAccess().add_user(admin)

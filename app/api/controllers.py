@@ -406,7 +406,9 @@ def rename_column(dataset_id, table_name):
     try:
         active_user_handler.make_user_active_in_table(dataset_id, table_name, current_user.username)
         to_rename = request.args.get('col-name')
-        new_name = request.args.get('new-name')
+        new_name = request.args.get('new-name').replace('"', '')
+        if not len(new_name) and new_name != to_rename:
+            raise Exception('Column name is empty')
         data_loader.rename_column(dataset_id, table_name, to_rename, new_name)
         flash(u"Column has been renamed.", 'success')
         return jsonify({'success': True}), 200

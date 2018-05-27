@@ -100,7 +100,7 @@ class UserDataAccess:
             return User(row['username'], row['pass'], row['firstname'], row['lastname'],
                         row['email'], row['status'], row['active'])
         except TypeError as e:
-            raise "Failed to get user." # This could/should be a custom exception
+            raise Exception("Failed to get user.") # This could/should be a custom exception
 
     def alter_user(self, user):
         try:

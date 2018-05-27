@@ -99,7 +99,7 @@
                                 </button>
                             </td>
                             <td style="text-align: center;">
-                                <form action="/datasets/{{ ds.id }}/tables/{{ t.name }}/delete" method="post">
+                                <form action="/datasets/{{ ds.id }}/tables/{{ t.name|urlencode }}/delete" method="post">
                                     <button type="submit" class="btn btn-xs btn-danger">&times;
                                     </button>
                                 </form>

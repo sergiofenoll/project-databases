@@ -396,7 +396,6 @@ def join_tables(dataset_id):
         meta = request.form.get('table-meta')
 
         f = request.form
-
         # Iterate over all keys in form starting with join, each join<number> represents a join_pair
         for key in f.keys():
             if key.startswith("join"):
@@ -412,9 +411,8 @@ def join_tables(dataset_id):
                 join_pairs.append(join_pair)
             else:
                 continue
-
         table_joiner.join_multiple_tables(dataset_id, name, meta, join_pairs)
         flash(u"Join of tables was successful.", 'success')
-    except Exception:
+    except Exception as e:
         flash(u"Join of tables was unsuccessful.", 'danger')
     return redirect(url_for('data_service.get_dataset', dataset_id=dataset_id))

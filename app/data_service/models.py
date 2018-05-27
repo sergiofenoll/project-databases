@@ -1557,4 +1557,11 @@ class TableJoiner:
             raise e
 
         # History log
-        history.log_action(dataset_id, table_name, datetime.now(), 'Joined tables into \'{}\''.format(table_name))
+        history.log_action(dataset_id, table_name, datetime.now(), 'Joined tables into \'{}\''.format(table_name),
+                           'DROP TABLE IF EXISTS {}.{};'.format(*_ci(schema_name, table_name)) +
+                           'DROP TABLE IF EXISTS {}.{};'.format(*_ci(schema_name, '_raw_' + table_name)) +
+                           'DELETE FROM METADATA WHERE ID_DATASET={} AND ID_TABLE={};'.format(
+                               *_cv(schema_name, table_name)) +
+                           'DELETE FROM HISTORY WHERE ID_DATASET={} AND ID_TABLE={};'.format(
+                               *_cv(schema_name, table_name))
+                           )

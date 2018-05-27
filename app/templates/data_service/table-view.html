@@ -188,7 +188,6 @@
                 <tr>
                     <th class="scrolling-disabled"></th>
                     {% for column in table.columns[1:] %}
-
                         <th>
                             {{ column.name|capitalize }}
                         </th>
@@ -228,7 +227,7 @@
                         }],
                         columns: [
                         {% for column in table.columns %}
-                             { data: "{{ column.name}}" }{{ "," if not loop.last}}
+                             { data: "{{ column.name|safe }}" }{{ "," if not loop.last}}
                         {% endfor %}
                         ]
                     });

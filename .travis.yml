@@ -12,6 +12,6 @@ addons:
 install:
   - pip3 install -r requirements.txt
 before_script:
-  - ./setup.sh
+  - yes | ./setup.sh
 script:
   - python3 -m unittest discover -s app

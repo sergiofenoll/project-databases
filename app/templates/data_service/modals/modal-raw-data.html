@@ -18,7 +18,7 @@
 				</form>
 				<div class="form-group">
 					<h5 class="modal-title">Show raw data</h5>
-					<a href="/datasets/{{ table.dataset }}/tables/{{ table.name }}/show-raw-data"
+					<a href="/datasets/{{ table.dataset }}/tables/{{ table.name|urlencode }}/show-raw-data"
 					   role="button" class="btn btn-primary" {% if not raw_table_exists %}
 									disabled  {% endif %}>Show
 					</a>

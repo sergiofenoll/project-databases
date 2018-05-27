@@ -87,7 +87,7 @@
                     <tbody>
                     {% for t in tables %}
                         <tr>
-                            <td><a href="/datasets/{{ ds.id }}/tables/{{ t.name }}">{{ t.name }}</a></td>
+                            <td><a href="/datasets/{{ ds.id }}/tables/{{ t.name|urlencode }}">{{ t.name }}</a></td>
                             <td> {{ t.desc }}</td>
                             <td> {{ t.active_users_count }} </td>
                             <td>

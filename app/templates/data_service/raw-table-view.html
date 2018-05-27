@@ -3,7 +3,7 @@
     <div class="row" style="margin-bottom: 10px;">
 		<div> 
             <h1>{{ title }}</h1>
-			<a href="/datasets/{{ table.dataset }}/tables/{{ table.name.split('_raw_', 1)[1] }}" role="button" class="btn btn-sm btn-dark">Return to table</a>
+			<a href="/datasets/{{ table.dataset }}/tables/{{ table.name.split('_raw_', 1)[1]|urlencode }}" role="button" class="btn btn-sm btn-dark">Return to table</a>
         </div>
     </div>
     <div class="row">

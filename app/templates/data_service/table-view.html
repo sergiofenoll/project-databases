@@ -133,7 +133,7 @@
                         <div class="panel-body">
                             <table class="table">
                                 <tr>
-									<a class="btn btn-light panel-button" id="history" href="/datasets/{{ table.dataset }}/tables/{{ table.name }}/history"><i class="fas fa-history"></i>
+									<a class="btn btn-light panel-button" id="history" href="/datasets/{{ table.dataset }}/tables/{{ table.name|urlencode }}/history"><i class="fas fa-history"></i>
                                         History</a>
                                 </tr>
                                 <tr>

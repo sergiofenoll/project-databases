@@ -1,0 +1,47 @@
+<div class="modal" tabindex="-1" role="dialog" aria-hidden="true" id="activeUsers">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <form class="form-group" id="formOneHotEncode">
+                <div class="modal-header">
+                    <h5 class="modal-title">Active users</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <table class="table table-striped table-bordered table-responsive-sm" cellspacing="0" width="100%"
+                           id="activeUsersTable">
+                        <thead>
+                        <tr>
+                            <th>
+                                user
+                            </th>
+                        </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+<script>
+    $(document).ready(function () {
+        $.getJSON('/api' + window.location.pathname + '/active-users', function (data) {
+            var table = $("#activeUsersTable tbody");
+            $.each(data, function (idx, elem) {
+                if(elem.length == 0){
+                    table.append("<tr><td>" + "No active users beside yourself" + "</td></tr>");
+                }
+                else{
+                    for (var i = 0; i < elem.length; i++) {
+                    table.append("<tr><td>" + elem[i] + "</td></tr>");
+                }
+                }
+
+
+            });
+        });
+    });
+</script>

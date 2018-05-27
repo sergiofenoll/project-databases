@@ -1,17 +1,12 @@
 {% extends "base.html" %}
 {% block content %}
-    <div class="row">
-        <div>
+    <div class="row" style="padding-bottom: 10px;">
+		<div> 
             <h1>{{ ds.name }}</h1>
             <p>{{ ds.desc }}</p>
+			<a href="/datasets" role="button" class="btn btn-sm btn-dark">Return to datasets</a>
         </div>
     </div>
-    {% for message in get_flashed_messages(with_categories=True) %}
-        <div class="alert alert-{{ message[0] }}">
-            <button type="button" class="close" data-dismiss="alert">&times;</button>
-            {{ message[1] }}
-        </div>
-    {% endfor %}
     <div class="row">
         <div class="col-sm-2">
             <div class="panel-group" id="accordion">
@@ -84,6 +79,7 @@
                     <tr>
                         <th>Table</th>
                         <th>Description</th>
+                        <th>Active Users</th>
                         <th>Edit</th>
                         <th>Remove</th>
                     </tr>
@@ -91,8 +87,9 @@
                     <tbody>
                     {% for t in tables %}
                         <tr>
-                            <td><a href="/datasets/{{ ds.id }}/tables/{{ t.name }}">{{ t.name }}</a></td>
+                            <td><a href="/datasets/{{ ds.id }}/tables/{{ t.name|urlencode }}">{{ t.name }}</a></td>
                             <td> {{ t.desc }}</td>
+                            <td> {{ t.active_users_count }} </td>
                             <td>
                                 <button id="metadata-button" data-toggle="modal" data-target="#metadata"
                                         class="btn btn-xs btn-primary metadataEditButton"
@@ -102,7 +99,7 @@
                                 </button>
                             </td>
                             <td style="text-align: center;">
-                                <form action="/datasets/{{ ds.id }}/tables/{{ t.name }}/delete" method="post">
+                                <form action="/datasets/{{ ds.id }}/tables/{{ t.name|urlencode }}/delete" method="post">
                                     <button type="submit" class="btn btn-xs btn-danger">&times;
                                     </button>
                                 </form>
@@ -124,13 +121,11 @@
                             </div>
                             <div class="modal-body">
                                 <label for="t-name">Name</label>
-                                <br>
-                                <input type="text" name="t-name" value="" id="t-name" required><br>
+                                <input type="text" name="t-name" class="form-control" value="" id="t-name" required>
+			        <small class="form-text text-muted">Table names cannot contain double quotes ("), they will be removed.</small>
 
                                 <label for="t-desc">Description</label>
-                                <br>
-                                <textarea type="text" name="t-desc" id="t-desc" required></textarea>
-
+                                <textarea type="text" class="form-control"  name="t-desc" id="t-desc" required></textarea>
                                 <input type="hidden" id="t-old-name" name="t-old-name">
 
                             </div>
@@ -149,7 +144,7 @@
         <div class="modal fade" id="uploadFileModal" tabindex="-1" role="dialog">
             <div class="modal-dialog" role="document">
                 <div class="modal-content">
-                    <form action="/datasets/{{ ds.id }}" method="post" enctype=multipart/form-data>
+                    <form class="form-group" action="/datasets/{{ ds.id }}" method="post" enctype=multipart/form-data>
                         <div class="modal-header">
                             <h5 class="modal-title">Upload data</h5>
                             <button type="button" class="close" data-dismiss="modal" aria-label="Close">
@@ -157,9 +152,25 @@
                             </button>
                         </div>
                         <div class="modal-body">
-                            <label for="ds-files">Supported extensions: CSV, ZIP, DUMP</label>
+                            <label for="ds-files">Supported extensions: CSV, ZIP, DUMP, SQL</label>
                             <input type="file" class="form-control-file" name="file" id="ds-files"
-                                   accept=".csv,.zip,.dump">
+                                   accept=".csv,.zip,.dump,.sql" required>
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="checkbox" name="ds-type-deduction"
+                                       id="ds-type-deduction" data-user="ds-type-deduction">
+                                <label class="form-check-label">Automatic type deduction</label>
+                            </div>
+                            <input type="text" name="ds-table-name" id="ds-table-name" class="form-control show-input"
+                                   placeholder="Table name" style="display:none">
+                            <small class="form-text text-muted show-input"  style="display:none;">Table names cannot contain double quotes ("), they will be removed.</small>
+                            <textarea name="ds-table-desc" id="ds-table-desc" class="form-control show-input"
+                                      value="Default description" style="display:none">Default description</textarea>
+                            <small class="form-text text-muted">
+                                If a zip file is uploaded, default name (file name) and description will be used for
+				every table. <br><br>
+                                If a dump/csv file is uploaded, you can choose a custom table name
+				or let the system use the default name.
+                            </small>
                         </div>
                         <div class="modal-footer">
                             <button type="submit" class="btn btn-primary">Upload</button>
@@ -254,8 +265,8 @@
                             <div class="modal-body">
                                 <label for="ds-files">Raw data stored will come from the selected tables, not from the
                                     'raw' data of these tables</label>
-                                <label for="ds-files">Select table1, table2, table1.column, relation and
-                                    table2.column</label>
+                                <label for="ds-files">Select (table1, table1.column), (relation) and
+                                    (table2, table2.column)</label>
                                 <div data-dynamic-form>
                                     <div data-dynamic-form-template="multi">
                                         <label>
@@ -263,15 +274,7 @@
                                             <select class="join_table" onchange="update_selection(this.id, this.value)"
                                                     form="join-tables" name="join[ID]"
                                                     data-dynamic-form-input-id-template="ID" id="join[ID]-table1">
-                                                <{% for t in tables %}
-                                                <option value="{{ t.name }}">{{ t.name }}</option>
-                                            {% endfor %}
-                                            </select>
-                                            <!--Table 2-->
-                                            <select class="join_table" onchange="update_selection(this.id, this.value)"
-                                                    form="join-tables" name="join[ID]"
-                                                    data-dynamic-form-input-id-template="ID" id="join[ID]-table2">
-                                                <{% for t in tables %}
+                                                {% for t in tables %}
                                                 <option value="{{ t.name }}">{{ t.name }}</option>
                                             {% endfor %}
                                             </select>
@@ -279,7 +282,7 @@
                                             <select form="join-tables" name="join[ID]"
                                                     data-dynamic-form-input-id-template="ID"
                                                     id="join[ID]-table1-columns">
-                                                <{% for c in columns %}
+                                                {% for c in columns %}
                                                 <option value="{{ c }}">{{ c }}</option>
                                             {% endfor %}
                                             </select>
@@ -293,11 +296,19 @@
                                                 <option value="=">equals</option>
                                                 <option value="<>">not equals</option>
                                             </select>
+                                            <!--Table 2-->
+                                            <select class="join_table" onchange="update_selection(this.id, this.value)"
+                                                    form="join-tables" name="join[ID]"
+                                                    data-dynamic-form-input-id-template="ID" id="join[ID]-table2">
+                                                {% for t in tables %}
+                                                <option value="{{ t.name }}">{{ t.name }}</option>
+                                            {% endfor %}
+                                            </select>
                                             <!--Column 2-->
                                             <select form="join-tables" name="join[ID]"
                                                     data-dynamic-form-input-id-template="ID"
                                                     id="join[ID]-table2-columns">
-                                                <{% for c in columns %}
+                                                {% for c in columns %}
                                                 <option value="{{ c }}">{{ c }}</option>
                                             {% endfor %}
                                             </select>
@@ -311,6 +322,7 @@
                                     <input type="text" class="form-control" id="table-name" name="table-name"
                                            placeholder="Table name"
                                            required>
+				    <small class="form-text text-muted">Table names cannot contain double quotes ("), they will be removed.</small>
                                 </div>
                                 <div class="form-group">
                                     <span>Description</span>
@@ -350,6 +362,9 @@
                     url: '/api' + window.location.pathname + '/update-metadata?' + $('#formMetadata').serialize(),
                     success: function () {
                         window.location.reload();
+                    },
+                    error: function () {
+                        window.location.reload();
                     }
                 });
                 $('#metadata').modal('hide');
@@ -361,7 +376,7 @@
 
             $.ajax({
                 type: 'GET',
-                url: window.location.pathname + '/join-tables/' + changed_value,
+                url: window.location.pathname + '/join-tables/' + encodeURIComponent(changed_value),
                 async: true,
                 dataType: 'json',
                 success: function (data) {
@@ -374,5 +389,19 @@
                 }
             });
         }
+
+        $("input[type=file]").on('change', function () {
+            if (this.files[0].name.substr(this.files[0].name.length - 4) == ".csv" ||
+
+                this.files[0].name.substr(this.files[0].name.length - 4) == ".sql" ||
+
+                this.files[0].name.substr(this.files[0].name.length - 5) == ".dump") {
+                $('.show-input').show();
+            }
+            else {
+                $('.show-input').hide();
+            }
+        });
+
     </script>
 {% endblock %}

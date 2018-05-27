@@ -3,12 +3,6 @@
     <div class="row">
         <div class="col-sm-2"></div>
         <div class="col-sm-8">
-            {% for message in get_flashed_messages(with_categories=True) %}
-                <div class="alert alert-{{ message[0] }}">
-                    <button type="button" class="close" data-dismiss="alert">&times;</button>
-                    {{ message[1] }}
-                </div>
-            {% endfor %}
             <form action="/register" method="post">
                 <div class="form-group">
                     <label for="lg-fname">First name</label>
@@ -38,14 +32,6 @@
                 <div class="form-group">
                     <label for="lg-email">Email</label>
                     <input type="email" class="form-control" id="lg-email" name="lg-email" placeholder="Email" required>
-                </div>
-                <div class="form-group">
-                    <label for="lg-status">Status</label>
-                    <select type="status" class="form-control" id="lg-status" name="lg-status" placeholder="Status"
-                            required>
-                        <option value="user">User</option>
-                        <option value="admin">Admin</option>
-                    </select>
                 </div>
                 {% if wrong_password %}
                     <div class="alert alert-danger">

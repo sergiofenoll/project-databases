@@ -1,0 +1,93 @@
+<div class="modal" tabindex="-1" role="dialog" aria-hidden="true" id="removeIdenticalRowsAlg">
+	<div class="modal-dialog" role="document">
+		<div class="modal-content">
+			<div class="modal-header">
+				<h5 class="modal-title"> Data Deduplication</h5>
+				<button type="button" class="close" data-dismiss="modal" aria-label="Close">
+					<span aria-hidden="true">&times;</span>
+				</button>
+			</div>
+			<div class="modal-body">
+                <h5> Deduplication is a multi-step process. Input from user is required during most of the steps.</h5>
+				<form id="formRemoveIdenticalRowsAlg" name="myForm">
+					<div class="form-group">
+                        <ul class="list-unstyled">
+                            <li>
+                                <label for="selected-col-name">1) Choose which column to view as most important</label><br>
+                                <select form="formRemoveIdenticalRowsAlg" name="selected-col-name">
+                                    <{% for column in table.columns[1:] %}
+                                        <option value="{{ column.name }}">{{ column.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </li>
+                            <li>
+                                <label for="identical-col-names">2) Select columns on which rows must have identical values.</label>
+                                {% for column in table.columns[1:] %}
+                                    <li><input type="checkbox" class="removeIdenticalRows" name="identical-col-names" value="{{ column.name }}"> {{ column.name }}</li>
+                                {% endfor %}
+                                <input type="button" onclick="SetAllCheckBoxes('myForm', 'identical-col-names', true);" value="Select All">
+                                <input type="button" onclick="SetAllCheckBoxes('myForm', 'identical-col-names', false);" value="Deselect All">
+                            </li>
+                            <li>
+                                <label for="similar-col-names">3) Select columns on which rows may have similair values.</label>
+                                {% for column in table.columns[1:] %}
+                                    <li><input type="checkbox" class="removeIdenticalRows" name="similar-col-names" value="{{ column.name }}"> {{ column.name }}</li>
+                                {% endfor %}
+                                <input type="button" onclick="SetAllCheckBoxes('myForm', 'similar-col-names', true);" value="Select All">
+                                <input type="button" onclick="SetAllCheckBoxes('myForm', 'similar-col-names', false);" value="Deselect All">
+                            </li>
+                        </ul>
+					</div>
+                    <div class="modal-footer">
+                        <button type="submit" class="btn btn-primary">Collect duplicate rows</button>
+                    </div>
+				</form>
+			</div>
+		</div>
+	</div>
+</div>
+<script>
+	$('#formRemoveIdenticalRowsAlg').submit(function (e) {
+		e.preventDefault();
+		$.ajax({
+			type: 'PUT',
+			url: '/api' + window.location.pathname + '/remove-identical-rows-alg?' + $('#formRemoveIdenticalRowsAlg').serialize(),
+            success: function () {
+			    window.location.assign(window.location.pathname + '/show-dedup-data-alg')
+            },
+            error: function () {
+                window.location.reload();
+            }
+		});
+	});
+	$(".parent1").each(function(index){
+        var group = $(this).data("group");
+        var parent = $(this);
+
+        parent.change(function(){  //"select all" change
+             $(group).prop('checked', parent.prop("checked"));
+        });
+        $(group).change(function(){
+            parent.prop('checked', false);
+            if ($(group+':checked').length === $(group).length ){
+                parent.prop('checked', true);
+           }
+        });
+    });
+    function SetAllCheckBoxes(FormName, FieldName, CheckValue)
+    {
+        if(!document.forms[FormName])
+            return;
+        var objCheckBoxes = document.forms[FormName].elements[FieldName];
+        if(!objCheckBoxes)
+            return;
+        var countCheckBoxes = objCheckBoxes.length;
+        if(!countCheckBoxes)
+            objCheckBoxes.checked = CheckValue;
+        else
+            // set the check value for all check boxes
+            for(var i = 0; i < countCheckBoxes; i++)
+                objCheckBoxes[i].checked = CheckValue;
+    }
+
+</script>

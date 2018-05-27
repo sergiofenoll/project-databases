@@ -1,17 +1,12 @@
 {% extends "base.html" %}
 {% block content %}
-    <div class="row">
-        <h1>{{ table.name }}</h1>
-        <p>{{ table.desc }}</p>
-    </div>
-    <div>
-        {% for message in get_flashed_messages(with_categories=True) %}
-            <div class="alert alert-{{ message[0] }}">
-                <button type="button" class="close" data-dismiss="alert">&times;</button>
-                {{ message[1] }}
-            </div>
-        {% endfor %}
-    </div>
+    <div class="row" style="margin-bottom: 10px;">
+		<div>
+			<h1>{{ table.name }}</h1>
+			<p>{{ table.desc }}</p>
+			<a href="/datasets/{{ table.dataset }}" role="button" class="btn btn-sm btn-dark">Return to dataset</a>
+		</div>
+	</div>
     <div class="row">
         <div class="col-sm-2">
             <div class="panel-group" id="accordion">
@@ -31,7 +26,7 @@
                                 </tr>
                                 <tr>
                                     <td><a class="btn btn-light panel-button" id="removeRow" href="#"><i
-                                            class="fas fa-minus-circle"></i>
+                                               class="fas fa-minus-circle"></i>
                                         Remove selected row(s)</a></td>
                                 </tr>
                                 <tr>
@@ -39,6 +34,12 @@
                                            data-target="#removePredicate" href="#removePredicate"><i
                                             class="fas fa-minus-circle"></i>
                                         Remove by predicate</a></td>
+                                </tr>
+                                <tr>
+                                    <td><a class="btn btn-light panel-button" data-toggle="modal"
+                                           data-target="#removeIdenticalRowsAlg" href="#removeIdenticalRowsAlg"><i
+                                            class="fas fa-minus-circle"></i>
+                                        Deduplicate table</a></td>
                                 </tr>
                             </table>
                         </div>
@@ -111,14 +112,41 @@
                 </div>
                 <div class="panel panel-default">
                     <div class="panel-heading">
+                        <a class="btn btn-dark panel-button" data-toggle="modal" data-target="#findAndReplace"
+                           href="#findAndReplace"><i class="fas fa-search"></i> Find and replace</a>
+                    </div>
+                </div>
+                <div class="panel panel-default">
+                    <div class="panel-heading">
                         <a class="btn btn-dark panel-button" data-toggle="modal" data-target="#DateTimeTransformations"
                            href="#DateTimeTransformations"><i class="fas fa-clock"></i> Date/Time transformations</a>
                     </div>
                 </div>
                 <div class="panel panel-default">
                     <div class="panel-heading">
-                        <a class="btn btn-dark panel-button" id="history" href="#"><i class="fas fa-history"></i>
-                            History</a>
+                        <a data-toggle="collapse" data-parent="#accordion"
+                           class="btn btn-dark panel-button"
+                           href="#collapseFour"><i class="fas fa-calendar-check"></i>
+                            Versions</a>
+                    </div>
+                     <div id="collapseFour" class="panel-collapse collapse in">
+                        <div class="panel-body">
+                            <table class="table">
+                                <tr>
+									<a class="btn btn-light panel-button" id="history" href="/datasets/{{ table.dataset }}/tables/{{ table.name|urlencode }}/history"><i class="fas fa-history"></i>
+                                        History</a>
+                                </tr>
+                                <tr>
+                                    <td><a class="btn btn-light panel-button" data-toggle="modal" data-target="#rawData"
+                                           href="#rawData"><i class="fas fa-undo"></i> Raw data</a></td>
+                                </tr>
+                                <tr>
+                                    <td><a class="btn btn-light panel-button" data-toggle="modal"
+                                           data-target="#backups" href="#backups"><i
+                                            class="fas fa-clone"></i> Backups</a></td>
+                                </tr>
+                            </table>
+                        </div>
                     </div>
                 </div>
                 <div class="panel panel-default">
@@ -129,14 +157,14 @@
                 </div>
                 <div class="panel panel-default">
                     <div class="panel-heading">
-                        <a class="btn btn-dark panel-button" data-toggle="modal" data-target="#askStats"
-                           href="#askStats"><i class="fas fa-pie-chart"></i> Statistics</a>
+                        <a class="btn btn-dark panel-button" data-toggle="modal" data-target="#oneHotEncode"
+                           href="#oneHotEncode"><i class="fas">01</i> One Hot Encode</a>
                     </div>
                 </div>
                 <div class="panel panel-default">
                     <div class="panel-heading">
-                        <a class="btn btn-dark panel-button" data-toggle="modal" data-target="#rawData"
-                           href="#rawData"><i class="fas fa-undo"></i> Raw data</a>
+                        <a class="btn btn-dark panel-button" data-toggle="modal" data-target="#askStats"
+                           href="#askStats"><i class="fas fa-pie-chart"></i> Statistics</a>
                     </div>
                 </div>
                 <div class="panel panel-default">
@@ -147,14 +175,8 @@
                 </div>
                 <div class="panel panel-default">
                     <div class="panel-heading">
-                        <a class="btn btn-dark panel-button" data-toggle="modal" data-target="#findAndReplace"
-                           href="#findAndReplace"><i class="fas fa-search"></i> Find and replace</a>
-                    </div>
-                </div>
-                <div class="panel panel-default">
-                    <div class="panel-heading">
-                        <a class="btn btn-dark panel-button" data-toggle="modal" data-target="#oneHotEncode"
-                           href="#oneHotEncode"><i class="fas">01</i> One Hot Encode</a>
+                        <a class="btn btn-dark panel-button" data-toggle="modal" data-target="#activeUsers"
+                           href="#activerUsers"><i class="fa fa-users"></i> Active users</a>
                     </div>
                 </div>
             </div>
@@ -166,7 +188,6 @@
                 <tr>
                     <th class="scrolling-disabled"></th>
                     {% for column in table.columns[1:] %}
-
                         <th>
                             {{ column.name|capitalize }}
                         </th>
@@ -180,11 +201,18 @@
                     var dynamicForms = new DynamicForms();
                     dynamicForms.automaticallySetupForm();
                     var table = $('#dataTable').DataTable({
+                        colReorder: true,
+                        colReorder: {
+                            fixedColumnsLeft: 1
+                        },
                         scrollX: "auto",
                         scrollY: "50vh",
                         scrollCollapse: true,
                         processing: true,
                         serverSide: true,
+                        stateSave: true,
+                        dom: 'Blfrtip',
+                        buttons: ['colvis'],
                         ajax: '/api' + window.location.pathname,
                         order: [[1, 'asc']],
                         rowsDefs: [{}],
@@ -193,10 +221,15 @@
                             searchable: false,
                             orderable: false,
                             width: '1%', // min width
-                            render: function (data) {
+                             render: function (data) {
                                 return '<input type="checkbox" class="form-check" name="row-' + data + '" id="row-' + data + '">';
                             }
-                        }]
+                        }],
+                        columns: [
+                        {% for column in table.columns %}
+                             { data: "{{ column.name|safe }}" }{{ "," if not loop.last}}
+                        {% endfor %}
+                        ]
                     });
                     $('#removeRow').click(function () {
                         $.ajax({
@@ -207,10 +240,6 @@
                                 window.location.reload();
                             }
                         })
-                    });
-                    $('#history').click(function (e) {
-                        e.preventDefault();
-                        window.location.href = window.location.pathname + '/history';
                     });
                 }
             );

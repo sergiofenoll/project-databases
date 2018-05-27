@@ -17,7 +17,8 @@
                     </select>
 
                     <label for="col-type">New name</label>
-                    <input class="form-control" name="new-name" id="new-name">
+                    <input class="form-control" name="new-name" id="new-name" required>
+		    <small class="form-text text-muted">Column names cannot contain double quotes ("), they will be removed.</small>
                 </div>
                 <div class="modal-footer">
                     <button type="submit" class="btn btn-primary">Rename</button>

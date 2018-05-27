@@ -33,13 +33,16 @@ CREATE TABLE Access (
 );
 
 CREATE TABLE History (
+  action_id   SERIAL,
   id_dataset  VARCHAR(255),
   id_table    VARCHAR(255),
   date        TIMESTAMP,
   action_desc VARCHAR(255),
+  inv_query   TEXT,
+  undone      BOOL,
 
   FOREIGN KEY (id_dataset) REFERENCES Dataset (id) ON DELETE CASCADE,
-  PRIMARY KEY (id_dataset, id_table, date)
+  PRIMARY KEY (action_id, id_dataset, id_table, date)
 );
 
 CREATE TABLE Metadata (
@@ -54,4 +57,25 @@ CREATE TABLE Metadata (
 CREATE TABLE Available_Schema (
   id INTEGER,
   PRIMARY KEY (id)
+);
+
+CREATE TABLE Active_In_Table (
+  id_dataset VARCHAR(255),
+  id_table   VARCHAR(255),
+  id_user    VARCHAR(255),
+  last_active       TIMESTAMP,
+
+  FOREIGN KEY (id_dataset) REFERENCES Dataset(id) ON DELETE CASCADE,
+  FOREIGN KEY (id_user) REFERENCES Member(Username)  ON DELETE CASCADE,
+  PRIMARY KEY (id_dataset, id_user, last_active)
+);
+
+CREATE TABLE Backups (
+  id_dataset VARCHAR(255),
+  table_name VARCHAR(255),
+  backup_name VARCHAR(255),
+  timestamp TIMESTAMP,
+  note VARCHAR(255),
+  FOREIGN KEY (id_dataset) REFERENCES Dataset(id) ON DELETE CASCADE,
+  PRIMARY KEY (id_dataset, table_name, timestamp)
 );

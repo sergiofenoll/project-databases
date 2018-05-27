@@ -2,8 +2,9 @@ from flask import Blueprint, request, render_template, url_for, redirect, abort,
 from flask_login import login_required, current_user, login_user, logout_user
 from passlib.hash import sha256_crypt
 
-from app import app, data_loader, login, user_data_access
+from app import app, data_loader, login, user_data_access, active_user_handler
 from app.user_service.models import User
+from config import ADMIN_USERNAME
 
 user_service = Blueprint('user_service', __name__)
 
@@ -17,25 +18,22 @@ def login():
         password = request.form.get('lg-password')
 
         try:
-            retrieved_pass = user_data_access.login_user(username)
-            if sha256_crypt.verify(password, retrieved_pass):
-
+            user = user_data_access.get_user(username)
+            if sha256_crypt.verify(password, user.password):
                 # Check if user is inactive
-                user = user_data_access.get_user(username)
                 if not user.is_active:
                     flash(u"This user is inactive and can't log in.", 'warning')
                     return render_template('user_service/login-form.html')
                 # Login and validate the user.
                 # user should be an instance of your `User` class
                 login_user(user)
-
                 return redirect(url_for('main.index'))
             else:
-                flash(u"Wrong password.", 'danger')
+                flash(u"Failed to log in. Check the provided username/password", 'danger')
                 return render_template('user_service/login-form.html')
         except Exception as e:
-            flash(u"Username doesn't exist.", 'danger')
-            app.logger.exception(e)
+            flash(u"Failed to log in. Check the provided username/password.", 'danger')
+            # app.logger.exception(e)
             return render_template('user_service/login-form.html')
 
 
@@ -49,7 +47,7 @@ def register():
         fname = request.form.get('lg-fname')
         lname = request.form.get('lg-lname')
         email = request.form.get('lg-email')
-        status = request.form.get('lg-status')
+        status = "user" # New users are never admin
         active = True
 
         user_obj = User(username, password, fname, lname, email, status, active)
@@ -67,6 +65,7 @@ def register():
 @user_service.route('/logout')
 @login_required
 def logout():
+    active_user_handler.remove_active_states_of_user(current_user.username)
     logout_user()
     flash(u"Successfully logged out!", 'success')
     return redirect(url_for('main.index'))
@@ -95,7 +94,7 @@ def user_data():
             user_obj = User(current_user.username, password, fname, lname, email, current_user.status,
                             current_user.is_active)
             user_data_access.alter_user(user_obj)
-            flash(u"User data has been updated!", 'succes')
+            flash(u"User data has been updated!", 'success')
         except:
             flash(u"User data couldn't be updated!", 'danger')
         return render_template('user_service/user-data.html')
@@ -106,8 +105,10 @@ def user_data():
 def admin_page():
     if current_user.status != 'admin':
         return abort(403)
+    admins = user_data_access.get_admins()
     if request.method == 'GET':
-        return render_template('user_service/admin-page.html', users=user_data_access.get_users())
+        return render_template('user_service/admin-page.html', users=user_data_access.get_users(),
+                                                               admins=admins)
     else:
         try:
             for user in user_data_access.get_users():
@@ -120,7 +121,8 @@ def admin_page():
             flash(u"User data has been updated!", 'success')
         except Exception:
             flash(u"User data couldn't be updated!", 'danger')
-        return render_template('user_service/admin-page.html', users=user_data_access.get_users())
+        return render_template('user_service/admin-page.html', users=user_data_access.get_users(),
+                               admins=admins, main_admin=ADMIN_USERNAME)
 
 
 @user_service.route('/admin-page/<string:username>/delete', methods=['DELETE'])

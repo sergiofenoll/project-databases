@@ -72,10 +72,10 @@ class UserDataAccess:
 
     def add_user(self, user_obj):
         try:
-            query = 'INSERT INTO Member(Username,Pass,FirstName,LastName,Email,Status,Active) VALUES({},{},{},{},{},{},{})'.format(
+            query = "INSERT INTO Member VALUES({},{},{},{},{},{},{}) ON CONFLICT (Username) WHERE Username={} DO NOTHING;".format(
                 *_cv(
                     user_obj.username, user_obj.password, user_obj.firstname, user_obj.lastname, user_obj.email,
-                    user_obj.status), user_obj.is_active)
+                    user_obj.status), user_obj.is_active, _cv(app.config['ADMIN_USERNAME']))
             db.engine.execute(query)
             return True
         except Exception as e:
@@ -118,6 +118,9 @@ class UserDataAccess:
 
     def set_admin(self, username, admin=True):
         """ Sets the given users admin status """
+        # Can't change status of main admin
+        if username == app.config['ADMIN_USERNAME']:
+            raise "Cannot change status of main admin."
         try:
             user = self.get_user(username)
             user.status = 'admin' if admin else 'user'
@@ -129,6 +132,10 @@ class UserDataAccess:
 
     def delete_user(self, data_loader, username):
         """remove user and all of its datasets"""
+        # Don't allow main admin deletion
+        if username == app.config['ADMIN_USERNAME']:
+            return False
+
         # remove user deletes every row that depends on it because of cascade deletion
         try:
             # first drop all schemas owned by the user

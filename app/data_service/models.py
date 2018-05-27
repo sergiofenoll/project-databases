@@ -349,7 +349,7 @@ class DataLoader:
         try:
             schema_name = 'schema-' + str(schema_id)
             # Delete table
-            table_query = 'DROP TABLE {}.{};'.format(*_ci(schema_name, name))
+            table_query = 'DROP TABLE IF EXISTS {}.{};'.format(*_ci(schema_name, name))
             raw_table_query = 'DROP TABLE IF EXISTS {}.{};'.format(*_ci(schema_name, "_raw_" + name))
             connection.execute(table_query)
             connection.execute(raw_table_query)
@@ -604,37 +604,46 @@ class DataLoader:
          If append = True, a table should already exist & the data will be added to this table
         """
 
-        table_exists = self.table_exists(tablename, schema_id)
-        if append and not table_exists:
-            app.logger.error("[ERROR] Appending to non-existent table.")
-            return
-        elif not append and table_exists:
-            app.logger.error("[ERROR] Cannot overwrite existing table.")
-            return
+        try:
+            table_exists = self.table_exists(tablename, schema_id)
+            if append and not table_exists:
+                app.logger.error("[ERROR] Appending to non-existent table.")
+                return
+            elif not append and table_exists:
+                app.logger.error("[ERROR] Cannot overwrite existing table.")
+                return
 
-        raw_tablename = '_raw_' + tablename
-        schema_name = 'schema-' + str(schema_id)
+            raw_tablename = '_raw_' + tablename
+            schema_name = 'schema-' + str(schema_id)
 
-        with open(file, "r") as csv:
-            for line in csv:
-                if not append:
-                    columns = line.strip().split(',')
-                    if not type_deduction:
-                        self.create_table(tablename, schema_id, columns, desc=table_description, raw=True)
-                    else:
-                        # Fancy
-                        self.create_table(tablename, schema_id, columns, desc=table_description, metadata_only=True)
-                break
+            with open(file, "r") as csv:
+                for line in csv:
+                    if not append:
+                        columns = line.strip().split(',')
+                        if not type_deduction:
+                            self.create_table(tablename, schema_id, columns, desc=table_description, raw=True)
+                        else:
+                            # Fancy
+                            self.create_table(tablename, schema_id, columns, desc=table_description, metadata_only=True)
+                    break
 
-        df = pd.read_csv(file)
-        for column in df.columns:
-            if pd.api.types.is_string_dtype(df[column]):
-                df[column] = pd.to_datetime(df[column], errors='ignore')
-        df.index.name = 'id'
-        df.to_sql(name=tablename, con=db.engine, schema=schema_name, index=type_deduction, if_exists='append')
-        df.to_sql(name=raw_tablename, con=db.engine, schema=schema_name, index=type_deduction, if_exists='append')
-        if type_deduction:
-            create_serial_sequence(schema_name, tablename)
+            df = pd.read_csv(file)
+            for column in df.columns:
+                if pd.api.types.is_string_dtype(df[column]):
+                    df[column] = pd.to_datetime(df[column], errors='ignore')
+            df.index.name = 'id'
+            df.to_sql(name=tablename, con=db.engine, schema=schema_name, index=type_deduction, if_exists='append')
+            df.to_sql(name=raw_tablename, con=db.engine, schema=schema_name, index=type_deduction, if_exists='append')
+            if type_deduction:
+                create_serial_sequence(schema_name, tablename)
+        except Exception as e:
+            app.logger.error("[ERROR] Failed to process csv")
+            app.logger.exception(e)
+            # delete all tables and entries where necessary
+            self.delete_table(tablename, schema_id)
+
+            raise e
+
 
     def process_zip(self, file, schema_id, type_deduction=False):
         """

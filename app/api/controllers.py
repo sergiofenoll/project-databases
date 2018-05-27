@@ -229,7 +229,9 @@ def update_table_metadata(dataset_id):
     try:
         active_user_handler.make_user_active_in_dataset(dataset_id, current_user.username)
         old_table_name = request.args.get('t-old-name')
-        new_table_name = request.args.get('t-name')
+        new_table_name = request.args.get('t-name').replace('"', '')
+        if not len(new_table_name) or new_table_name == old_table_name:
+            raise Exception('Could not rename table')
         new_desc = request.args.get('t-desc')
         data_loader.update_table_metadata(dataset_id, old_table_name, new_table_name, new_desc)
         flash(u"Metadata has been updated.", 'success')
@@ -407,7 +409,7 @@ def rename_column(dataset_id, table_name):
         active_user_handler.make_user_active_in_table(dataset_id, table_name, current_user.username)
         to_rename = request.args.get('col-name')
         new_name = request.args.get('new-name').replace('"', '')
-        if not len(new_name) and new_name != to_rename:
+        if not len(new_name) or new_name == to_rename:
             raise Exception('Column name is empty')
         data_loader.rename_column(dataset_id, table_name, to_rename, new_name)
         flash(u"Column has been renamed.", 'success')

@@ -121,13 +121,11 @@
                             </div>
                             <div class="modal-body">
                                 <label for="t-name">Name</label>
-                                <br>
-                                <input type="text" name="t-name" value="" id="t-name" required><br>
+                                <input type="text" name="t-name" class="form-control" value="" id="t-name" required>
+			        <small class="form-text text-muted">Table names cannot contain double quotes ("), they will be removed.</small>
 
                                 <label for="t-desc">Description</label>
-                                <br>
-                                <textarea type="text" name="t-desc" id="t-desc" required></textarea>
-
+                                <textarea type="text" class="form-control"  name="t-desc" id="t-desc" required></textarea>
                                 <input type="hidden" id="t-old-name" name="t-old-name">
 
                             </div>
@@ -164,13 +162,14 @@
                             </div>
                             <input type="text" name="ds-table-name" id="ds-table-name" class="form-control show-input"
                                    placeholder="Table name" style="display:none">
+                            <small class="form-text text-muted show-input"  style="display:none;">Table names cannot contain double quotes ("), they will be removed.</small>
                             <textarea name="ds-table-desc" id="ds-table-desc" class="form-control show-input"
                                       value="Default description" style="display:none">Default description</textarea>
                             <small class="form-text text-muted">
                                 If a zip file is uploaded, default name (file name) and description will be used for
-                                every table. <br>
+				every table. <br><br>
                                 If a dump/csv file is uploaded, you can choose a custom table name
-                                or let the system use the default name.
+				or let the system use the default name.
                             </small>
                         </div>
                         <div class="modal-footer">
@@ -323,6 +322,7 @@
                                     <input type="text" class="form-control" id="table-name" name="table-name"
                                            placeholder="Table name"
                                            required>
+				    <small class="form-text text-muted">Table names cannot contain double quotes ("), they will be removed.</small>
                                 </div>
                                 <div class="form-group">
                                     <span>Description</span>

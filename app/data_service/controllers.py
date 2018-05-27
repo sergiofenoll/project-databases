@@ -107,6 +107,7 @@ def add_table(dataset_id):
             type_deduction = (request.form.get('ds-type-deduction') is not None) # Unchecked returns None
             table_name = request.form.get('ds-table-name') or filename.rsplit('.')[0]
             table_desc = request.form.get('ds-table-desc') or 'Default description'
+            table_name = table_name.replace('"', '')
             if table_name.isspace():
                 table_name = filename.rsplit('.')[0]
             if filename[-3:] == "zip":
@@ -392,7 +393,9 @@ def join_tables(dataset_id):
     try:
         active_user_handler.make_user_active_in_dataset(dataset_id, current_user.username)
 
-        name = request.form.get('table-name')
+        name = request.form.get('table-name').replace('"', '')
+        if not len(name):
+            raise Exception('Joined table name cointained " only')
         meta = request.form.get('table-meta')
 
         f = request.form

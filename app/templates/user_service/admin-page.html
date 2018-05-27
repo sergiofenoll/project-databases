@@ -21,14 +21,14 @@
                                         <td>
                                             <a class="btn btn-light panel-button" data-toggle="modal"
                                                data-target="#addAdminModal"
-                                               href="#addAdminModal"><i class="fas fa-user-plus"></i>Add admin</a>
+                                               href="#addAdminModal"><i class="fas fa-user-plus"></i> Add admin</a>
                                         </td>
                                     </tr>
                                     <tr>
                                         <td>
                                             <a class="btn btn-light panel-button" data-toggle="modal"
                                                data-target="#removeAdminModal"
-                                               href="#removeAdminModal"><i class="fas fa-user-times"></i>Remove admin</a>
+                                               href="#removeAdminModal"><i class="fas fa-user-times"></i> Remove admin</a>
                                         </td>
                                     </tr>
                                 </table>
@@ -153,14 +153,12 @@
                         type: 'POST',
                         url: '/api' + window.location.pathname + '/add-admin?' + $('#formAddAdmin').serialize(),
                         success: function () {
-                            window.location.reload();
+			    window.location.reload();
                         },
                         error: function () {
-                            window.location.reload();
+			    window.location.reload();
                         }
                     });
-                    $('#addAdminModal').modal('hide');
-                    window.location.reload();
                 });
 
                 $('#formRemoveAdmin').submit(function (e) {
@@ -175,8 +173,6 @@
                             window.location.reload();
                         }
                     });
-                    $('#addAdminModal').modal('hide');
-                    window.location.reload();
                 });
         });
 

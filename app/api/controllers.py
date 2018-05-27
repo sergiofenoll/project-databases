@@ -588,7 +588,7 @@ def add_admin():
     try:
         UserDataAccess().set_admin(to_add)
         flash(u"Admin rights granted.", 'success')
-        return jsonify({'succes': True}), 200
+        return jsonify({'success': True}), 200
     except Exception as e:
         flash(u"Failed to grant admin rights.", 'danger')
         return jsonify({'error': True}), 400
@@ -601,7 +601,7 @@ def remove_admin():
     try:
         UserDataAccess().set_admin(to_remove, False)
         flash(u"Admin rights removed.", 'success')
-        return jsonify({'succes': True}), 200
+        return jsonify({'success': True}), 200
     except Exception as e:
         flash(u"Failed to remove admin rights.", 'danger')
         return jsonify({'error': True}), 400

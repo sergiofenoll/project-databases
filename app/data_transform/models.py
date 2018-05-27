@@ -540,8 +540,13 @@ class DataDeduplicator:
             if sorting_key not in fixed_column_names:
                 fixed_column_names.append(sorting_key)
 
+            string_columns = list(df.select_dtypes(include=['object']).columns)
+            numerical_columns = list(df.select_dtypes(include=['int64']).columns)
+            numerical_columns.extend(list(df.select_dtypes(include=['float64']).columns))
+            date_columns = list(df.select_dtypes(include=['datetime64[ns]']).columns)
+
             ## Clean string values
-            for column_name in df.select_dtypes(include=['object']).columns:
+            for column_name in string_columns:
                 df[column_name] = clean(df[column_name])
 
             # Indexation step
@@ -555,9 +560,14 @@ class DataDeduplicator:
             for column_name in fixed_column_names:
                 compare_cl.exact(column_name, column_name, label=column_name)
 
-            ## Variable matches calculated using an alg (levenshtein)
+            ## Variable matches calculated using an alg (levenshtein / numerical / date)
             for column_name in var_column_names:
-                compare_cl.string(column_name, column_name, method=alg, threshold=0.75, label=column_name)
+                if column_name in numerical_columns:
+                    compare_cl.numeric(column_name, column_name, method='linear', offset=10, scale=10)
+                elif column_name in date_columns:
+                    compare_cl.date(column_name, column_name)
+                elif column_name in string_columns:
+                    compare_cl.string(column_name, column_name, method=alg, threshold=0.75, label=column_name)
 
             potential_pairs = compare_cl.compute(pairs, df)
 

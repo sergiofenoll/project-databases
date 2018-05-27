@@ -28,14 +28,6 @@
 </div>
 <script>
     $(document).ready(function () {
-        $.ajax({
-            type: "POST",
-            url: '/api' + window.location.pathname + '/active-users',
-            dataType: "json",
-            success: function (data) {
-
-            }
-        });
         $.getJSON('/api' + window.location.pathname + '/active-users', function (data) {
             var table = $("#activeUsersTable tbody");
             $.each(data, function (idx, elem) {

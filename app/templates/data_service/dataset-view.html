@@ -275,7 +275,7 @@
                                             <select class="join_table" onchange="update_selection(this.id, this.value)"
                                                     form="join-tables" name="join[ID]"
                                                     data-dynamic-form-input-id-template="ID" id="join[ID]-table1">
-                                                <{% for t in tables %}
+                                                {% for t in tables %}
                                                 <option value="{{ t.name }}">{{ t.name }}</option>
                                             {% endfor %}
                                             </select>
@@ -283,7 +283,7 @@
                                             <select form="join-tables" name="join[ID]"
                                                     data-dynamic-form-input-id-template="ID"
                                                     id="join[ID]-table1-columns">
-                                                <{% for c in columns %}
+                                                {% for c in columns %}
                                                 <option value="{{ c }}">{{ c }}</option>
                                             {% endfor %}
                                             </select>
@@ -301,7 +301,7 @@
                                             <select class="join_table" onchange="update_selection(this.id, this.value)"
                                                     form="join-tables" name="join[ID]"
                                                     data-dynamic-form-input-id-template="ID" id="join[ID]-table2">
-                                                <{% for t in tables %}
+                                                {% for t in tables %}
                                                 <option value="{{ t.name }}">{{ t.name }}</option>
                                             {% endfor %}
                                             </select>
@@ -309,7 +309,7 @@
                                             <select form="join-tables" name="join[ID]"
                                                     data-dynamic-form-input-id-template="ID"
                                                     id="join[ID]-table2-columns">
-                                                <{% for c in columns %}
+                                                {% for c in columns %}
                                                 <option value="{{ c }}">{{ c }}</option>
                                             {% endfor %}
                                             </select>
@@ -376,7 +376,7 @@
 
             $.ajax({
                 type: 'GET',
-                url: window.location.pathname + '/join-tables/' + changed_value,
+                url: window.location.pathname + '/join-tables/' + encodeURIComponent(changed_value),
                 async: true,
                 dataType: 'json',
                 success: function (data) {

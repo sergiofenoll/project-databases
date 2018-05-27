@@ -64,7 +64,7 @@
                                 <input id="{{ user.username }}"
                                        name="{{ user.username }}"
                                        {% if user.is_active %}checked{% endif %}
-                                       type="checkbox" class="form-check-input">
+                                       type="checkbox" class="form-check-input" {% if user.status == 'admin' %}disabled{% endif %}>
                             </td>
                             <td style="text-align: center;">
                                 <button type="button" class="btn btn-xs btn-danger" id="button-delete-user"

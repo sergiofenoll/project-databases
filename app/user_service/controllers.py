@@ -17,25 +17,22 @@ def login():
         password = request.form.get('lg-password')
 
         try:
-            retrieved_pass = user_data_access.login_user(username)
-            if sha256_crypt.verify(password, retrieved_pass):
-
+            user = user_data_access.get_user(username)
+            if sha256_crypt.verify(password, user.password):
                 # Check if user is inactive
-                user = user_data_access.get_user(username)
                 if not user.is_active:
                     flash(u"This user is inactive and can't log in.", 'warning')
                     return render_template('user_service/login-form.html')
                 # Login and validate the user.
                 # user should be an instance of your `User` class
                 login_user(user)
-
                 return redirect(url_for('main.index'))
             else:
-                flash(u"Wrong password.", 'danger')
+                flash(u"Failed to log in. Check the provided username/password", 'danger')
                 return render_template('user_service/login-form.html')
         except Exception as e:
-            flash(u"Username doesn't exist.", 'danger')
-            app.logger.exception(e)
+            flash(u"Failed to log in. Check the provided username/password.", 'danger')
+            # app.logger.exception(e)
             return render_template('user_service/login-form.html')
 
 

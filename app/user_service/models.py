@@ -47,7 +47,7 @@ class UserDataAccess:
         pass
 
     def get_users(self):
-        rows = db.engine.execute('SELECT Username, Pass, FirstName, LastName, Email, Status, Active FROM Member;')
+        rows = db.engine.execute('SELECT * FROM Member;')
         quote_objects = list()
         for row in rows:
             quote_obj = User(row['username'], row['pass'], row['firstname'], row['lastname'], row['email'],
@@ -96,13 +96,11 @@ class UserDataAccess:
         rows = db.engine.execute(
             'SELECT * FROM Member WHERE Username={};'.format(_cv(user_id)))
         row = rows.first()
-
-        if row is not None:
-            user = User(row['username'], row['pass'], row['firstname'], row['lastname'], row['email'],
-                        row['status'], row['active'])
-            return user
-        else:
-            raise Exception
+        try:
+            return User(row['username'], row['pass'], row['firstname'], row['lastname'],
+                        row['email'], row['status'], row['active'])
+        except TypeError as e:
+            raise "Failed to get user." # This could/should be a custom exception
 
     def alter_user(self, user):
         try:

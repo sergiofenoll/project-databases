@@ -43,8 +43,10 @@ data_deduplicator = DataDeduplicator(data_loader)
 
 @login.user_loader
 def load_user(user_id):
-    user = user_data_access.get_user(user_id)
-    return user if user.is_active else None
+    try:
+        return user_data_access.get_user(user_id)
+    except Exception as e:
+        return None
 
 
 from app.main.controllers import main

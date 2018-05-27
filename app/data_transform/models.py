@@ -443,17 +443,17 @@ class DataDeduplicator:
     def __init__(self, dataloader):
         self.dataloader = dataloader
 
-    def remove_identical_rows(self, schema_id, table_name, column_names):
-        """ remove identical rows from table for given columns, only row with smallest 'id' remains """
+    def remove_identical_rows(self, schema_id, table_name):
+        """ remove identical rows from table for all columns, only row with smallest 'id' remains """
 
         schema_name = 'schema-' + str(schema_id)
 
         try:
             # Retrieve id's for identical rows
-            identical_rows_query = "SELECT t1.id FROM {0}.{1} as t1, {0}.{1} as t2 WHERE t1.id > t2.id;".format(
+            identical_rows_query = "SELECT t1.id FROM {0}.{1} as t1, {0}.{1} as t2 WHERE t1.id > t2.id".format(
                 *_ci(schema_name, table_name))
 
-            for column_name in column_names:
+            for column_name in self.dataloader.get_column_names(schema_id, table_name):
                 if column_name == 'id':
                     continue
                 identical_rows_query += " AND t1.{0} = t2.{0}".format(_ci(column_name))
@@ -527,6 +527,10 @@ class DataDeduplicator:
         # Afterwards when finished selecting rows of all clusters, delete those rows (UNDO)
 
         try:
+
+            # Remove complete duplicates before full dedup
+            self.remove_identical_rows(schema_id, table_name, )
+
             # SELECT id, 'column' FROM "schema_name"."table";
             data_query = 'SELECT * FROM {}.{}'.format(*_ci(schema_name, table_name))
             df = pd.read_sql(data_query, con=db.engine)

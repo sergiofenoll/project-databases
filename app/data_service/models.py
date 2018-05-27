@@ -1044,20 +1044,22 @@ class DataLoader:
             line = ""
 
             # First write the column names
-            columns = self.get_column_names(schema_id, tablename)
+            columns = self.get_column_names(schema_id, tablename)[1:]
 
             csvwriter = csv.writer(output, delimiter=separator, quotechar=quote_char, quoting=csv.QUOTE_ALL, )
 
             csvwriter.writerow(columns)
 
             table = self.get_table(schema_id, tablename)
+            rows = list()
             # Replace empty entries by empty_char
             for r_x in range(len(table.rows)):
-                for e_x in range(len(table.rows[r_x])):
+                rows.append(table.rows[r_x][1:])
+                for e_x in range(1, len(table.rows[r_x])):
                     if table.rows[r_x][e_x] == None or table.rows[r_x][e_x] == "":
                         table.rows[r_x][e_x] = empty_char
 
-            csvwriter.writerows(table.rows)
+            csvwriter.writerows(rows)
 
         return filename
 

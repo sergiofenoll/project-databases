@@ -4,6 +4,7 @@ from passlib.hash import sha256_crypt
 
 from app import app, data_loader, login, user_data_access, active_user_handler
 from app.user_service.models import User
+from config import ADMIN_USERNAME
 
 user_service = Blueprint('user_service', __name__)
 
@@ -120,7 +121,8 @@ def admin_page():
             flash(u"User data has been updated!", 'success')
         except Exception:
             flash(u"User data couldn't be updated!", 'danger')
-        return render_template('user_service/admin-page.html', users=user_data_access.get_users(), admins=admins)
+        return render_template('user_service/admin-page.html', users=user_data_access.get_users(),
+                               admins=admins, main_admin=ADMIN_USERNAME)
 
 
 @user_service.route('/admin-page/<string:username>/delete', methods=['DELETE'])

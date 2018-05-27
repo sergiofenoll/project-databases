@@ -128,7 +128,7 @@
                                 <select type="role" class="form-control" id="ap-remove-admin-select"
                                         name="ap-remove-admin-select" required>
                                     {% for admin in admins %}
-                                        {% if admin.username != current_user.username %}
+                                        {% if (admin.username != current_user.username) and (admin.username != main_admin) %}
                                             <option value="{{ admin.username }}">{{ admin.username }}</option>
                                         {% endif %}
                                     {% endfor %}

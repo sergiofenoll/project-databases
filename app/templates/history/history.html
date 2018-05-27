@@ -12,6 +12,7 @@
             <tr>
                 <th>Date</th>
                 <th>Description</th>
+				<th>Undo</th>
             </tr>
             </thead>
         </table>
@@ -24,9 +25,38 @@
                     processing: true,
                     serverSide: true,
                     ajax: '/api' + window.location.pathname,
-                    order: [[0, 'desc']]
+                    order: [[0, 'desc']],
+					columnDefs: [{
+						targets: -1,
+						searchable: false,
+						orderable: false,
+						render: function(data) {
+							var action_id = data[0];
+							var is_undone = data[1];
+							var is_undoable = data[2];
+							if (is_undone) return ' ';
+							else return `<button class="btn btn-dark undo-button"
+										name="${action_id}" ${(is_undoable ? '' : 'disabled')}>
+										<i class="fas fa-undo"></i>
+									</button>`;
+						}
+					}]
                 });
-                table.buttons().container().appendTo('#dataTable_wrapper .col-sm-8:eq(0)');
+                // table.buttons().container().appendTo('#dataTable_wrapper .col-sm-8:eq(0)');
+				$(document).on('click', '.undo-button', function(e) {
+					e.preventDefault();
+					$.ajax({
+						url: '/api' + window.location.pathname + '/undo/' + $(this).attr('name'),
+						method: 'POST',
+						success: function() {
+							window.location.reload();
+						},
+						error: function() {
+							window.location.reload();
+						}
+					});
+				});
+				$('[data-undone="true"]').parent().parent().addClass('table-secondary');
             });
         </script>
     </div>

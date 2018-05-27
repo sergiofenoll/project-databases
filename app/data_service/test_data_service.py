@@ -137,7 +137,7 @@ class TestDataService(unittest.TestCase):
             data_loader.create_table(table_name, schema_id, columns)
             data_loader.insert_row(table_name, schema_id, columns, values)
         finally:
-            data_loader.delete_row(schema_id, table_name, [0])
+            data_loader.delete_row(schema_id, table_name, [1])
             data_loader.delete_table(table_name, schema_id)
             data_loader.delete_dataset(schema_id)
 

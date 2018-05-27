@@ -8,9 +8,9 @@ from psycopg2 import IntegrityError
 
 from app import app, database as db, ACTIVE_USER_TIME_SECONDS, BACKUP_LIMIT
 from app.history.models import History
+from app.data_transform.helpers import create_serial_sequence
 
 history = History()
-
 
 
 def _ci(*args: str):
@@ -66,7 +66,8 @@ class ActiveUserHandler:
         """ remove all the users who aren't active in a table from the list"""
         try:
             db.engine.execute(
-                'DELETE FROM Active_In_Table WHERE EXTRACT(EPOCH FROM (now() - last_active)) > {};'.format(ACTIVE_USER_TIME_SECONDS))
+                'DELETE FROM Active_In_Table WHERE EXTRACT(EPOCH FROM (now() - last_active)) > {};'.format(
+                    ACTIVE_USER_TIME_SECONDS))
         except Exception as e:
             app.logger.error("[ERROR] Unable to remove all the users who aren't active in a table from the list")
             app.logger.exception(e)
@@ -82,11 +83,12 @@ class ActiveUserHandler:
             if exists.first()[0]:
                 db.engine.execute(
                     'UPDATE Active_In_Table VALUES SET last_active=NOW() '
-                    'WHERE id_dataset = {} AND id_table = {} and id_user = {}'.format(
+                    'WHERE id_dataset = {} AND id_table = {} and id_user = {};'.format(
                         *_cv(schema_name, table_name, user_id)))
             else:
                 db.engine.execute(
-                    'INSERT INTO Active_In_Table VALUES ({},{},{},NOW());'.format(*_cv(schema_name, table_name, user_id)))
+                    'INSERT INTO Active_In_Table VALUES ({},{},{},NOW());'.format(
+                        *_cv(schema_name, table_name, user_id)))
         except Exception as e:
             app.logger.error("[ERROR] Unable to make a user active in dataset {}".format(table_name))
             app.logger.exception(e)
@@ -103,7 +105,7 @@ class ActiveUserHandler:
             if exists:
                 db.engine.execute(
                     'UPDATE Active_In_Table VALUES SET last_active=NOW() '
-                    'WHERE id_dataset = {} AND id_table IS NULL and id_user = {}'.format(
+                    'WHERE id_dataset = {} AND id_table IS NULL and id_user = {};'.format(
                         *_cv(schema_name, user_id)))
             else:
                 db.engine.execute(
@@ -234,7 +236,7 @@ class DataLoader:
         # Clean up the access & dataset tables
         try:
             schema_name = "schema-" + str(schema_id)
-            db.engine.execute('INSERT INTO Available_Schema (id) VALUES ({})'.format(_cv(schema_id)))
+            db.engine.execute('INSERT INTO Available_Schema (id) VALUES ({});'.format(_cv(schema_id)))
 
             db.engine.execute('DELETE FROM Dataset WHERE id = {};'.format(_cv(schema_name)))
 
@@ -288,39 +290,56 @@ class DataLoader:
         """
          This method takes a schema, name and a list of columns and creates the corresponding table
         """
-        schema_name = 'schema-' + str(schema_id)
 
-        if not metadata_only:
-            query = 'CREATE TABLE {}.{} ('
-
-            query += 'id serial primary key'  # Since we don't know what the actual primary key should be, just assign an id
-
-            for column in columns:
-                query = query + ', \n\"' + column + '\" varchar(255)'
-            query += '\n);'
-
+        connection = db.engine.connect()
+        transaction = connection.begin()
+        try:
+            schema_name = 'schema-' + str(schema_id)
             raw_table_name = "_raw_" + name
-            raw_table_query = query.format(*_ci(schema_name, raw_table_name))
+            if not metadata_only:
+                query = 'CREATE TABLE {}.{} ('
 
-            query = query.format(*_ci(schema_name, name))
+                query += 'id serial primary key'  # Since we don't know what the actual primary key should be, just assign an id
 
+                for column in columns:
+                    query = query + ', \n\"' + column + '\" varchar(255)'
+                query += '\n);'
+
+                raw_table_query = query.format(*_ci(schema_name, raw_table_name))
+
+                query = query.format(*_ci(schema_name, name))
+
+                try:
+                    connection.execute(query)
+                    if raw:
+                        connection.execute(raw_table_query)
+                except Exception as e:
+                    app.logger.error("[ERROR] Failed to create table '" + name + "'")
+                    app.logger.exception(e)
+                    raise e
+
+            # Add metadata for this table
             try:
-                db.engine.execute(query)
-                if raw:
-                    db.engine.execute(raw_table_query)
+                connection.execute('INSERT INTO metadata VALUES({}, {}, {});'.format(*_cv(schema_name, name, desc)))
             except Exception as e:
-                app.logger.error("[ERROR] Failed to create table '" + name + "'")
+                app.logger.error("[ERROR] Failed to insert metadata for table '" + name + "'")
                 app.logger.exception(e)
                 raise e
 
-        # Log action to history
-        history.log_action(schema_id, name, datetime.now(), 'Created table')
+            # Log action to history
+            history.log_action(schema_id, name, datetime.now(), 'Created table',
+                               'DROP TABLE IF EXISTS {}.{};'.format(*_ci(schema_name, name)) +
+                               'DROP TABLE IF EXISTS {}.{};'.format(*_ci(schema_name, raw_table_name)) +
+                               'DELETE FROM METADATA WHERE ID_DATASET={} AND ID_TABLE={};'.format(
+                                   *_cv(schema_name, name)) +
+                               'DELETE FROM HISTORY WHERE ID_DATASET={} AND ID_TABLE={};'.format(
+                                   *_cv(schema_name, name)))
 
-        # Add metadata for this table
-        try:
-            db.engine.execute('INSERT INTO metadata VALUES({}, {}, {});'.format(*_cv(schema_name, name, desc)))
+            transaction.commit()
+
         except Exception as e:
-            app.logger.error("[ERROR] Failed to insert metadata for table '" + name + "'")
+            transaction.rollback()
+            app.logger.error("[ERROR] Failed to delete table '" + name + "'")
             app.logger.exception(e)
             raise e
 
@@ -364,7 +383,8 @@ class DataLoader:
         """ Copies the content of table 'name' to a new table 'copy_name' in the same schema"""
         schema_name = 'schema-' + str(schema_id)
         try:
-            db.engine.execute('CREATE TABLE {0}.{1} AS SELECT * FROM {0}.{2}'.format(_ci(schema_name), _ci(copy_name), _ci(name)))
+            db.engine.execute(
+                'CREATE TABLE {0}.{1} AS SELECT * FROM {0}.{2};'.format(_ci(schema_name), _ci(copy_name), _ci(name)))
         except Exception as e:
             app.logger.error("[ERROR] Unable to create copy of table {}".format(name))
             app.logger.exception(e)
@@ -374,10 +394,31 @@ class DataLoader:
         schema_name = 'schema-' + str(schema_id)
         try:
             for row_id in row_ids:
+
+                column_tuple = self.get_column_names(schema_id, table_name)
+                value_tuple = db.engine.execute(
+                    'SELECT * FROM {}.{} WHERE id={};'.format(*_ci(schema_name, table_name),
+                                                              _cv(row_id))).fetchone()[1:]
+
                 db.engine.execute('DELETE FROM {}.{} WHERE id={};'.format(*_ci(schema_name, table_name), _cv(row_id)))
                 # Log action to history
+                values_query = 'DEFAULT'
+
+                for value in value_tuple:
+                    values_query += ', '
+
+                    if value is None:
+                        values_query += 'NULL'
+                    else:
+                        values_query += _cv(value)
                 if add_history:
-                    history.log_action(schema_id, table_name, datetime.now(), 'Deleted row #' + str(row_id))
+                    inverse_query = 'INSERT INTO {}.{}({}) VALUES ({});'.format(*_ci(schema_name, table_name),
+                                                                                ', '.join(
+                                                                                    _ci(column_name) for column_name in
+                                                                                    column_tuple),
+                                                                                values_query)
+                    history.log_action(schema_id, table_name, datetime.now(), 'Deleted row #' + str(row_id),
+                                       inverse_query)
         except Exception as e:
             app.logger.error("[ERROR] Unable to delete row from table '" + table_name + "'")
             app.logger.exception(e)
@@ -401,8 +442,7 @@ class DataLoader:
             if predicate[2] == "CONTAINS":
                 predicate[2] = "LIKE"
                 predicate[3] = "%%" + predicate[3] + "%%"
-            # TODO: make this safe!
-            if (p_ix == 0):
+            if p_ix == 0:
                 q = '{0} {1} {2}'.format(_ci(predicate[1]), predicate[2], _cv(str(predicate[3])))
                 where_queries.append(q)
             else:
@@ -415,25 +455,55 @@ class DataLoader:
 
             to_delete = [r['id'] for r in result]
 
+            column_tuple = self.get_column_names(schema_id, table_name)
+            inverse_query = ''
+            for row_id in to_delete:
+                value_tuple = db.engine.execute(
+                    'SELECT * FROM {}.{} WHERE id={};'.format(*_ci(schema_name, table_name),
+                                                              _cv(row_id))).fetchone()
+                inverse_query += 'INSERT INTO {}.{}({}) VALUES ({});'.format(*_ci(schema_name, table_name),
+                                                                             ', '.join(
+                                                                                 _ci(column_name) for column_name in
+                                                                                 column_tuple),
+                                                                             ', '.join(_cv(value) for value in
+                                                                                       value_tuple))
+
             # Pass ids to 'traditional' delete_row
             self.delete_row(schema_id, table_name, to_delete, False)
 
-            history.log_action(schema_id, table_name, datetime.now(), 'Deleted rows on predicate')
+            if len(to_delete):
+                history.log_action(schema_id, table_name, datetime.now(), 'Deleted rows on predicate', inverse_query)
         except Exception as e:
             app.logger.error('[ERROR] Unable to fetch rows to delete from ' + table_name)
             app.logger.exception(e)
 
     def delete_column(self, schema_id, table_name, column_name):
         schema_name = 'schema-' + str(schema_id)
+
+        column_type = db.engine.execute(
+            "select data_type from information_schema.columns where table_name = '{}' and column_name='{}';".format(
+                table_name, column_name)).fetchone()[0]
+
+        # create inverse query
+        inverse_query = 'ALTER TABLE {}.{} ADD COLUMN {} {} NULL;'.format(*_ci(schema_name, table_name, column_name),
+                                                                          column_type)
+        inverse_query += 'UPDATE {}.{} SET {} = CASE id\n'.format(*_ci(schema_name, table_name, column_name))
+        idx_list = []
+        for idx, val in db.engine.execute(
+                'SELECT id, {} FROM {}.{}'.format(*_ci(column_name, schema_name, table_name))):
+            idx_list.append(idx)
+            inverse_query += ' WHEN {} THEN {}'.format(*_cv(idx, val))
+        inverse_query += ' END WHERE id IN ({});'.format(', '.join(_cv(idx) for idx in idx_list))
         try:
-            db.engine.execute('ALTER TABLE {}.{} DROP COLUMN {};'.format(*_ci(schema_name, table_name, column_name)))
+            db.engine.execute(
+                'ALTER TABLE {}.{} DROP COLUMN IF EXISTS {};'.format(*_ci(schema_name, table_name, column_name)))
         except Exception as e:
             app.logger.error("[ERROR] Unable to delete column from table '" + table_name + "'")
             app.logger.exception(e)
             raise e
 
         # Log action to history
-        history.log_action(schema_id, table_name, datetime.now(), 'Deleted column ' + column_name)
+        history.log_action(schema_id, table_name, datetime.now(), 'Deleted column ' + column_name, inverse_query)
 
     def insert_row(self, table, schema_id, columns, values, add_history=True):
         """
@@ -461,20 +531,27 @@ class DataLoader:
 
         # Log action to history
         if add_history:
-            history.log_action(schema_id, table, datetime.now(), 'Added row with values ' + ' '.join(values))
+            row_id = db.engine.execute('SELECT MAX(id) FROM {}.{};'.format(*_ci(schemaname, table))).fetchone()[0]
+            inverse_query = 'DELETE FROM {}.{} WHERE id={};'.format(*_ci(schemaname, table), _cv(row_id))
+            history.log_action(schema_id, table, datetime.now(), 'Added row with values ' + ' '.join(values),
+                               inverse_query)
 
-    def insert_column(self, schema_id, table_name, column_name, column_type):
+    def insert_column(self, schema_id, table_name, column_name, column_type, enable_history=True):
         schema_name = 'schema-' + str(schema_id)
         try:
             db.engine.execute(
-                'ALTER TABLE {}.{} ADD {} {} NULL;'.format(*_ci(schema_name, table_name, column_name), column_type))
+                'ALTER TABLE {}.{} ADD COLUMN IF NOT EXISTS {} {} NULL;'.format(*_ci(schema_name, table_name, column_name),
+                                                                         column_type))
         except Exception as e:
             app.logger.error("[ERROR] Unable to insert column into table '{}'".format(table_name))
             app.logger.exception(e)
             raise e
 
         # Log action to history
-        history.log_action(schema_id, table_name, datetime.now(), 'Added column with name ' + column_name)
+        if enable_history:
+            inverse_query = 'ALTER TABLE {}.{} DROP COLUMN IF EXISTS {};'.format(*_ci(schema_name, table_name, column_name))
+            history.log_action(schema_id, table_name, datetime.now(), 'Added column with name ' + column_name,
+                               inverse_query)
 
     def rename_column(self, schema_id, table_name, column_name, new_column_name):
         schema_name = 'schema-' + str(schema_id)
@@ -482,7 +559,7 @@ class DataLoader:
             if not new_column_name or new_column_name.isspace():
                 raise Exception("Can't rename column to empty string")
             db.engine.execute(
-                'ALTER TABLE {0}.{1} RENAME {2} TO {3}'.format(
+                'ALTER TABLE {0}.{1} RENAME {2} TO {3};'.format(
                     *_ci(schema_name, table_name, column_name, new_column_name)))
         except Exception as e:
             app.logger.error(
@@ -491,9 +568,18 @@ class DataLoader:
             app.logger.exception(e)
             raise e
 
+        # Log action to history
+        inverse_query = 'ALTER TABLE {}.{} RENAME {} TO {};'.format(*_ci(schema_name, table_name, new_column_name,
+                                                                        column_name))
+        history.log_action(schema_id, table_name, datetime.now(),
+                           'Renamed column {} to {}'.format(column_name, new_column_name), inverse_query)
+
     def update_column_type(self, schema_id, table_name, column_name, column_type):
         schema_name = 'schema-' + str(schema_id)
         db.engine.execute('ALTER DATABASE userdb SET datestyle TO "ISO, MDY";')
+        old_column_type = db.engine.execute(
+            "select data_type from information_schema.columns where table_name = '{}' and column_name='{}';".format(
+                table_name, column_name)).fetchone()[0]
         try:
             db.engine.execute(
                 'ALTER TABLE {0}.{1} ALTER {2} TYPE {3} USING {2}::{3};'.format(
@@ -504,11 +590,14 @@ class DataLoader:
             raise e
 
         # Log action to history
+        inverse_query = 'ALTER TABLE {0}.{1} ALTER {2} TYPE {3} USING {2}::{3};'.format(
+            *_ci(schema_name, table_name, column_name), old_column_type)
         history.log_action(schema_id, table_name, datetime.now(),
-                           'Updated column ' + column_name + ' to have type ' + column_type)
+                           'Updated column ' + column_name + ' to have type ' + column_type, inverse_query)
 
     # Data uploading handling
-    def process_csv(self, file, schema_id, tablename, table_description='Default description', append=False, type_deduction=False):
+    def process_csv(self, file, schema_id, tablename, table_description='Default description', append=False,
+                    type_deduction=False):
         """
          This method takes a filename for a CSV file and processes it into a table.
          A table name should be provided by the user / caller of this method.
@@ -544,6 +633,8 @@ class DataLoader:
         df.index.name = 'id'
         df.to_sql(name=tablename, con=db.engine, schema=schema_name, index=type_deduction, if_exists='append')
         df.to_sql(name=raw_tablename, con=db.engine, schema=schema_name, index=type_deduction, if_exists='append')
+        if type_deduction:
+            create_serial_sequence(schema_name, tablename)
 
     def process_zip(self, file, schema_id, type_deduction=False):
         """
@@ -588,7 +679,7 @@ class DataLoader:
 
             raise e
 
-    def process_dump(self, file, schema_id, table_name, table_description='Default description',):
+    def process_dump(self, file, schema_id, table_name, table_description='Default description', ):
 
         """
          This method takes a SQL dump file and processes the INSERT statements,
@@ -665,7 +756,8 @@ class DataLoader:
                     schema_id = ds_id.split('-')[1]
 
                     # Find active users in this dataset
-                    active_users = ActiveUserHandler().active_users_in_dataset_count_excluding_requesting_user(schema_id, user_id)
+                    active_users = ActiveUserHandler().active_users_in_dataset_count_excluding_requesting_user(
+                        schema_id, user_id)
 
                     result.append(Dataset(schema_id, row['nickname'], row['metadata'], owner, moderators, active_users))
                 except Exception as e:
@@ -743,7 +835,8 @@ class DataLoader:
     def has_access(self, user_id, id):
         schema_id = "schema-" + str(id)
         try:
-            exists = db.engine.execute("SELECT EXISTS(SELECT 1 FROM access WHERE id_user={} AND id_dataset={});".format(*_cv(user_id, schema_id)))
+            exists = db.engine.execute("SELECT EXISTS(SELECT 1 FROM access WHERE id_user={} AND id_dataset={});".format(
+                *_cv(user_id, schema_id)))
             return exists.first()[0]
 
         except Exception as e:
@@ -795,7 +888,8 @@ class DataLoader:
 
             tables = list()
             for row in rows:
-                active_users = ActiveUserHandler().active_users_in_table_count_excluding_requesting_user(schema_id, row['id_table'], user_id)
+                active_users = ActiveUserHandler().active_users_in_table_count_excluding_requesting_user(schema_id, row[
+                    'id_table'], user_id)
                 t = Table(row['id_table'], row['metadata'], active_users_count=active_users)
                 tables.append(t)
 
@@ -832,7 +926,7 @@ class DataLoader:
                                                                        ordering_query, limit, offset))
 
             # Get total size (of unfiltered table)
-            size_query = 'SELECT count(*) FROM {}.{}'.format(*_ci(schema_name, table_name))
+            size_query = 'SELECT count(*) FROM {}.{};'.format(*_ci(schema_name, table_name))
             size_result = db.engine.execute(size_query)
             table_size = [r[0] for r in size_result][0]
 
@@ -856,7 +950,7 @@ class DataLoader:
             schema = "schema-" + str(schema_id)
             rows = db.engine.execute(
                 'SELECT column_name FROM information_schema.columns WHERE table_schema={} AND table_name={};'.format(
-                    *_cv(schema, table_name)))
+                    *_cv(schema, table_name))).fetchall()
             result = list()
             for row in rows:
                 result.append(row[0])
@@ -900,7 +994,7 @@ class DataLoader:
         try:
             if not new_name or new_name.isspace():
                 raise Exception("Can't rename table to empty string")
-            db.engine.execute('UPDATE dataset SET (metadata, nickname) = ({} , {}) WHERE id={}'.format(
+            db.engine.execute('UPDATE dataset SET (metadata, nickname) = ({} , {}) WHERE id={};'.format(
                 *_cv(new_desc, new_name, schema_name, )))
 
         except Exception as e:
@@ -914,8 +1008,11 @@ class DataLoader:
             if not new_table_name or new_table_name.isspace():
                 raise Exception("Can't rename table to empty string")
             db.engine.execute(
-                'UPDATE metadata SET (id_table, metadata) = ({}, {}) WHERE id_dataset={} AND id_table={}'.format(
+                'UPDATE metadata SET (id_table, metadata) = ({}, {}) WHERE id_dataset={} AND id_table={};'.format(
                     *_cv(new_table_name, new_desc, schema_name, old_table_name)))
+            db.engine.execute(
+                'UPDATE history SET id_table={} WHERE id_dataset={} and id_table={};'.format(
+                    *_cv(new_table_name, schema_name, old_table_name)))
             if new_table_name != old_table_name:
                 db.engine.execute(
                     'ALTER TABLE {}.{} RENAME TO {};'.format(*_ci(schema_name, old_table_name, new_table_name)))
@@ -971,7 +1068,7 @@ class DataLoader:
         try:
             schema_name = 'schema-' + str(schema_id)
             rows = db.engine.execute(
-                'SELECT ' + function + '( "{}" ) FROM "{}"."{}"'.format(column, schema_name, table_name))
+                'SELECT ' + function + '( "{}" ) FROM "{}"."{}";'.format(column, schema_name, table_name))
             stat = rows.first()[0]
             if not stat:
                 stat = 0
@@ -991,7 +1088,7 @@ class DataLoader:
                                      'WHERE "{}" IS NOT NULL '
                                      'GROUP BY "{}" '
                                      'ORDER BY counted DESC, "{}" '
-                                     'LIMIT 1'.format(column, schema_name, table_name, column, column, column))
+                                     'LIMIT 1;'.format(column, schema_name, table_name, column, column, column))
             value = None
             for x in rows:
                 value = x[0]
@@ -1049,23 +1146,20 @@ class DataLoader:
     # Raw data & backups
     def revert_back_to_raw_data(self, schema_id, table_name):
         schema_name = "schema-" + str(schema_id)
+        connection = db.engine.connect()
+        transaction = connection.begin()
         try:
-            db.engine.execute('DROP TABLE {}.{};'.format(*_ci(schema_name, table_name)))
-        except Exception as e:
-            app.logger.error("[ERROR] Couldn't convert back to raw data")
-            app.logger.exception(e)
-            raise e
-
-        try:
+            connection.execute('DROP TABLE {}.{};'.format(*_ci(schema_name, table_name)))
             raw_table_name = "_raw_" + table_name
-
-            db.engine.execute(
-                'CREATE TABLE {}.{} AS TABLE {}.{}'.format(*_ci(schema_name, table_name, schema_name, raw_table_name)))
-
-            # Log action to history
-            history.log_action(schema_id, table_name, datetime.now(), 'Reverted to raw data')
-
+            connection.execute(
+                'CREATE TABLE {}.{} AS TABLE {}.{};'.format(*_ci(schema_name, table_name, schema_name, raw_table_name)))
+            connection.execute(
+                'DELETE FROM HISTORY WHERE ID_DATASET={0} AND ID_TABLE={1} AND ACTION_ID<>(SELECT MIN(ACTION_ID) FROM HISTORY WHERE ID_DATASET={0} AND ID_TABLE={1});'.format(
+                    *_cv(schema_name, table_name)))
+            transaction.commit()
+            create_serial_sequence(schema_name, table_name)
         except Exception as e:
+            transaction.rollback()
             app.logger.error("[ERROR] Couldn't convert back to raw data")
             app.logger.exception(e)
             raise e
@@ -1094,12 +1188,10 @@ class DataLoader:
 
             self.copy_table(table_name, schema_id, backup_name)
 
-            backup_query = 'INSERT INTO Backups VALUES ({}, {}, {}, {}, {})'.format(*_cv(schema_name, table_name, backup_name, timestamp, note))
+            backup_query = 'INSERT INTO Backups VALUES ({}, {}, {}, {}, {});'.format(
+                *_cv(schema_name, table_name, backup_name, timestamp, note))
 
             connection.execute(backup_query)
-
-            history.log_action(schema_id, table_name, datetime.now(), "Created backup.")
-
             transaction.commit()
 
         except Exception as e:
@@ -1114,7 +1206,8 @@ class DataLoader:
         """
         schema_name = "schema-" + str(schema_id)
         try:
-            query = 'SELECT timestamp FROM Backups WHERE id_dataset = {} AND table_name = {}'.format(*_cv(schema_name, table_name))
+            query = 'SELECT timestamp FROM Backups WHERE id_dataset = {} AND table_name = {};'.format(
+                *_cv(schema_name, table_name))
             rows = db.engine.execute(query)
 
             timestamps = [str(ts[0]) for ts in rows]
@@ -1131,21 +1224,14 @@ class DataLoader:
         transaction = connection.begin()
         try:
             connection.execute('DROP TABLE {}.{};'.format(*_ci(schema_name, table_name)))
-        except Exception as e:
-            transaction.rollback()
-            app.logger.error("[ERROR] Couldn't convert back to raw data")
-            app.logger.exception(e)
-            raise e
-
-        try:
             backup_name = '_{}_backup_{}'.format(table_name, timestamp)
             connection.execute(
-                'CREATE TABLE {}.{} AS TABLE {}.{}'.format(*_ci(schema_name, table_name, schema_name, backup_name)))
-
-            # Log action to history
-            history.log_action(schema_id, table_name, datetime.now(), 'Restored backup from {}'.format(timestamp))
-
+                'CREATE TABLE {}.{} AS TABLE {}.{};'.format(*_ci(schema_name, table_name, schema_name, backup_name)))
+            connection.execute(
+                "DELETE FROM HISTORY WHERE ID_DATASET={} AND ID_TABLE={} AND DATE>'{}';".format(
+                    *_cv(schema_name, table_name), timestamp))
             transaction.commit()
+            create_serial_sequence(schema_name, table_name)
         except Exception as e:
             transaction.rollback()
             app.logger.error("[ERROR] Couldn't restore backup for table '{}'".format(table_name))
@@ -1159,7 +1245,8 @@ class DataLoader:
         transaction = connection.begin()
         try:
             backup_name = '_{}_backup_{}'.format(table_name, timestamp)
-            query = 'DELETE FROM Backups WHERE id_dataset = {} AND backup_name = {};'.format(*_cv(schema_name, backup_name))
+            query = 'DELETE FROM Backups WHERE id_dataset = {} AND backup_name = {};'.format(
+                *_cv(schema_name, backup_name))
             connection.execute(query)
             history.log_action(schema_id, table_name, datetime.now(), "Deleted backup {}.".format(timestamp))
 
@@ -1178,7 +1265,8 @@ class DataLoader:
         schema_name = "schema-" + str(schema_id)
         try:
             backup_name = '_{}_backup_{}'.format(table_name, timestamp)
-            query = 'SELECT note FROM Backups WHERE id_dataset = {} AND backup_name = {}'.format(*_cv(schema_name, backup_name))
+            query = 'SELECT note FROM Backups WHERE id_dataset = {} AND backup_name = {};'.format(
+                *_cv(schema_name, backup_name))
             result = db.engine.execute(query)
             note = ""
             for row in result:

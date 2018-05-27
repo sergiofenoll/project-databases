@@ -33,13 +33,16 @@ CREATE TABLE Access (
 );
 
 CREATE TABLE History (
+  action_id   SERIAL,
   id_dataset  VARCHAR(255),
   id_table    VARCHAR(255),
   date        TIMESTAMP,
   action_desc VARCHAR(255),
+  inv_query   TEXT,
+  undone      BOOL,
 
   FOREIGN KEY (id_dataset) REFERENCES Dataset (id) ON DELETE CASCADE,
-  PRIMARY KEY (id_dataset, id_table, date)
+  PRIMARY KEY (action_id, id_dataset, id_table, date)
 );
 
 CREATE TABLE Metadata (

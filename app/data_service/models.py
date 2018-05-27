@@ -540,8 +540,9 @@ class DataLoader:
         schema_name = 'schema-' + str(schema_id)
         try:
             db.engine.execute(
-                'ALTER TABLE {}.{} ADD COLUMN IF NOT EXISTS {} {} NULL;'.format(*_ci(schema_name, table_name, column_name),
-                                                                         column_type))
+                'ALTER TABLE {}.{} ADD COLUMN IF NOT EXISTS {} {} NULL;'.format(
+                    *_ci(schema_name, table_name, column_name),
+                    column_type))
         except Exception as e:
             app.logger.error("[ERROR] Unable to insert column into table '{}'".format(table_name))
             app.logger.exception(e)
@@ -549,7 +550,8 @@ class DataLoader:
 
         # Log action to history
         if enable_history:
-            inverse_query = 'ALTER TABLE {}.{} DROP COLUMN IF EXISTS {};'.format(*_ci(schema_name, table_name, column_name))
+            inverse_query = 'ALTER TABLE {}.{} DROP COLUMN IF EXISTS {};'.format(
+                *_ci(schema_name, table_name, column_name))
             history.log_action(schema_id, table_name, datetime.now(), 'Added column with name ' + column_name,
                                inverse_query)
 
@@ -570,7 +572,7 @@ class DataLoader:
 
         # Log action to history
         inverse_query = 'ALTER TABLE {}.{} RENAME {} TO {};'.format(*_ci(schema_name, table_name, new_column_name,
-                                                                        column_name))
+                                                                         column_name))
         history.log_action(schema_id, table_name, datetime.now(),
                            'Renamed column {} to {}'.format(column_name, new_column_name), inverse_query)
 
@@ -643,7 +645,6 @@ class DataLoader:
             self.delete_table(tablename, schema_id)
 
             raise e
-
 
     def process_zip(self, file, schema_id, type_deduction=False):
         """
@@ -1079,7 +1080,7 @@ class DataLoader:
         try:
             schema_name = 'schema-' + str(schema_id)
             rows = db.engine.execute(
-                'SELECT ' + function + '( "{}" ) FROM "{}"."{}";'.format(column, schema_name, table_name))
+                'SELECT ' + function + '( {} ) FROM {}.{};'.format(*_ci(column, schema_name, table_name)))
             stat = rows.first()[0]
             if not stat:
                 stat = 0
@@ -1094,12 +1095,10 @@ class DataLoader:
         """" calculate most common value of a  column """
         try:
             schema_name = 'schema-' + str(schema_id)
-            rows = db.engine.execute('SELECT "{}", COUNT(*) AS counted '
-                                     'FROM "{}"."{}" '
-                                     'WHERE "{}" IS NOT NULL '
-                                     'GROUP BY "{}" '
-                                     'ORDER BY counted DESC, "{}" '
-                                     'LIMIT 1;'.format(column, schema_name, table_name, column, column, column))
+            rows = db.engine.execute(
+                'SELECT {}, COUNT(*) AS counted FROM {}.{} WHERE {} IS NOT NULL GROUP BY {} ORDER BY counted DESC, {} LIMIT 1;'.format(
+                    *_ci(column, schema_name, table_name, column, column, column)))
+
             value = None
             for x in rows:
                 value = x[0]
@@ -1115,8 +1114,8 @@ class DataLoader:
         try:
             schema_name = 'schema-' + str(schema_id)
             rows = db.engine.execute('SELECT COUNT(*) AS counted '
-                                     'FROM "{}"."{}" '
-                                     'WHERE "{}" IS NULL;'.format(schema_name, table_name, column))
+                                     'FROM {}.{} '
+                                     'WHERE {} IS NULL;'.format(*_ci(schema_name, table_name, column)))
             value = None
             for x in rows:
                 value = x[0]

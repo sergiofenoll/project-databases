@@ -96,7 +96,7 @@ def user_data():
             user_obj = User(current_user.username, password, fname, lname, email, current_user.status,
                             current_user.is_active)
             user_data_access.alter_user(user_obj)
-            flash(u"User data has been updated!", 'succes')
+            flash(u"User data has been updated!", 'success')
         except:
             flash(u"User data couldn't be updated!", 'danger')
         return render_template('user_service/user-data.html')

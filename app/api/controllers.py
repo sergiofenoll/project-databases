@@ -230,7 +230,7 @@ def update_table_metadata(dataset_id):
         active_user_handler.make_user_active_in_dataset(dataset_id, current_user.username)
         old_table_name = request.args.get('t-old-name')
         new_table_name = request.args.get('t-name').replace('"', '')
-        if not len(new_table_name) or new_table_name == old_table_name:
+        if not len(new_table_name):
             raise Exception('Could not rename table')
         new_desc = request.args.get('t-desc')
         data_loader.update_table_metadata(dataset_id, old_table_name, new_table_name, new_desc)

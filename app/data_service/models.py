@@ -302,7 +302,7 @@ class DataLoader:
                 query += 'id serial primary key'  # Since we don't know what the actual primary key should be, just assign an id
 
                 for column in columns:
-                    query = query + ', \n\"' + column + '\" varchar(255)'
+                    query = query + ', \n\"' + column.replace('"', '') + '\" varchar(255)'
                 query += '\n);'
 
                 raw_table_query = query.format(*_ci(schema_name, raw_table_name))
@@ -1258,7 +1258,6 @@ class DataLoader:
             query = 'DELETE FROM Backups WHERE id_dataset = {} AND backup_name = {};'.format(
                 *_cv(schema_name, backup_name))
             connection.execute(query)
-            history.log_action(schema_id, table_name, datetime.now(), "Deleted backup {}.".format(timestamp))
 
             query = 'DROP TABLE IF EXISTS {}.{};'.format(
                 *_ci(schema_name, backup_name))
